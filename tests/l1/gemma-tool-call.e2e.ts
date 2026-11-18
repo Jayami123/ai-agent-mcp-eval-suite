@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { getAdapter, type AuthSession, type ProductAdapter } from "qa-portfolio-harness";
 
 // L1 smoke: a real model (Gemma through LiteLLM alias p4-nightly) calls one real Twenty MCP tool.
@@ -15,9 +16,13 @@ const MODEL_ALIAS = "p4-nightly";
 const MAX_TURNS = 4;
 // Exact Twenty MCP tool name, from the real tools/list. Pinned, no pattern matching.
 const TWENTY_LIST_TOOL_NAME = "list_object_metadata_names";
-// Bounded retry on 429 or RESOURCE_EXHAUSTED: waits before retry 1 and retry 2. No pacer in the suite.
-// After the last retry still rate-limited, the run records `partial`. The wait values are a chosen bound.
+// Rate limits (429 or RESOURCE_EXHAUSTED): retry after 15 s, then 45 s. Still limited = partial.
 const RETRY_DELAYS_MS = [15_000, 45_000];
+// A Google-side overload (503 whose body says UNAVAILABLE or overloaded) gets one retry after 30 s. Any other 503 = fail.
+const OVERLOAD_RETRY_MS = 30_000;
+const READY_TIMEOUT_MS = 180_000;
+const READY_POLL_MS = 5_000;
+const LOG_TAIL_LINES = 400;
 const REQUEST_TIMEOUT_MS = 120_000;
 const MCP_PROTOCOL_VERSION = "2025-03-26";
 const DID_NOT_COMPLETE = "run did not complete";
@@ -42,10 +47,12 @@ interface E2eRecord {
   model: string;
   listTool: string;
   toolNames: string[];
+  modelListed: boolean | null;
   turns: number;
   trajectory: TrajectoryStep[];
   httpStatuses: number[];
   finishReasons: string[];
+  providerErrorExcerpt: string | null;
   stateCheck: string;
   reason: string;
 }
@@ -58,10 +65,56 @@ function evidenceDir(id: string): string {
   return path.resolve(process.cwd(), "evidence", "nightly", id);
 }
 
-function writeRecord(rec: E2eRecord): void {
-  const dir = evidenceDir(rec.runId);
+function writeEvidence(id: string, name: string, text: string): void {
+  const dir = evidenceDir(id);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "record.json"), `${JSON.stringify(rec, null, 2)}\n`);
+  fs.writeFileSync(path.join(dir, name), text);
+}
+
+function writeRecord(rec: E2eRecord): void {
+  writeEvidence(rec.runId, "record.json", `${JSON.stringify(rec, null, 2)}\n`);
+}
+
+/** Removes known secret values and common key and token shapes before anything is written to evidence. */
+function redact(text: string, secrets: string[]): string {
+  let out = text;
+  for (const secret of secrets) {
+    if (secret.length >= 8) out = out.split(secret).join("[REDACTED]");
+  }
+  return out
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[REDACTED]")
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, "[REDACTED]")
+    .replace(/Bearer\s+[^\s"',}]+/gi, "Bearer [REDACTED]");
+}
+
+function secretsInUse(session: AuthSession | undefined): string[] {
+  const values = [process.env["GEMINI_API_KEY"], process.env["LITELLM_MASTER_KEY"], session?.authorizationHeader];
+  return values.filter((v): v is string => typeof v === "string" && v.length > 0);
+}
+
+/** LiteLLM container logs, tail only, redacted. Written even when the run failed. Never throws. */
+function collectLitellmLogs(id: string, secrets: string[]): void {
+  try {
+    const ps = spawnSync("docker", ["ps", "-a", "--filter", "name=litellm", "--format", "{{.Names}}"], {
+      encoding: "utf8",
+      timeout: 60_000,
+    });
+    const names = (ps.stdout ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
+    if (names.length === 0) {
+      writeEvidence(id, "litellm-logs.txt", "no litellm container found\n");
+      return;
+    }
+    for (const name of names) {
+      const logs = spawnSync("docker", ["logs", "--tail", String(LOG_TAIL_LINES), name], {
+        encoding: "utf8",
+        timeout: 60_000,
+      });
+      const text = `${logs.stdout ?? ""}${logs.stderr ?? ""}`;
+      writeEvidence(id, `litellm-${name.replace(/[^A-Za-z0-9_.-]/g, "_")}.log`, `${redact(text, secrets)}\n`);
+    }
+  } catch (err) {
+    writeEvidence(id, "litellm-logs.txt", `log collection failed: ${redact((err as Error).message, secrets)}\n`);
+  }
 }
 
 /** The MCP credential is written by the harness to the Twenty run-state file. It is read here and never printed. */
@@ -213,8 +266,11 @@ interface ChatBody {
 
 interface ChatResult {
   status: number;
+  text: string;
   body: ChatBody | null;
 }
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 async function chatOnce(session: AuthSession, messages: unknown[], tools: unknown[]): Promise<ChatResult> {
   const res = await fetch(`${session.baseUrl}/v1/chat/completions`, {
@@ -230,20 +286,59 @@ async function chatOnce(session: AuthSession, messages: unknown[], tools: unknow
   } catch {
     body = null;
   }
-  return { status: res.status, body };
+  return { status: res.status, text, body };
 }
 
 function isRateLimited(result: ChatResult): boolean {
-  return result.status === 429 || Boolean(result.body?.error?.message?.includes("RESOURCE_EXHAUSTED"));
+  return result.status === 429 || result.text.includes("RESOURCE_EXHAUSTED");
 }
 
-/** Retries only on rate limits, with the bounded delays above. Returns the last result. */
+function isGoogleOverload(result: ChatResult): boolean {
+  return result.status === 503 && /UNAVAILABLE|overloaded/i.test(result.text);
+}
+
+/** Waits for LiteLLM readiness before the first model call. Times out as a fail. */
+async function waitReady(session: AuthSession, rec: E2eRecord): Promise<void> {
+  const deadline = Date.now() + READY_TIMEOUT_MS;
+  let last = "no response";
+  while (Date.now() < deadline) {
+    try {
+      const r = await fetch(`${session.baseUrl}/health/readiness`, { signal: AbortSignal.timeout(10_000) });
+      last = `HTTP ${r.status}`;
+      if (r.status === 200) return;
+    } catch (err) {
+      last = (err as Error).name;
+    }
+    await sleep(READY_POLL_MS);
+  }
+  rec.status = "fail";
+  rec.reason = `LITELLM_NOT_READY: /health/readiness did not return 200 (last: ${last})`;
+  throw new Error(rec.reason);
+}
+
+/** Checks that the p4-nightly alias is listed by GET /v1/models. No model call. */
+async function checkModelListed(session: AuthSession): Promise<boolean> {
+  const r = await fetch(`${session.baseUrl}/v1/models`, {
+    headers: { authorization: session.authorizationHeader },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!r.ok) throw new Error(`MODELS_HTTP_${r.status}`);
+  const body = (await r.json()) as { data?: Array<{ id?: string }> };
+  return (body.data ?? []).some((m) => m.id === MODEL_ALIAS);
+}
+
+/** Bounded retries: rate limits (15 s, 45 s) and a single Google-side overload (30 s). */
 async function chatWithRetry(session: AuthSession, messages: unknown[], tools: unknown[], rec: E2eRecord): Promise<ChatResult> {
   let result = await chatOnce(session, messages, tools);
   rec.httpStatuses.push(result.status);
   for (const delay of RETRY_DELAYS_MS) {
     if (!isRateLimited(result)) break;
-    await new Promise((r) => setTimeout(r, delay));
+    await sleep(delay);
+    result = await chatOnce(session, messages, tools);
+    rec.httpStatuses.push(result.status);
+  }
+  if (isGoogleOverload(result)) {
+    await sleep(OVERLOAD_RETRY_MS);
     result = await chatOnce(session, messages, tools);
     rec.httpStatuses.push(result.status);
   }
@@ -254,7 +349,7 @@ test(
   "L1 smoke: Gemma calls list_object_metadata_names through p4-nightly",
   {
     skip: ENABLED ? false : "requires P4_LLM_MODE=nightly and GEMINI_API_KEY (nightly workflow only)",
-    timeout: 15 * 60_000,
+    timeout: 20 * 60_000,
   },
   async () => {
     const id = runId();
@@ -264,10 +359,12 @@ test(
       model: MODEL_ALIAS,
       listTool: TWENTY_LIST_TOOL_NAME,
       toolNames: [],
+      modelListed: null,
       turns: 0,
       trajectory: [],
       httpStatuses: [],
       finishReasons: [],
+      providerErrorExcerpt: null,
       stateCheck: "not run",
       reason: DID_NOT_COMPLETE,
     };
@@ -275,13 +372,22 @@ test(
     process.env["TWENTY_MCP"] = "1";
     const twenty = getAdapter("twenty");
     const litellm = getAdapter("litellm");
+    let session: AuthSession | undefined;
     try {
       // The harness owns start and stop. The test only asks it to bring the products up.
       await twenty.up();
       if (!twenty.waitMcp) throw new Error("TWENTY_ADAPTER_NO_MCP: harness Twenty adapter has no waitMcp");
       await twenty.waitMcp();
       await litellm.up();
-      const session = await litellm.authenticate();
+      session = await litellm.authenticate();
+
+      await waitReady(session, rec);
+      rec.modelListed = await checkModelListed(session);
+      if (!rec.modelListed) {
+        rec.status = "fail";
+        rec.reason = `${MODEL_ALIAS} is not listed by GET /v1/models`;
+        throw new Error(rec.reason);
+      }
 
       const mcp = readTwentyMcp(twenty);
       const ctx: McpCtx = { url: mcp.url, authorization: mcp.authorization, nextId: 1 };
@@ -295,9 +401,7 @@ test(
         },
       ];
 
-      const messages: unknown[] = [
-        { role: "user", content: `Call the tool ${listTool.name} once, then stop.` },
-      ];
+      const messages: unknown[] = [{ role: "user", content: `Call the tool ${listTool.name} once, then stop.` }];
 
       // Set when the loop stops on a non-assertion outcome (plan section 8.6).
       let stopped: Status | null = null;
@@ -308,12 +412,16 @@ test(
 
         if (isRateLimited(result)) {
           stopped = "partial";
-          rec.reason = `rate limited at turn ${turn} after ${RETRY_DELAYS_MS.length} retries (last HTTP ${result.status})`;
+          rec.reason = `rate limited at turn ${turn} after retries (last HTTP ${result.status})`;
           break;
         }
         if (result.status !== 200 || !result.body) {
-          stopped = "partial";
-          rec.reason = `provider HTTP ${result.status} at turn ${turn}; run stopped early`;
+          // Any other provider error is a fail. The body is kept as redacted evidence.
+          const secrets = secretsInUse(session);
+          rec.providerErrorExcerpt = redact(result.text, secrets).slice(0, 500);
+          writeEvidence(id, `provider-${result.status}-body.txt`, `${redact(result.text, secrets)}\n`);
+          stopped = "fail";
+          rec.reason = `provider HTTP ${result.status} at turn ${turn} (not a rate limit): see provider-${result.status}-body.txt`;
           break;
         }
         const choice = result.body.choices?.[0];
@@ -353,10 +461,9 @@ test(
       if (stopped !== null) {
         rec.status = stopped;
         if (stopped === "finding:gemma-tool-calling") {
-          const dir = evidenceDir(id);
-          fs.mkdirSync(dir, { recursive: true });
-          fs.writeFileSync(
-            path.join(dir, "finding-gemma-tool-calling.md"),
+          writeEvidence(
+            id,
+            "finding-gemma-tool-calling.md",
             [
               "# Finding: Gemma did not return tool_calls",
               "",
@@ -368,6 +475,7 @@ test(
           );
         }
         writeRecord(rec);
+        if (stopped === "fail") assert.fail(rec.reason);
         return;
       }
 
@@ -388,10 +496,8 @@ test(
 
       // Raw list output is kept as CI evidence (object names only; no credentials). Used to verify the expectations.
       if (listResult) {
-        const dir = evidenceDir(id);
-        fs.mkdirSync(dir, { recursive: true });
         const text = (listResult.content ?? []).map((c) => c.text ?? "").join("\n");
-        fs.writeFileSync(path.join(dir, "twenty-list-output.txt"), `${text}\n`);
+        writeEvidence(id, "twenty-list-output.txt", `${redact(text, secretsInUse(session))}\n`);
       }
 
       const state = checkSeededState(listResult);
@@ -414,11 +520,13 @@ test(
       writeRecord(rec);
     } catch (err) {
       if (rec.reason === DID_NOT_COMPLETE) {
-        rec.reason = `run error before completion: ${(err as Error).message}`;
+        rec.reason = `run error before completion: ${redact((err as Error).message, secretsInUse(session))}`;
       }
       writeRecord(rec);
       throw err;
     } finally {
+      // Logs are collected before LiteLLM is brought down, so they exist even when the run failed.
+      collectLitellmLogs(id, secretsInUse(session));
       await litellm.down().catch((e: unknown) => console.error(`litellm down failed: ${(e as Error).message}`));
       await twenty.down().catch((e: unknown) => console.error(`twenty down failed: ${(e as Error).message}`));
     }
