@@ -1,0 +1,47 @@
+import { spawn } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fail, pass } from "../../../src/oracles/verdict.js";
+import { redact, writeEvidence } from "../../l1/evidence.js";
+import { l3Case } from "../support/case.js";
+import { startAuthProxy } from "../support/auth-proxy.js";
+import { runtime } from "../support/runtime.js";
+
+// The official conformance suite, pinned in package.json (exact version). A failure that is not in the committed baseline
+// is a regression (exit 1). Baselined failures are recorded in tests/l3/snapshots/expected-failures/<server>.yaml.
+const BIN = path.resolve(process.cwd(), "node_modules", ".bin", "conformance");
+const SPEC_VERSION = "2026-07-28";
+
+l3Case("P4-MCP-PROT-001", "the conformance suite exits 0 against the committed expected-failures baseline", async (ctx) => {
+  const rt = runtime();
+  for (const server of rt.servers) {
+    const { url, authorization } = rt.stack.mcp(server);
+    const baseline = path.resolve(process.cwd(), "tests", "l3", "snapshots", "expected-failures", `${server}.yaml`);
+    const out = path.resolve(process.cwd(), "evidence", rt.dir, `conformance-${server}`);
+    // The CLI cannot send a header, so it talks to a loopback proxy that adds the credential.
+    const proxy = await startAuthProxy(url, authorization);
+    const args = ["server", "--url", proxy.url, "--spec-version", SPEC_VERSION, "--output-dir", out];
+    if (fs.existsSync(baseline)) args.push("--expected-failures", baseline);
+    // spawnSync would block the event loop and starve the proxy, so the CLI runs through an async spawn.
+    const res = await run(BIN, args);
+    await proxy.close();
+    const text = redact(`${res.stdout}${res.stderr}`, authorization ? [authorization] : []);
+    writeEvidence(rt.dir, `conformance-${server}.txt`, text);
+    ctx.check(res.status === 0 ? pass(`${server}: conformance exit 0 (baseline ${fs.existsSync(baseline) ? "present" : "absent"})`) : fail(`${server}: conformance exit ${String(res.status)} (baseline ${fs.existsSync(baseline) ? "present" : "absent"}); see evidence`));
+  }
+});
+
+function run(cmd: string, args: string[]): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
+    child.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
+    const timer = setTimeout(() => child.kill("SIGKILL"), 20 * 60_000);
+    child.on("close", (status) => {
+      clearTimeout(timer);
+      resolve({ status, stdout, stderr });
+    });
+  });
+}
