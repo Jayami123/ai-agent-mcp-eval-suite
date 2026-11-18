@@ -1,3 +1,4 @@
+import { createThrottle, QuotaExhaustedError, type SliceDeps } from "../../../src/stats/index.js";
 import type { TrialRecord } from "../../../src/stats/index.js";
 import type { TrialStatus } from "../../../src/stats/index.js";
 
@@ -38,4 +39,34 @@ export function trials(
     for (let i = 0; i < n; i++) out.push(trial({ caseId, k, trial: out.length, status, ...over }));
   }
   return out;
+}
+
+// ---- slice runner fakes ----
+
+export type Scripted = "pass" | "fail" | "blocked" | "quota" | "boom";
+
+/** A runner that follows a script of outcomes, one per trial, and a fake clock that never really waits. */
+export function fakeDeps(script: Scripted[], over: { tokens?: number } = {}): { deps: SliceDeps; waits: number[]; calls: string[] } {
+  const waits: number[] = [];
+  const calls: string[] = [];
+  let now = 0;
+  let step = 0;
+  const deps: SliceDeps = {
+    async runTrial(caseId, t) {
+      calls.push(`${caseId}#${t}`);
+      const outcome = script[step++] ?? "pass";
+      if (outcome === "quota") throw new QuotaExhaustedError("429 after retries");
+      if (outcome === "boom") throw new Error("boom");
+      const status = outcome === "blocked" ? "blocked by provider" : outcome;
+      return trial({ caseId, trial: t, k: 2, status, usage: { promptTokens: over.tokens ?? 0, completionTokens: 0, latencyMs: 1 } });
+    },
+    throttle: createThrottle(),
+    nowMs: () => now,
+    sleep: async (ms) => {
+      waits.push(ms);
+      now += ms;
+    },
+    partialRecord: (caseId, t) => trial({ caseId, trial: t, k: 2, status: "partial", model: { alias: "p4-stub", servedId: "" } }),
+  };
+  return { deps, waits, calls };
 }

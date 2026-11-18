@@ -10,3 +10,5 @@ export * from "./determinism.js";
 export * from "./judge.js";
 export * from "./quarantine.js";
 export * from "./quarantine-list.js";
+export * from "./throttle.js";
+export * from "./slice.js";
