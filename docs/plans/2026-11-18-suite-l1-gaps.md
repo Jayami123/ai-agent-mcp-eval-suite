@@ -9,7 +9,7 @@ Branch: `feat/2026-11-18-suite-l1-gaps`. Builds on `docs/plans/2026-11-18-suite-
 |---|---|---|---|
 | 1. LibreChat stub tool call | `tests/l1/librechat-stub-tool-call.e2e.ts` | LibreChat agent, LiteLLM `p4-stub`, stub container, back through LibreChat to the Twenty MCP tool `list_object_metadata_names` | PR job `l1 librechat stub` (no secrets) |
 | 2. Gemma through LibreChat | `tests/l1/gemma-tool-call.e2e.ts` (rewritten) | LibreChat agent, LiteLLM `p4-nightly`, Gemma, Twenty MCP | nightly workflow only |
-| 3. OpenClaw stub call | `tests/l1/openclaw-stub-tool-call.e2e.ts` | harness `runTask` (`POST /v1/responses`), LiteLLM `p4-stub`, stub container | Skipped by name: blocked by a harness primitive, see `docs/findings/l1-openclaw-stub-call.md`. No CI job until unblocked |
+| 3. OpenClaw stub call | `tests/l1/openclaw-stub-tool-call.e2e.ts` | harness `runTask` (`POST /v1/responses`), LiteLLM `p4-stub`, stub container | PR job `l1 openclaw stub` (no secrets). Needed harness 0.6.3, see `docs/findings/l1-openclaw-stub-call.md` |
 
 ## Design
 

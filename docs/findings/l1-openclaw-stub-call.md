@@ -1,52 +1,40 @@
-# Finding: the OpenClaw stub call is blocked by one harness primitive
+# Finding: the OpenClaw stub call was blocked by one harness primitive (resolved)
 
-Gap 3 of the L1 acceptance list needs one benign stub-driven tool call through OpenClaw, with the trace asserted.
-Status: **blocked**, with a named missing primitive. The test `tests/l1/openclaw-stub-tool-call.e2e.ts` is written and is
-skipped with the blocker text (never a silent pass).
+Gap 3 of the L1 acceptance list: one benign stub-driven tool call through OpenClaw, with the trace asserted.
 
-## What works (verified in CI run 44322429635 on commit `ccdf100`)
+**Status: resolved.** Harness 0.6.3 added the missing primitive, and the test now runs in PR CI.
 
-With harness `9f93892` (0.6.2 content): LiteLLM starts with `P4_STUB_API_BASE` pointing at the stub container, OpenClaw
-starts with `OPENCLAW_RESPONSES_API=1`, `runTask()` reaches `POST /v1/responses`, the gateway calls LiteLLM, and LiteLLM
-calls the stub twice (two `POST /v1/chat/completions -> 200` in the stub log).
+- Test: `tests/l1/openclaw-stub-tool-call.e2e.ts`. PR CI job: `l1 openclaw stub`.
+- Fix: `qa-portfolio-harness` PR 65, merge commit `4650a17888564d8296fb69e0cf640b33b44bd7df`, released as tag `v0.6.3`. The
+  suite pins `#v0.6.3`.
+- Verified in [run 44336471743](https://github.com/Jayami123/ai-agent-mcp-eval-suite/actions/runs/44336471743), job
+  `l1 openclaw stub` ([job 134914449853](https://github.com/Jayami123/ai-agent-mcp-eval-suite/actions/runs/44336471743/job/134914449853)),
+  commit `7d02ce66a04325d4152bb3fe4138352d53d1b565`, success. The evidence from that run shows:
+  - the stub's first request (fixture `smoke-search-001`, turn 0) offered `search_records` among the tools OpenClaw sent the
+    model, directly and not through Tool Search;
+  - the stub answered with `search_records` and `{"limit":5,"query":"fake-alpha"}`;
+  - OpenClaw's `/v1/responses` returned HTTP 200 with one `function_call` to `search_records` with the same arguments;
+  - the stub saw no second request, so OpenClaw did not try to run the call itself.
 
-## What fails
+## What was wrong
 
-`runTask()` throws `OPENCLAW_RUN_FAILED: POST /v1/responses returned HTTP 502`.
-
-The stub's recorder shows why. Request 1 (fixture `smoke-search-001`, turn 0) offered the model only OpenClaw's own
-tools: `apply_patch, dispatch_action, edit, exec, heartbeat_respond, ls, message, openclaw, process, read,
-sessions_yield, tool_describe, tool_search, write`. The client tool `search_records` was not among them. The stub answered
-with a call to `search_records`. OpenClaw replied to the model with the tool result `Tool search_records not found`
-(request 2, turn 1). The run then ended with text and no pending client tool call, so the gateway applied
-`tool_choice: required` and returned 502.
+With harness 0.6.2, `runTask()` threw `OPENCLAW_RUN_FAILED: POST /v1/responses returned HTTP 502` (CI run 44322429635 on
+commit `ccdf100`). The stub's recorder showed why: OpenClaw offered the model only its own built-in tools, not the client tool
+`search_records`. The stub answered with a call to `search_records`, OpenClaw replied `Tool search_records not found`, and the
+run ended with text and no pending client tool call, so `tool_choice: required` produced the 502.
 
 ## Cause
 
-OpenClaw 2026.10.33 enables Tool Search by default. Tool Search compacts the catalog, and client function tools are
-hidden behind `tool_search`, `tool_describe` and `dispatch_action` instead of being sent to the model as direct schemas.
-The pinned docs (`docs/tools/tool-search.md` in the `openclaw@2026.10.33` npm package) say: "Set `tools.toolSearch:
-false` to restore direct schemas."
+OpenClaw 2026.10.33 enables Tool Search by default. Tool Search compacts the catalog and hides client function tools behind
+`tool_search`, `tool_describe` and `dispatch_action`. The pinned docs (`docs/tools/tool-search.md` in the
+`openclaw@2026.10.33` npm package) say: "Set `tools.toolSearch: false` to restore direct schemas."
 
-## Missing primitive (exact)
+## The primitive that was missing
 
-The harness writes the gateway config in `openClawConfig()` (`src/adapters/openclaw-env.ts`) with no `tools.toolSearch`
-key. When `OPENCLAW_RESPONSES_API=1`, it must also write:
+The harness wrote the gateway config with no `tools.toolSearch` key. From 0.6.3, `openClawConfig()` writes
+`tools.toolSearch: false` when `OPENCLAW_RESPONSES_API=1` and leaves the config unchanged otherwise.
 
-```json
-{ "tools": { "toolSearch": false } }
-```
+## Not done
 
-merged with the existing `tools.exec` block, so client function tools reach the model as direct schemas. This is a
-harness change (a 0.6.3 patch) plus a unit test. The suite cannot do it: it must not edit the harness or write the
-gateway config itself.
-
-## To unblock
-
-1. Harness PR: add `tools.toolSearch: false` to `openClawConfig()` when `responsesApi` is true, with a unit test.
-2. The owner tags it. The suite repins.
-3. In the suite, delete `BLOCKER` in `tests/l1/openclaw-stub-tool-call.e2e.ts` and restore the `l1 openclaw stub` job (see
-   the removed block in the history of `.github/workflows/pr.yml`).
-
-Not tried: driving the call through `tool_search`, `tool_describe` and `dispatch_action` with a longer fixture. That
-would test OpenClaw's catalog path, not a plain client tool call, and it was not asked for.
+Driving the call through `tool_search`, `tool_describe` and `dispatch_action` with a longer fixture. That would test
+OpenClaw's catalog path, not a plain client tool call, and it was not asked for.

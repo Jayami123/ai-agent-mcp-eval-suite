@@ -21,13 +21,13 @@
     "test:stack:openclaw": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 dist-test/tests/l1/openclaw-stub-tool-call.e2e.js"
   },
   "dependencies": {
-    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.2"
+    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.3"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2"
   },
   "allowScripts": {
-    "github:Jayami123/qa-portfolio-harness#v0.6.2": true
+    "github:Jayami123/qa-portfolio-harness#v0.6.3": true
   }
 }

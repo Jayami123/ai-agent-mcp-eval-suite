@@ -10,22 +10,17 @@ import { readStubTrace, requireStubContainer, resetStubTrace, STUB_UPSTREAM_URL,
 // container. The tool is a client-side function tool, so OpenClaw returns the call as a function_call item and executes
 // nothing. The fixture is chosen by the [fixture:<id>] marker in the task text (the X-P4-Fixture header does not pass
 // through OpenClaw). Stub mode only: no GEMINI_API_KEY, no secrets.
+// Needs harness 0.6.3: it writes tools.toolSearch=false, so OpenClaw offers the client tool to the model directly
+// (docs/findings/l1-openclaw-stub-call.md).
 
-// BLOCKED by a missing harness primitive (see docs/findings/l1-openclaw-stub-call.md): the harness OpenClaw config leaves
-// Tool Search on, which hides client function tools, so the model is never offered search_records. The harness must write
-// tools.toolSearch=false when OPENCLAW_RESPONSES_API=1. Until a harness tag does that, this test is skipped by name, not
-// passed. Remove BLOCKER (and repin the harness) to run it.
-const BLOCKER =
-  "BLOCKED: harness OpenClaw config lacks tools.toolSearch=false, so client tools are hidden behind Tool Search (docs/findings/l1-openclaw-stub-call.md)";
 const ENABLED = process.env["P4_STACK_TESTS"] === "1";
 const FIXTURE = "smoke-search-001";
 const EXPECTED = { name: "search_records", arguments: { query: "fake-alpha", limit: 5 } };
 
 test(
   "L1 stub: OpenClaw run returns the stub's tool call and the trace matches",
-  { skip: BLOCKER, timeout: 30 * 60_000 },
+  { skip: ENABLED ? false : "requires P4_STACK_TESTS=1 (PR CI stack job)", timeout: 30 * 60_000 },
   async () => {
-    assert.ok(ENABLED, "set P4_STACK_TESTS=1 to run this test once the blocker is removed");
     const dir = path.join("stack", `openclaw-stub-${runId()}`);
     process.env["P4_LLM_MODE"] = "stub";
     process.env["P4_STUB_API_BASE"] = STUB_UPSTREAM_URL;
@@ -71,7 +66,15 @@ test(
       writeEvidence(dir, "stub-trace.json", `${JSON.stringify(entries, null, 2)}\n`);
       const first = entries.find((e) => e.turn === 0);
       assert.ok(first, "the stub never received the first request for the fixture");
+      // The stub received search_records directly: it is in the tools OpenClaw offered the model, not hidden behind Tool Search.
+      assert.ok(first.toolsOffered.includes(EXPECTED.name), `search_records was not offered directly; offered: ${first.toolsOffered.join(", ")}`);
+      // The trace shows that call: the stub answered with it, with these arguments.
       assert.deepEqual(first.toolCalls, [EXPECTED]);
+      // OpenClaw handed the call back to the client. It did not try to run it itself ("Tool search_records not found").
+      assert.ok(
+        entries.every((e) => e.toolResults.every((r) => !/not found/i.test(r))),
+        "OpenClaw treated search_records as an unknown tool",
+      );
     } finally {
       await writeTraceEvidence(dir);
       collectContainerLogs(dir, ["litellm", "openclaw", "p4-suite-stub"], session ? [session.authorizationHeader.replace(/^Bearer\s+/i, "")] : []);
