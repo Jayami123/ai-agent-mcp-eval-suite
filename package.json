@@ -15,6 +15,9 @@
     "check": "npm run typecheck && npm test && npm run build",
     "stub": "node dist/stub/main.js"
   },
+  "dependencies": {
+    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.0"
+  },
   "devDependencies": {
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2"
