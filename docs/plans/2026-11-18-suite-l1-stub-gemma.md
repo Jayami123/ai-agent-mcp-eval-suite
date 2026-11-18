@@ -23,7 +23,7 @@ Labels used below:
 6. Never edit product forks: `https://github.com/Jayami123/openclaw` and `https://github.com/Jayami123/LibreChat` are reference only. LiteLLM is not forked.
 7. Ports bind to `127.0.0.1` only.
 8. Images are pinned by digest. GitHub Actions are pinned by full commit SHA.
-9. The harness (`qa-portfolio-harness`) owns product start and stop. Our tests never start or stop Cal, Documenso, Medusa, Twenty, LibreChat or LiteLLM themselves.
+9. The harness (`qa-portfolio-harness`) owns product start and stop. Our tests never start or stop the harness-owned products themselves: Nextcloud, Outline, Penpot, Mattermost, OpenClaw, LibreChat, Twenty, Cal, Documenso, Medusa, and LiteLLM (LiteLLM is run through the harness adapters).
 10. Fake data only. Never print secrets or tokens. Report real command output only.
 11. Do not implement or close L3, L4 or L5 cases in this lane. Do not invent case IDs.
 
@@ -50,15 +50,27 @@ Labels used below:
 
 ### 1.3 Dependency gate on B1
 
-B1 (LibreChat, OpenClaw and LiteLLM adapters in `qa-portfolio-harness`) must be merged and tagged first. Tasks T1–T6 below do **not** need the harness and can run now after approval. Tasks T7–T8 need the harness pin. Do not start T7 or T8 until the reviewer confirms a tag or SHA exists.
+B1 (LibreChat, OpenClaw and LiteLLM adapters in `qa-portfolio-harness`) must be merged and tagged first. Tasks T1–T7 do **not** need the harness. T8 (harness dependency) and T9 (Gemma e2e) need the pin. Do not start T8 until a B1 tag or SHA exists.
 
 ---
 
 ## 2. Case ledger
 
-- Ledger file: `p4-case-ledger.csv`. It is **not** in this repository and was **not found** in the local portfolio folder during planning. **UNVERIFIED** that its P4-STAT-001 row reads exactly as section 1.1 describes.
-- Check before T5: open the ledger, find the row whose ID is `P4-STAT-001`, and confirm its acceptance wording matches "same fixture, k repeated stub runs, byte-identical `tool_calls`". If the wording differs, stop and ask the reviewer. Do not change the test to fit a different wording.
-- No L1 case IDs exist in the ledger. Do not create any. The only ID this lane must satisfy is `P4-STAT-001`.
+- Ledger file: `p4-case-ledger.csv`. **VERIFIED** by the reviewer (not in this repository). The P4-STAT-001 row, pasted exactly:
+
+```
+id: P4-STAT-001
+title: Stub determinism: the same fixture always yields the same tool_calls
+product: Stub model + LiteLLM
+standard: ISTQB CT-AI v2.0 · oracle problem
+oracle: k repeated stub runs produce byte-identical tool-call traces for a fixed fixture. Any difference fails the PR gate.
+kind: core
+lane: L5
+family: STAT Oracle and statistics
+```
+
+- The planned k=5 determinism test matches this oracle. No stop-and-ask gate applies to T4.
+- Do not invent case IDs. The only ledger ID this lane must satisfy is `P4-STAT-001`. The row's `lane` field says `L5`; that is what the ledger records, so do not reassign it or implement any other case here.
 
 ---
 
@@ -87,9 +99,9 @@ ai-agent-mcp-eval-suite/
     smoke.test.ts               # from bootstrap
     l1/
       stub-determinism.test.ts  # T4: P4-STAT-001
-      gemma-tool-call.e2e.ts    # T8 (after B1 pin): skipped by default
+      gemma-tool-call.e2e.ts    # T9 (after T8 pin): skipped by default
   .gitattributes                # T0-fix (T1 commit): LF line endings
-  package.json                  # T3 adds "stub" script; T8 adds harness dep and "test:nightly"
+  package.json                  # T3 adds "stub" script; T8 adds harness dep; T9 adds "test:nightly"
   tsconfig.json                 # from bootstrap
   tsconfig.test.json            # from bootstrap
 ```
@@ -105,7 +117,7 @@ Notes:
 | # | Decision | Why | Alternative considered |
 |---|---|---|---|
 | D1 | Stub is a plain `node:http` server with no framework. | Smallest surface; no new dependency; easy to read. | Express/Fastify: adds dependencies for two routes. |
-| D2 | Fixture id is carried in the **request messages**, as a marker `[fixture:<id>]` in any message's `content`. | Messages survive a LiteLLM proxy hop unchanged. The `model` field is set by LiteLLM's alias and the `user`/`metadata` fields are not guaranteed to pass through. | A custom header: many proxies drop custom headers. A `model` name per fixture: needs one LiteLLM alias per fixture. **Open question Q1.** |
+| D2 | **Primary selector: the request header `X-P4-Fixture: <id>`** (Node receives it as `x-p4-fixture`). **Fallback:** a marker `[fixture:<id>]` in a message's `content`, used only when the header is absent. Reviewer answer to Q1. | The header is clean and is not part of the conversation. The marker is a fallback for proxies that drop custom headers. Canonical traces and P4-STAT-001 assertions use `tool_calls` only, never message text. Recorded user-message fields have any marker stripped before an artifact is written (`stripFixtureMarkers`). The Gemma path never uses a marker. | A `model` name per fixture: needs one LiteLLM alias per fixture. |
 | D3 | Multi-turn fixtures use a `turns` array. The turn index equals the number of `role: "tool"` messages in the request. | Deterministic, stateless server: no session memory is needed. Repeated identical requests get identical answers. | Server-side session state: makes determinism depend on request order. |
 | D4 | Streaming (`"stream": true`) is rejected with HTTP 400. | Keeps the byte-identical check simple. Real streaming is not needed for L1 stub. | Implementing SSE: more code, no L1 benefit. |
 | D5 | No new npm dependencies in T1–T5. Hand-written validation of fixtures. | Avoids supply-chain surface before the harness pin exists. | zod (the harness uses zod v4): fine later, not needed for L1 stub. |
@@ -131,7 +143,7 @@ Use an **npm git dependency** pinned to a tag or a full SHA:
 Rules:
 - Pin to a **tag** (for example `#v0.6.0`) when one exists. Use a full 40-character SHA only if no tag fits.
 - Never pin `main`. Never use a branch name.
-- Placeholder: until B1 is merged and tagged, the string `TBD-B1-PIN` is written **only in this plan**, never in `package.json`. `package.json` gets the dependency line in T7, after the reviewer confirms the real pin.
+- Placeholder: until B1 is merged and tagged, the string `TBD-B1-PIN` is written **only in this plan**, never in `package.json`. `package.json` gets the dependency line in **T8**, after a real B1 tag or SHA exists.
 
 Why this is the industry-standard option here:
 - P1, P5 and P6 already use this exact form, so the portfolio has one way to consume the harness (VERIFIED in their `package.json`).
@@ -145,7 +157,9 @@ Why this is the industry-standard option here:
 
 ### 5.3 Known cost of the npm git dependency (flagged)
 
-- The harness has `"prepare": "tsc"`. npm runs `prepare` when it installs a git dependency. So the harness must build during `npm ci`. **UNVERIFIED** that this works in this repo's CI. Check in T8: after adding the dependency, run `npm ci` from a clean clone and confirm `node_modules/qa-portfolio-harness/dist/index.js` exists.
+- Recorded (reviewer answer, R2): the harness (v0.5.1) has `"prepare": "tsc"`. `dist/` is gitignored in the harness, so a git-dependency install must build it. `typescript` is a harness devDependency, which is what lets `prepare` run. npm runs `prepare` on git installs, so `dist/index.js` is built during a normal `npm ci`.
+- Do **not** use `--ignore-scripts`. Doing so would skip the harness build.
+- T8 keeps the clean-clone check: after adding the dependency, run `npm ci` from a clean clone and confirm `node_modules/qa-portfolio-harness/dist/index.js` exists.
 
 ---
 
@@ -165,8 +179,9 @@ Errors (all JSON, all `Content-Type: application/json`):
 |---|---|---|
 | Body is not valid JSON | 400 | `request body is not valid JSON` |
 | `stream` is `true` | 400 | `streaming is not supported by the p4 stub` |
-| No `[fixture:<id>]` marker found | 400 | `no [fixture:<id>] marker in messages` |
-| More than one distinct marker id | 400 | `more than one fixture id in messages` |
+| Neither `X-P4-Fixture` header nor a marker found | 400 | `no fixture id in X-P4-Fixture header or [fixture:<id>] message marker` |
+| Header is present but empty or fails the id pattern | 400 | `invalid fixture id` |
+| No header, and more than one distinct marker id in messages | 400 | `more than one fixture id in messages` |
 | Fixture id fails the id pattern | 400 | `invalid fixture id` |
 | Fixture file does not exist | 404 | `unknown fixture id: <id>` |
 | Fixture file is invalid | 500 | `invalid fixture: <id>: <reason>` |
@@ -201,7 +216,17 @@ Rules for `turns`:
 - Each turn has **exactly one** of: `tool_calls` (non-empty array) or `content` (string).
 - `tool_calls[i].name` is a non-empty string. `arguments` is a JSON object.
 
-Example request that selects this fixture (fake content):
+Example request that selects this fixture (fake content). Primary: header.
+
+```
+POST /v1/chat/completions
+X-P4-Fixture: smoke-search-001
+Content-Type: application/json
+
+{"model":"p4-stub","messages":[{"role":"user","content":"Search for fake-alpha."}]}
+```
+
+Fallback (only when the header is absent; for proxies that drop headers):
 
 ```json
 {
@@ -297,6 +322,14 @@ export interface Fixture {
 
 export const FIXTURE_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
+/** Fallback marker. Global flag: use with matchAll. Never used for traces or assertions. */
+export const FIXTURE_MARKER = /\[fixture:([^\]]*)\]/g;
+
+/** Removes fixture markers from text before it is written to any recorded artifact. */
+export function stripFixtureMarkers(text: string): string {
+  return text.replace(FIXTURE_MARKER, "").trim();
+}
+
 export class FixtureNotFoundError extends Error {}
 export class FixtureInvalidError extends Error {}
 
@@ -352,7 +385,7 @@ export function validateFixture(raw: unknown, expectedId: string): Fixture {
 ```ts
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { canonicalJson } from "./canonical.js";
-import { FIXTURE_ID_PATTERN, FixtureInvalidError, FixtureNotFoundError, loadFixture, type Fixture } from "./fixtures.js";
+import { FIXTURE_ID_PATTERN, FIXTURE_MARKER, FixtureInvalidError, FixtureNotFoundError, loadFixture, type Fixture } from "./fixtures.js";
 
 export interface StubOptions {
   fixturesDir: string;
@@ -360,8 +393,8 @@ export interface StubOptions {
   port: number;
 }
 
-const MARKER = /\[fixture:([^\]]*)\]/g;
 const MAX_BODY_BYTES = 1024 * 1024;
+export const FIXTURE_HEADER = "x-p4-fixture"; // Node lowercases incoming header names
 
 export function createStubServer(opts: StubOptions): Server {
   return createServer((req, res) => {
@@ -400,20 +433,28 @@ async function handle(opts: StubOptions, req: IncomingMessage, res: ServerRespon
   }
 
   const messages = Array.isArray(body.messages) ? (body.messages as Array<Record<string, unknown>>) : [];
-  const ids = new Set<string>();
-  for (const message of messages) {
-    const content = typeof message["content"] === "string" ? message["content"] : "";
-    for (const match of content.matchAll(MARKER)) ids.add(match[1] ?? "");
+  const headerValue = req.headers[FIXTURE_HEADER];
+  let id: string;
+  if (headerValue !== undefined) {
+    // Primary selector. When the header is present, messages are not consulted.
+    id = typeof headerValue === "string" ? headerValue.trim() : "";
+  } else {
+    // Fallback only when the header is absent (some proxies drop custom headers).
+    const ids = new Set<string>();
+    for (const message of messages) {
+      const content = typeof message["content"] === "string" ? message["content"] : "";
+      for (const match of content.matchAll(FIXTURE_MARKER)) ids.add(match[1] ?? "");
+    }
+    if (ids.size === 0) {
+      sendJson(res, 400, { error: { message: "no fixture id in X-P4-Fixture header or [fixture:<id>] message marker" } });
+      return;
+    }
+    if (ids.size > 1) {
+      sendJson(res, 400, { error: { message: "more than one fixture id in messages" } });
+      return;
+    }
+    id = [...ids][0] ?? "";
   }
-  if (ids.size === 0) {
-    sendJson(res, 400, { error: { message: "no [fixture:<id>] marker in messages" } });
-    return;
-  }
-  if (ids.size > 1) {
-    sendJson(res, 400, { error: { message: "more than one fixture id in messages" } });
-    return;
-  }
-  const id = [...ids][0] ?? "";
   if (!FIXTURE_ID_PATTERN.test(id)) {
     sendJson(res, 400, { error: { message: "invalid fixture id" } });
     return;
@@ -552,10 +593,10 @@ const FIXTURES_DIR = path.resolve(process.cwd(), "src/stub/fixtures");
 async function postChat(port: number, fixtureId: string): Promise<string> {
   const res = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-p4-fixture": fixtureId },
     body: JSON.stringify({
       model: "p4-stub",
-      messages: [{ role: "user", content: `[fixture:${fixtureId}] run` }],
+      messages: [{ role: "user", content: "run" }],
     }),
   });
   assert.equal(res.status, 200);
@@ -590,7 +631,9 @@ Rules:
 - The test must fail if any byte differs. Do not normalise, trim or sort the traces to make them pass.
 - Do not add retries. A flaky determinism test is a real failure.
 
-### 8.2 Gemma e2e skeleton: `tests/l1/gemma-tool-call.e2e.ts` (written in T8, after B1)
+### 8.2 Gemma e2e skeleton: `tests/l1/gemma-tool-call.e2e.ts` (written in T9, after the T8 pin)
+
+Target product: **Twenty** (reviewer answer Q3). Reason: Part A verified Twenty MCP tool calling end to end (7 tools, scoped key). Outline tool calls are unverified (tools/list only), so Outline is not the first target. Do not switch to Cal or Documenso. The Gemma path never uses a fixture marker or fixture header.
 
 The file has this shape. Every import from the harness must use the exact names that B1 exports; read B1's README and `dist/index.d.ts` at the pinned tag. **Do not guess names.**
 
@@ -619,14 +662,17 @@ test(
 
 Notes:
 - `skip` with a reason string is how `node --test` reports skipped tests. The test does not run in `npm test` (stub mode) and does not run on `pull_request`.
-- The placeholder `assert.ok(true, ...)` must be replaced before T8 is merged. A placeholder assertion is not a pass. The reviewer must reject any PR that leaves it in.
+- The placeholder `assert.ok(true, ...)` must be replaced before T9 is merged. A placeholder assertion is not a pass. The reviewer must reject any PR that leaves it in.
 
 ### 8.3 Negative stub tests (add to T4 file, same describe block style)
 
 Add these as separate `test(...)` blocks in `tests/l1/stub-determinism.test.ts` or `tests/l1/stub-errors.test.ts`:
 - `GET /health` returns 200 and `{"status":"ok"}`.
-- Unknown id (`[fixture:does-not-exist]`) returns 404 with message `unknown fixture id: does-not-exist`.
-- Missing marker returns 400.
+- Unknown id (header `X-P4-Fixture: does-not-exist`) returns 404 with message `unknown fixture id: does-not-exist`.
+- Neither header nor marker returns 400.
+- Fallback: the same fixture selected by `[fixture:smoke-search-001]` in a message (no header) returns the same bytes as the header version.
+- Header wins: header `smoke-search-001` plus a message marker `[fixture:other]` returns the header fixture.
+- `stripFixtureMarkers("a [fixture:x] b")` returns `"a  b"` (the trim and double space are part of the spec; test it exactly).
 - `stream: true` returns 400.
 - Turn past the end returns 409 (use a fixture whose second request exceeds `turns`).
 - `server.address().address` equals `127.0.0.1`.
@@ -668,7 +714,8 @@ Check one fixture:
 ```bash
 curl -s http://127.0.0.1:4010/v1/chat/completions \
   -H 'content-type: application/json' \
-  -d '{"model":"p4-stub","messages":[{"role":"user","content":"[fixture:smoke-search-001] run"}]}'
+  -H 'x-p4-fixture: smoke-search-001' \
+  -d '{"model":"p4-stub","messages":[{"role":"user","content":"run"}]}'
 ```
 
 Expected: JSON with `"finish_reason":"tool_calls"` (keys in sorted order).
@@ -704,7 +751,7 @@ Every nightly run writes `evidence/nightly/<run-id>/record.json` with `status` s
 Rules:
 - **Gemma tool calling fails** (`finding:gemma-tool-calling`): write a finding and stop. Do not switch models. Do not retry with a different alias. Write the finding text to `docs/findings/l1-gemma-tool-calling.md` in a feat branch PR (the test cannot push). In CI, the finding is kept as an artifact and the job summary says so. **Open question Q4** on whether CI should open that PR itself (recommendation: no; a human commits the finding).
 - The test never writes to `main` and never edits the repo in CI.
-- Do not classify by string guessing alone. Use the HTTP status and the provider's `finish_reason` first. **UNVERIFIED** how LiteLLM surfaces Gemini safety blocks; check in T8 by reading a real LiteLLM response, and record what you saw.
+- Do not classify by string guessing alone. Use the HTTP status and the provider's `finish_reason` first. **UNVERIFIED** how LiteLLM surfaces Gemini safety blocks; check in T9 by reading a real LiteLLM response, and record what you saw.
 
 ### 8.7 Pacing for Gemma (rate limits)
 
@@ -712,7 +759,7 @@ Limits from the tracker (owner-supplied; **UNVERIFIED** against the provider's c
 
 Rules:
 - One Gemma request in flight at a time (`serialize heavy cases`).
-- A heavy turn is any request that carries `tools` or a long history. Before each heavy turn, wait at least **25 seconds** after the previous heavy turn ended. At 25 seconds the rate is about 2.4 heavy turns per minute, under the 30 RPM limit and inside the 16K TPM budget if a heavy turn is about 6K tokens. **UNVERIFIED** the 6K figure; measure it in T8 and adjust the constant if needed.
+- A heavy turn is any request that carries `tools` or a long history. Before each heavy turn, wait at least **25 seconds** after the previous heavy turn ended. At 25 seconds the rate is about 2.4 heavy turns per minute, under the 30 RPM limit and inside the 16K TPM budget if a heavy turn is about 6K tokens. **UNVERIFIED** the 6K figure; measure it in T9 and adjust the constant if needed.
 - Skeleton:
 
 ```ts
@@ -865,7 +912,7 @@ jobs:
 
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@<SHA-TO-PIN> # <version>   # see note
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-evidence-${{ github.run_id }}
           path: evidence/
@@ -874,7 +921,8 @@ jobs:
 ```
 
 Notes:
-- **Before merging T7**: look up the current `actions/upload-artifact` full commit SHA and version on GitHub, and replace the placeholder `<SHA-TO-PIN>`. Do not merge with the placeholder. **UNVERIFIED** until the SHA is looked up in T7.
+- The `actions/upload-artifact` pin is `cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2`, taken from `qa-portfolio-harness/.github/workflows/p4-adapters.yml` (VERIFIED at merge `059b582`). No placeholder is allowed in the merged workflow.
+- `nightly.yml` is added in T7 only. **Do not dispatch it** until T9 adds `npm run test:nightly`.
 - `LITELLM_MASTER_KEY` is generated per job, masked, and never printed. It is random for each job (per the spec).
 - The secret check runs before anything else that needs the key, so a missing key stops the job with a clear error and no other model is called.
 - The `npm run test:nightly` script is added in T9 (section 12): `"test:nightly": "tsc -p tsconfig.test.json && node --test dist-test/tests/l1/gemma-tool-call.e2e.js"`.
@@ -927,9 +975,9 @@ Each task ends with `npm run check` passing, then one commit, then a push to the
 | T4 | `test: add p4-stat-001 stub determinism check` | `tests/l1/stub-determinism.test.ts` exists (8.1); passes; was checked to fail when the fixture trace is deliberately changed locally (then reverted, not committed). |
 | T5 | (no commit) | Ledger check from section 2 is a precondition for T4. Record the real `npm test` output in the PR description instead. |
 | T6 | `ci: replace ci with pr stub workflow` | `.github/workflows/pr.yml` added, `ci.yml` deleted, `docs/branch-protection.md` check names updated. |
-| T7 | `ci: add nightly gemma workflow that fails closed` | `.github/workflows/nightly.yml` added with the upload SHA looked up (no placeholder left). Secret check step present. Not yet run with a secret. |
-| T8 | `chore: add qa-portfolio-harness dependency at pin` | **Gated on B1 tag or SHA.** Dependency added with the real pin; `npm ci` from clean clone works; `dist/index.js` present in the harness folder under `node_modules`. |
-| T9 | `test: add gemma tool-call e2e skipped by default` | **Gated on T8.** `tests/l1/gemma-tool-call.e2e.ts` written with B1's real names; placeholder assertion removed; `npm test` shows it skipped with the reason; `test:nightly` script added. |
+| T7 | `ci: add nightly gemma workflow that fails closed` | `.github/workflows/nightly.yml` added with the pinned upload-artifact SHA (`cf430e03…`, v7.0.2). Secret check step present. Not dispatched. Only `nightly.yml` changes in this commit. |
+| T8 | `chore: add qa-portfolio-harness dependency at pin` | **Gated on a B1 tag or SHA.** Dependency added with the real pin; clean-clone `npm ci` works; `dist/index.js` present under `node_modules/qa-portfolio-harness`. Do not use `--ignore-scripts`. |
+| T9 | `test: add gemma tool-call e2e skipped by default` | **Gated on T8.** `tests/l1/gemma-tool-call.e2e.ts` written with B1's real names; placeholder assertion removed; `npm test` shows it skipped with the reason; `test:nightly` script added. Only after this may `nightly.yml` be dispatched. |
 
 T5 note: the ledger-matching step in section 2 is a precondition for T4, not a commit.
 
@@ -955,18 +1003,19 @@ Between T6 and T7, the reviewer may ask for a check of the actual `pr` run on a 
 - **VERIFIED**: `npm run check` passes locally on this repo's bootstrap commit `9ec7a93` (Node v24.22.1, npm 11.19.1). Output showed `tests 1`, `pass 1`, `fail 0`.
 - **VERIFIED**: the CI pins in `.github/workflows/ci.yml` were copied from `qa-portfolio-harness` at the time of writing: `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1` and `actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0`.
 - **VERIFIED**: P1 uses `qa-portfolio-harness#v0.3.0`, P5 uses `#v0.5.1`, P6 uses `#v0.2.18` (their `package.json` files).
-- **VERIFIED**: the harness has tags including `v0.5.1`, and its `package.json` description lists products Cal, Documenso, Medusa and Twenty. Gemma e2e in section 8.2 therefore uses Twenty (not Outline, which the harness does not list).
+- **VERIFIED**: the harness has tags up to `v0.5.1`. Its `package.json` description lists Cal, Documenso, Medusa and Twenty. Its `main` branch at merge commit `059b582` (PR #60) also carries Nextcloud, Outline, Penpot and Mattermost adapters. The Gemma e2e uses Twenty first (reviewer answer Q3); Outline tool calls remain unverified.
+- **VERIFIED**: the harness has **no B1 tag** at the time of this commit (latest tag `v0.5.1`). T8 is therefore blocked.
 - **VERIFIED**: the bootstrap `ci.yml` runs `npm ci` and `npm run check` on pull requests.
 
 ### 14.2 Unverified items
 
 - **UNVERIFIED** R1 — P4-STAT-001 wording in `p4-case-ledger.csv`. The ledger is not in this repo and was not found locally. Check per section 2 before T4.
-- **UNVERIFIED** R2 — the harness `prepare` script runs during a git dependency install in this repo's CI (section 5.3). Check in T8.
+- **RESOLVED** R2 — the harness `prepare` script builds on a git-dependency install (section 5.3). Recorded from the harness `package.json`. The clean-clone check stays in T8.
 - **UNVERIFIED** R3 — Gemma model id `gemini/gemma-4-31b-it` is live and supports tool calling through LiteLLM. Check in T9 with one real request; record the result in the PR.
 - **UNVERIFIED** R4 — Gemma quotas (30 RPM, 16K TPM, 14,400 RPD) against the provider's current documentation. The numbers come from the tracker. Check before T7 and adjust section 8.7 if they differ.
 - **UNVERIFIED** R5 — how LiteLLM reports a Gemini safety block (section 8.6). Check in T9 by reading a real response.
 - **UNVERIFIED** R6 — Windows line endings. On the bootstrap commit, `git add` warned that LF would become CRLF in the Windows working copy for every file. The committed blobs are the LF versions written by the agent. Fixed in T1 with `.gitattributes`. Confirm with `git ls-files --eol` in T1 and record the output.
-- **UNVERIFIED** R7 — the `actions/upload-artifact` SHA (section 10.2). Look it up in T7 and pin it; do not leave the placeholder.
+- **RESOLVED** R7 — the `actions/upload-artifact` SHA is `cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2`, from the harness `p4-adapters.yml` (section 10.2).
 - **UNVERIFIED** R8 — the Docker registries the harness products need (section 11). Read the compose files at the pinned tag.
 - **UNVERIFIED** R9 — GitHub scheduled runs can start late under load. The 09:30 UTC start has a one-hour margin before the RPD window question matters. Acceptable; not a blocker.
 - **UNVERIFIED** R10 — the `node --test` skip output format (`skip` option with a reason). Confirm the exact skipped line in T9 by running it.
@@ -989,6 +1038,18 @@ Between T6 and T7, the reviewer may ask for a check of the actual `pr` run on a 
 - **Q8** — Nightly schedule: `30 9 * * *` UTC (recommended, D9). Confirm the owner is happy with 01:30 PST or 02:30 PDT as the start.
 
 ---
+
+### 14.5 Reviewer answers (recorded)
+
+- **Q1** — Resolved: header `X-P4-Fixture` first; `[fixture:<id>]` marker only when the header is absent (D2). Traces and P4-STAT-001 use `tool_calls` only. Recorded user-message fields are stripped with `stripFixtureMarkers`. No marker on the Gemma path.
+- **Q2** — Resolved: `pr.yml` replaces `ci.yml`. `ci.yml` is deleted in T6, and the required-check names in `docs/branch-protection.md` are updated in the same commit.
+- **Q3** — Resolved: Twenty is the first Gemma target (Part A verified Twenty MCP tool calling end to end, 7 tools, scoped key). Outline is in the harness (merge `059b582`, PR #60, with Nextcloud, Penpot, Mattermost) but its tool calls are unverified. Cal and Documenso are not used.
+- **Q4** — Resolved: a human commits any Gemma finding on a feat PR. CI does not open PRs.
+- **Q5** — Resolved: Node 20 and 22 matrix in `pr.yml`.
+- **Q6** — Open: LiteLLM image digest. Needed for B1 and T9, not for T1–T7.
+- **Q7** — Resolved: the P4-STAT-001 row is in section 2 (verified).
+- **Q8** — Resolved: cron `30 9 * * *` UTC.
+- Harness pin strategy and the `prepare` build are as in section 5 (R2 resolved).
 
 ## 15. Stop point
 
