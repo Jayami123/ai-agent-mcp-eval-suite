@@ -24,10 +24,22 @@ jobs:
     env:
       P4_LLM_MODE: nightly
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      PRODUCTS_ROOT: ${{ github.workspace }}/products
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+
+      # Twenty fork, read-only, pinned to the commit the harness v0.6.0 Twenty adapter uses (7cbdfec6, dev seeder).
+      # Never modified in this repo or in CI.
+      - name: Checkout Twenty fork (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Jayami123/twenty-CRM
+          ref: 7cbdfec6f346b43715bc2056932f4fad5886f733
+          path: products/twenty-CRM
+          fetch-depth: 1
           persist-credentials: false
 
       - name: Require GEMINI_API_KEY (fail closed)
@@ -52,6 +64,14 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      # The LiteLLM image pin (Q6) lives in the harness (src/adapters/litellm-env.ts at v0.6.0). Fail if it drifts.
+      - name: Assert LiteLLM digest matches the harness pin
+        run: |
+          set -euo pipefail
+          expected="ghcr.io/berriai/litellm:v1.110.0@sha256:4295b064b22eb88f9530e616afc812edd47048891ba64896bfc3fa74e2b883c3"
+          grep -F "${expected}" node_modules/qa-portfolio-harness/dist/adapters/litellm-env.js
+          echo "LiteLLM image pin matches the harness."
 
       - name: Gemma L1 smoke
         run: npm run test:nightly
