@@ -146,7 +146,11 @@ async function mcpHandshake(ctx: McpCtx): Promise<McpTool[]> {
 function pickListTool(tools: McpTool[]): McpTool {
   const candidates = tools.filter((t) => /(^|_)list(_|$)/i.test(t.name));
   if (candidates.length !== 1) {
-    throw new Error(`TWENTY_LIST_TOOL_NOT_UNIQUE: found ${candidates.length} candidates in ${tools.length} tools`);
+    // Tool names are product metadata, not secrets. Printed so the exact list tool can be chosen from the real list.
+    const names = candidates.map((t) => t.name).join(", ");
+    throw new Error(
+      `TWENTY_LIST_TOOL_NOT_UNIQUE: found ${candidates.length} candidates in ${tools.length} tools: [${names}]`,
+    );
   }
   return candidates[0] as McpTool;
 }
