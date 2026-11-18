@@ -159,6 +159,79 @@ function parseArgs(raw: string): unknown {
   }
 }
 
+interface McpCallResult {
+  content?: Array<{ type?: string; text?: string }>;
+  isError?: boolean;
+}
+
+interface SeedExpectation {
+  recordCount: number | null;
+  knownNames: string[];
+}
+
+type StateVerdict = { outcome: "pass" | "fail" | "unverified"; detail: string };
+
+const SEED_EXPECTED_FILE = path.resolve(process.cwd(), "tests", "l1", "twenty-seed.expected.json");
+
+function readSeedExpectation(): SeedExpectation {
+  const raw = JSON.parse(fs.readFileSync(SEED_EXPECTED_FILE, "utf8")) as Partial<SeedExpectation>;
+  return {
+    recordCount: typeof raw.recordCount === "number" ? raw.recordCount : null,
+    knownNames: Array.isArray(raw.knownNames) ? raw.knownNames.filter((n): n is string => typeof n === "string") : [],
+  };
+}
+
+/** First array of objects found in the parsed list result (top level, or one level down). */
+function findRecordArray(value: unknown, depth = 0): unknown[] | undefined {
+  if (Array.isArray(value) && value.length > 0 && value.every((v) => typeof v === "object" && v !== null)) {
+    return value;
+  }
+  if (depth >= 2 || typeof value !== "object" || value === null) return undefined;
+  for (const child of Object.values(value)) {
+    const found = findRecordArray(child, depth + 1);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/**
+ * Asserts the list tool's result against the seeded Twenty records: the record count and at least one
+ * known name. Expectations come from tests/l1/twenty-seed.expected.json, filled from a real seed run.
+ * Null or empty expectations are "unverified", which is never a pass.
+ */
+function checkSeededState(results: McpCallResult[]): StateVerdict {
+  const expected = readSeedExpectation();
+  if (expected.recordCount === null || expected.knownNames.length === 0) {
+    return { outcome: "unverified", detail: "tests/l1/twenty-seed.expected.json has no verified recordCount/knownNames" };
+  }
+  const last = results[results.length - 1];
+  if (!last) return { outcome: "fail", detail: "no successful list-tool result to check" };
+  if (last.isError) return { outcome: "fail", detail: "list-tool result has isError set" };
+  const text = (last.content ?? []).map((c) => c.text ?? "").join("\n");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    return { outcome: "fail", detail: "list-tool result text is not JSON" };
+  }
+  const records = findRecordArray(parsed);
+  if (!records) return { outcome: "fail", detail: "no record array in the list-tool result" };
+  if (records.length !== expected.recordCount) {
+    return {
+      outcome: "fail",
+      detail: `record count ${records.length} != expected ${expected.recordCount}`,
+    };
+  }
+  const missing = expected.knownNames.filter((name) => !text.includes(name));
+  if (missing.length > 0) {
+    return { outcome: "fail", detail: `known name(s) not in result: ${missing.length} missing` };
+  }
+  return {
+    outcome: "pass",
+    detail: `record count ${records.length} matches; ${expected.knownNames.length} known name(s) found`,
+  };
+}
+
 interface ChatBody {
   choices?: Array<{
     finish_reason?: string;
@@ -242,6 +315,7 @@ test(
 
       // Set when the loop stops on a non-assertion outcome (plan section 8.6).
       let stopped: Status | null = null;
+      const listResults: McpCallResult[] = [];
       for (let turn = 0; turn < MAX_TURNS && stopped === null; turn++) {
         await pacer.beforeHeavyTurn();
         const result = await chat(session, messages, llmTools);
@@ -282,8 +356,9 @@ test(
           rec.trajectory.push({ turn, name: call.function.name, arguments: args });
           ctx.nextId += 1;
           const out = (await mcpRequest(ctx, "tools/call", { name: call.function.name, arguments: args })) as
-            | { content?: unknown }
+            | McpCallResult
             | undefined;
+          if (call.function.name === listTool.name && out) listResults.push(out);
           messages.push({
             role: "tool",
             tool_call_id: call.id,
@@ -327,8 +402,23 @@ test(
         writeRecord(rec);
         assert.fail(rec.reason);
       }
+      const state = checkSeededState(listResults);
+      rec.stateCheck = state.detail;
+      if (state.outcome === "fail") {
+        rec.status = "fail";
+        rec.reason = `state check failed: ${state.detail}`;
+        writeRecord(rec);
+        assert.fail(rec.reason);
+      }
+      if (state.outcome === "unverified") {
+        // A pass must not mean only "the tool was called". Without verified expectations it is partial.
+        rec.status = "partial";
+        rec.reason = `Gemma called ${listTool.name}; state check unverified: ${state.detail}`;
+        writeRecord(rec);
+        return;
+      }
       rec.status = "pass";
-      rec.reason = `Gemma called ${listTool.name} ${listed.length} time(s); state check not run (see stateCheck)`;
+      rec.reason = `Gemma called ${listTool.name} ${listed.length} time(s); state check passed`;
       writeRecord(rec);
     } catch (err) {
       if (rec.reason === DID_NOT_COMPLETE) {

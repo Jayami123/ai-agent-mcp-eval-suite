@@ -1,0 +1,5 @@
+{
+  "_comment": "Fill recordCount and knownNames from a real Twenty seed run. null means unverified: the state check can never pass.",
+  "recordCount": null,
+  "knownNames": []
+}
