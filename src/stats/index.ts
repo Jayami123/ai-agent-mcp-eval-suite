@@ -7,3 +7,4 @@ export * from "./schema.js";
 export * from "./adapters.js";
 export * from "./passk.js";
 export * from "./determinism.js";
+export * from "./judge.js";
