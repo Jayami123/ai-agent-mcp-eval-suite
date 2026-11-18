@@ -1,0 +1,12 @@
+{
+  "id": "twenty-list-object-metadata-001",
+  "description": "Fake data only. LibreChat agent calls the Twenty list_object_metadata_names MCP tool once, then a final text turn. The tool name carries LibreChat's _mcp_<server> suffix.",
+  "turns": [
+    {
+      "tool_calls": [
+        { "name": "list_object_metadata_names_mcp_twenty", "arguments": {} }
+      ]
+    },
+    { "content": "Listed the object names." }
+  ]
+}

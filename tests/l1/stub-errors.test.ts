@@ -38,10 +38,50 @@ test("stub negative and routing behaviour", async (t) => {
     assert.match(r.raw, /not valid JSON/);
   });
 
-  await t.test("stream true returns 400", async () => {
+  await t.test("stream true returns server-sent events with the same tool call, then [DONE]", async () => {
     const r = await postChat(port, { stream: true, messages: userMsg("run") }, "smoke-search-001");
-    assert.equal(r.status, 400);
-    assert.match(r.raw, /streaming is not supported/);
+    assert.equal(r.status, 200);
+    assert.match(r.raw, /^data: /);
+    assert.ok(r.raw.endsWith("data: [DONE]\n\n"));
+    const events = r.raw
+      .split("\n\n")
+      .filter((e) => e.startsWith("data: {"))
+      .map((e) => JSON.parse(e.slice(6)) as { choices: Array<{ delta: Record<string, any>; finish_reason: string | null }> });
+    assert.equal(events.length, 2);
+    const call = events[0]?.choices[0]?.delta["tool_calls"][0];
+    assert.equal(call.function.name, "search_records");
+    assert.equal(call.function.arguments, '{"limit":5,"query":"fake-alpha"}');
+    assert.equal(events[1]?.choices[0]?.finish_reason, "tool_calls");
+  });
+
+  await t.test("stream bytes are identical across requests", async () => {
+    const a = await postChat(port, { stream: true, messages: userMsg("run") }, "smoke-search-001");
+    const b = await postChat(port, { stream: true, messages: userMsg("run") }, "smoke-search-001");
+    assert.equal(a.raw, b.raw);
+  });
+
+  await t.test("marker inside an array of text parts is found", async () => {
+    const messages = [{ role: "user", content: [{ type: "text", text: "[fixture:smoke-search-001] run" }] }];
+    const r = await postChat(port, { messages });
+    assert.equal(r.status, 200);
+  });
+
+  await t.test("recorder returns tool results and the answered tool calls, and DELETE clears it", async () => {
+    await fetch(`http://127.0.0.1:${port}/__trace`, { method: "DELETE" });
+    await postChat(port, { messages: userMsg("run") }, "smoke-search-001");
+    await postChat(
+      port,
+      { messages: [...userMsg("run"), { role: "tool", content: "RESULT-TEXT", tool_call_id: "a" }] },
+      "smoke-search-001",
+    );
+    const got = (await (await fetch(`http://127.0.0.1:${port}/__trace`)).json()) as { entries: any[] };
+    assert.equal(got.entries.length, 2);
+    assert.deepEqual(got.entries[0].toolCalls, [{ name: "search_records", arguments: { query: "fake-alpha", limit: 5 } }]);
+    assert.deepEqual(got.entries[1].toolResults, ["RESULT-TEXT"]);
+    assert.equal(got.entries[1].content, "Found the fake record.");
+    await fetch(`http://127.0.0.1:${port}/__trace`, { method: "DELETE" });
+    const cleared = (await (await fetch(`http://127.0.0.1:${port}/__trace`)).json()) as { entries: any[] };
+    assert.deepEqual(cleared.entries, []);
   });
 
   await t.test("turn past the end returns 409", async () => {

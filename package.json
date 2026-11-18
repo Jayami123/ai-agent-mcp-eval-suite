@@ -14,16 +14,20 @@
     "test": "tsc -p tsconfig.test.json && node --test \"dist-test/**/*.test.js\" \"dist-test/**/*.e2e.js\"",
     "test:nightly": "tsc -p tsconfig.test.json && node --test dist-test/tests/l1/gemma-tool-call.e2e.js",
     "check": "npm run typecheck && npm test && npm run build",
-    "stub": "node dist/stub/main.js"
+    "stub": "node dist/stub/main.js",
+    "stub:up": "node scripts/stub-container.mjs up",
+    "stub:down": "node scripts/stub-container.mjs down",
+    "test:stack:librechat": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 dist-test/tests/l1/librechat-stub-tool-call.e2e.js",
+    "test:stack:openclaw": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 dist-test/tests/l1/openclaw-stub-tool-call.e2e.js"
   },
   "dependencies": {
-    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.1"
+    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#9f93892ed7bf05445c7ee338406340c9f25e2c54"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2"
   },
   "allowScripts": {
-    "github:Jayami123/qa-portfolio-harness#5bd14b51f8594c67dc9d7ea96630d013aec1d878": true
+    "github:Jayami123/qa-portfolio-harness#9f93892ed7bf05445c7ee338406340c9f25e2c54": true
   }
 }
