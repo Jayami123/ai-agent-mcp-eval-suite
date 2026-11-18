@@ -33,7 +33,7 @@ These rules apply to every agent and every change in this repository.
 - Bind every local port to `127.0.0.1`.
 - Harness dependency: `qa-portfolio-harness` is consumed as an npm git dependency pinned to a tag or SHA. Never pin `main`.
 - The harness owns product start and stop. Tests do not start or stop products themselves.
-- TypeScript, Node >= 20, NodeNext modules, `strict` on. `npm run check` must pass before a PR is marked ready.
+- TypeScript, Node >= 22 (CI runs 22 and 24), NodeNext modules, `strict` on. `npm run check` must pass before a PR is marked ready.
 - Tests run with `tsc` then `node --test`.
 
 ## Secrets and data

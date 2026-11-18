@@ -1,0 +1,83 @@
+name: nightly-gemma
+
+on:
+  schedule:
+    - cron: "30 9 * * *"   # 09:30 UTC = 01:30 PST or 02:30 PDT, after Pacific midnight
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-gemma
+  cancel-in-progress: false
+
+jobs:
+  gemma:
+    name: gemma l1 smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: nightly-gemma
+    env:
+      P4_LLM_MODE: nightly
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      PRODUCTS_ROOT: ${{ github.workspace }}/products
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Twenty fork, read-only, pinned to the commit the harness v0.6.0 Twenty adapter uses (7cbdfec6, dev seeder).
+      # Never modified in this repo or in CI.
+      - name: Checkout Twenty fork (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Jayami123/twenty-CRM
+          ref: 7cbdfec6f346b43715bc2056932f4fad5886f733
+          path: products/twenty-CRM
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Require GEMINI_API_KEY (fail closed)
+        run: |
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "GEMINI_API_KEY is not set in the nightly-gemma environment. Refusing to run; no other model will be used." >&2
+            exit 1
+          fi
+          echo "GEMINI_API_KEY is present (value not printed)."
+
+      - name: Generate per-run LiteLLM master key
+        run: |
+          key="sk-p4-$(openssl rand -hex 24)"
+          echo "::add-mask::${key}"
+          echo "LITELLM_MASTER_KEY=${key}" >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The LiteLLM image pin (Q6) lives in the harness (src/adapters/litellm-env.ts at v0.6.0). Fail if it drifts.
+      - name: Assert LiteLLM digest matches the harness pin
+        run: |
+          set -euo pipefail
+          expected="ghcr.io/berriai/litellm:v1.110.0@sha256:4295b064b22eb88f9530e616afc812edd47048891ba64896bfc3fa74e2b883c3"
+          grep -F "${expected}" node_modules/qa-portfolio-harness/dist/adapters/litellm-env.js
+          echo "LiteLLM image pin matches the harness."
+
+      - name: Gemma L1 smoke
+        run: npm run test:nightly
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nightly-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,4 @@
+{
+  "_comment": "requiredObjects: Twenty object API names that the list_object_metadata_names result must include (whole word). Taken from the captured output of run 44294451265 (plural API names).",
+  "requiredObjects": ["people", "companies", "opportunities"]
+}
