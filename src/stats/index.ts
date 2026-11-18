@@ -16,3 +16,4 @@ export * from "./paired.js";
 export * from "./model-swap.js";
 export * from "./prompt-regression.js";
 export * from "./budget.js";
+export * from "./matrix.js";
