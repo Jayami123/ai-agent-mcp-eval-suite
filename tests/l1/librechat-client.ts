@@ -38,11 +38,12 @@ function headers(session: AuthSession): Record<string, string> {
 
 async function readJson(res: Response, what: string): Promise<unknown> {
   const text = await res.text();
+  const snippet = (): string => `content-type ${res.headers.get("content-type") ?? "none"}, body starts: ${text.slice(0, 200).replace(/\s+/g, " ")}`;
   if (!res.ok) throw new Error(`${what} returned HTTP ${res.status}: ${text.slice(0, 300)}`);
   try {
     return JSON.parse(text) as unknown;
   } catch {
-    throw new Error(`${what} returned non-JSON (HTTP ${res.status})`);
+    throw new Error(`${what} returned non-JSON (HTTP ${res.status}; ${snippet()})`);
   }
 }
 
@@ -53,6 +54,7 @@ export async function lcCreateAgent(
   const res = await fetch(`${session.baseUrl}/api/agents`, {
     method: "POST",
     headers: headers(session),
+    redirect: "manual",
     body: JSON.stringify({
       name: opts.name,
       description: "p4 suite L1 test agent (fake data only)",

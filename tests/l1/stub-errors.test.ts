@@ -79,6 +79,8 @@ test("stub negative and routing behaviour", async (t) => {
     assert.deepEqual(got.entries[0].toolCalls, [{ name: "search_records", arguments: { query: "fake-alpha", limit: 5 } }]);
     assert.deepEqual(got.entries[1].toolResults, ["RESULT-TEXT"]);
     assert.equal(got.entries[1].content, "Found the fake record.");
+    assert.equal(got.entries[0].stream, false);
+    assert.deepEqual(got.entries[0].toolsOffered, []);
     await fetch(`http://127.0.0.1:${port}/__trace`, { method: "DELETE" });
     const cleared = (await (await fetch(`http://127.0.0.1:${port}/__trace`)).json()) as { entries: any[] };
     assert.deepEqual(cleared.entries, []);

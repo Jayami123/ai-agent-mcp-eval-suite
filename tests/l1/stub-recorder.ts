@@ -1,3 +1,5 @@
+import { writeEvidence } from "./evidence.js";
+
 // Client for the stub container's recorder (GET/DELETE http://127.0.0.1:8787/__trace). The stub runs as a container on
 // qa-harness-p4 (npm run stub:up). Tests never start or stop it; they fail closed when it is not there.
 
@@ -9,6 +11,8 @@ export interface StubTraceEntry {
   seq: number;
   fixture: string;
   turn: number;
+  toolsOffered: string[];
+  stream: boolean;
   toolResults: string[];
   toolCalls: Array<{ name: string; arguments: unknown }>;
   content: string | null;
@@ -36,4 +40,14 @@ export async function readStubTrace(fixture: string): Promise<StubTraceEntry[]> 
   if (!res.ok) throw new Error(`stub recorder GET returned HTTP ${res.status}`);
   const body = (await res.json()) as { entries: StubTraceEntry[] };
   return body.entries.filter((e) => e.fixture === fixture);
+}
+
+/** Writes the whole recorder to evidence, also after a failed run. Never throws. */
+export async function writeTraceEvidence(dir: string): Promise<void> {
+  try {
+    const res = await fetch(`${STUB_HOST_URL}/__trace`, { signal: AbortSignal.timeout(5000) });
+    writeEvidence(dir, "stub-trace-all.json", `${await res.text()}\n`);
+  } catch (err) {
+    writeEvidence(dir, "stub-trace-all.json", `recorder not readable: ${(err as Error).name}\n`);
+  }
 }

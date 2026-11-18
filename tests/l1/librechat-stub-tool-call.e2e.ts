@@ -5,7 +5,7 @@ import { getAdapter, type AuthSession } from "qa-portfolio-harness";
 import { collectContainerLogs, redact, runId, writeEvidence } from "./evidence.js";
 import { lcChat, lcCreateAgent, mcpToolName } from "./librechat-client.js";
 import { checkSeededText } from "./seed-check.js";
-import { readStubTrace, requireStubContainer, resetStubTrace, STUB_UPSTREAM_URL } from "./stub-recorder.js";
+import { readStubTrace, requireStubContainer, resetStubTrace, STUB_UPSTREAM_URL, writeTraceEvidence } from "./stub-recorder.js";
 
 // L1 gap 1: one chat through LibreChat's API makes a stub fixture call the Twenty MCP tool list_object_metadata_names.
 // Chain: LibreChat agent -> LiteLLM (p4-stub, routed by P4_STUB_API_BASE) -> the stub container -> back through LibreChat
@@ -76,6 +76,7 @@ test(
       const verdict = checkSeededText(second.toolResults.join("\n"));
       assert.equal(verdict.outcome, "pass", `state check: ${verdict.detail}`);
     } finally {
+      await writeTraceEvidence(dir);
       collectContainerLogs(dir, ["litellm", "librechat", "p4-suite-stub"], secrets());
       await librechat.down().catch((e: unknown) => console.error(`librechat down failed: ${(e as Error).message}`));
       await litellm.down().catch((e: unknown) => console.error(`litellm down failed: ${(e as Error).message}`));

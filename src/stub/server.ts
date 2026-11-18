@@ -16,6 +16,10 @@ export interface TraceEntry {
   turn: number;
   /** Contents of the role "tool" messages in the request (the tool results the caller sent back), truncated. */
   toolResults: string[];
+  /** Names of the tools the caller offered in this request (so a test can see what the host forwarded). */
+  toolsOffered: string[];
+  /** Whether the caller asked for a stream. */
+  stream: boolean;
   /** The tool calls returned for this request, with arguments as parsed JSON. Empty on a text turn. */
   toolCalls: Array<{ name: string; arguments: unknown }>;
   content: string | null;
@@ -36,6 +40,10 @@ export const FIXTURE_HEADER = "x-p4-fixture";
 export function createStubServer(opts: StubOptions): Server {
   const trace: TraceEntry[] = [];
   return createServer((req, res) => {
+    // One line per request: method, path, status. No bodies, no headers.
+    res.on("finish", () => {
+      if (req.url !== "/health") console.log(`${req.method} ${req.url} -> ${res.statusCode}`);
+    });
     handle(opts, trace, req, res).catch((err: unknown) => {
       sendJson(res, 500, { error: { message: String(err) } });
     });
@@ -68,7 +76,7 @@ async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessa
     return;
   }
 
-  let body: { stream?: unknown; messages?: unknown; model?: unknown };
+  let body: { stream?: unknown; messages?: unknown; model?: unknown; tools?: unknown };
   try {
     body = JSON.parse(bodyText) as typeof body;
   } catch {
@@ -135,6 +143,8 @@ async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessa
     seq: trace.length + 1,
     fixture: id,
     turn: turnIndex,
+    toolsOffered: toolNames(body.tools),
+    stream: body.stream === true,
     toolResults: messages.filter((m) => m["role"] === "tool").map((m) => messageText(m).slice(0, MAX_TOOL_RESULT_CHARS)),
     toolCalls: (turn.tool_calls ?? []).map((call) => ({ name: call.name, arguments: call.arguments })),
     content: turn.content ?? null,
@@ -162,6 +172,15 @@ async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessa
     usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
   };
   sendJson(res, 200, response);
+}
+
+function toolNames(tools: unknown): string[] {
+  if (!Array.isArray(tools)) return [];
+  return tools.map((t) => {
+    const o = (t ?? {}) as { name?: unknown; function?: { name?: unknown } };
+    const name = o.function?.name ?? o.name;
+    return typeof name === "string" ? name : "?";
+  });
 }
 
 /** The text of a message: a string content, or the joined text parts of an array content. */

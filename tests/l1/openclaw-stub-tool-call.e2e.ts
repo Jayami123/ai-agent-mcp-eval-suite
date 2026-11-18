@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { getAdapter, type AuthSession } from "qa-portfolio-harness";
 import { collectContainerLogs, runId, writeEvidence } from "./evidence.js";
-import { readStubTrace, requireStubContainer, resetStubTrace, STUB_UPSTREAM_URL } from "./stub-recorder.js";
+import { readStubTrace, requireStubContainer, resetStubTrace, STUB_UPSTREAM_URL, writeTraceEvidence } from "./stub-recorder.js";
 
 // L1 gap 3: one benign stub-driven tool call through OpenClaw, with the trace asserted.
 // Chain: OpenClaw gateway POST /v1/responses (harness runTask) -> LiteLLM (p4-stub, routed by P4_STUB_API_BASE) -> the stub
@@ -66,6 +66,7 @@ test(
       assert.ok(first, "the stub never received the first request for the fixture");
       assert.deepEqual(first.toolCalls, [EXPECTED]);
     } finally {
+      await writeTraceEvidence(dir);
       collectContainerLogs(dir, ["litellm", "openclaw", "p4-suite-stub"], session ? [session.authorizationHeader.replace(/^Bearer\s+/i, "")] : []);
       await openclaw.down().catch((e: unknown) => console.error(`openclaw down failed: ${(e as Error).message}`));
       await litellm.down().catch((e: unknown) => console.error(`litellm down failed: ${(e as Error).message}`));
