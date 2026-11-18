@@ -1,0 +1,39 @@
+// Client for the stub container's recorder (GET/DELETE http://127.0.0.1:8787/__trace). The stub runs as a container on
+// qa-harness-p4 (npm run stub:up). Tests never start or stop it; they fail closed when it is not there.
+
+export const STUB_HOST_URL = "http://127.0.0.1:8787";
+/** LiteLLM reaches the stub by its alias on qa-harness-p4. */
+export const STUB_UPSTREAM_URL = "http://p4-stub:8787/v1";
+
+export interface StubTraceEntry {
+  seq: number;
+  fixture: string;
+  turn: number;
+  toolResults: string[];
+  toolCalls: Array<{ name: string; arguments: unknown }>;
+  content: string | null;
+}
+
+export async function requireStubContainer(): Promise<void> {
+  let status = "no response";
+  try {
+    const res = await fetch(`${STUB_HOST_URL}/health`, { signal: AbortSignal.timeout(5000) });
+    status = `HTTP ${res.status}`;
+    if (res.status === 200) return;
+  } catch (err) {
+    status = (err as Error).name;
+  }
+  throw new Error(`STUB_CONTAINER_MISSING: ${STUB_HOST_URL}/health did not answer 200 (${status}). Run npm run build && npm run stub:up first.`);
+}
+
+export async function resetStubTrace(): Promise<void> {
+  const res = await fetch(`${STUB_HOST_URL}/__trace`, { method: "DELETE", signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`stub recorder DELETE returned HTTP ${res.status}`);
+}
+
+export async function readStubTrace(fixture: string): Promise<StubTraceEntry[]> {
+  const res = await fetch(`${STUB_HOST_URL}/__trace`, { signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`stub recorder GET returned HTTP ${res.status}`);
+  const body = (await res.json()) as { entries: StubTraceEntry[] };
+  return body.entries.filter((e) => e.fixture === fixture);
+}
