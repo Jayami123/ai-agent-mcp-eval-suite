@@ -18,13 +18,16 @@
     "stub:up": "node scripts/stub-container.mjs up",
     "stub:down": "node scripts/stub-container.mjs down",
     "test:stack:librechat": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 dist-test/tests/l1/librechat-stub-tool-call.e2e.js",
-    "test:stack:openclaw": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 dist-test/tests/l1/openclaw-stub-tool-call.e2e.js"
+    "test:stack:openclaw": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 dist-test/tests/l1/openclaw-stub-tool-call.e2e.js",
+    "test:stack:l3:twenty": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/twenty/run.e2e.js"
   },
   "dependencies": {
     "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.3"
   },
   "devDependencies": {
+    "@modelcontextprotocol/conformance": "0.2.0-alpha.12",
     "@types/node": "^22.13.10",
+    "ajv": "8.20.0",
     "typescript": "^5.8.2"
   },
   "allowScripts": {
