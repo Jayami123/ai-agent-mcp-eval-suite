@@ -6,7 +6,7 @@ Status: bootstrap only. No case results yet. Plans live in `docs/plans/`.
 
 ## Install and run
 
-Requires Node.js 20 or newer.
+Requires Node.js 22 or newer (CI runs 22 and 24).
 
 ```bash
 npm ci

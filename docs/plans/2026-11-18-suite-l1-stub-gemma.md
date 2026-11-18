@@ -826,7 +826,7 @@ jobs:
       P4_LLM_MODE: stub
     strategy:
       matrix:
-        node: [20, 22]
+        node: [22, 24]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -848,8 +848,8 @@ jobs:
 
 Notes:
 - No `secrets.*` anywhere. Fork PRs get no secrets and this job still runs.
-- The matrix on Node 20 and 22 is recommended (Q5) because `engines.node` is `>=20`.
-- Branch protection: after this lands, the required check name becomes `pr / stub (20)` and `pr / stub (22)` (exact names GitHub shows). Update `docs/branch-protection.md` in the same commit.
+- The matrix is Node 22 and 24 (Q5, revised by the reviewer). `engines.node` is `>=22`. Node 20 reached end of life on 30 April 2026 and is dropped. Node 22 matches the harness `.nvmrc` and CI.
+- Branch protection: the required check names are `pr / stub (22)` and `pr / stub (24)` (exact names GitHub shows). `docs/branch-protection.md` is updated in the same commit.
 - `pull_request_target` is never used.
 
 ### 10.2 `nightly.yml` — real Gemma, scheduled and manual (T7)
@@ -987,7 +987,7 @@ Between T6 and T7, the reviewer may ask for a check of the actual `pr` run on a 
 
 ## 13. Acceptance criteria (for the later build)
 
-- `npm run check` passes on Node 20 and Node 22 (from the `pr.yml` matrix).
+- `npm run check` passes on Node 22 and Node 24 (from the `pr.yml` matrix).
 - `P4-STAT-001` stub determinism passes with no provider key and with `GEMINI_API_KEY` unset.
 - `pr.yml` is green on a fork PR with no secrets (the fork-PR check in section 12 is the proof).
 - `nightly.yml` exists, is documented in this plan and the README, and fails closed (error, not a different model) when the secret is missing. It does not need a successful Gemma run in the first build.
@@ -1032,7 +1032,7 @@ Between T6 and T7, the reviewer may ask for a check of the actual `pr` run on a 
 - **Q2** — Replace `ci.yml` with `pr.yml` (recommended, D7), or keep both?
 - **Q3** — Confirm Twenty (list tool) as the Gemma e2e product. Alternative: Cal or Documenso, if the reviewer knows one has a more reliable list tool.
 - **Q4** — Gemma finding: should a finding be committed by a human through a feat PR (recommended), or should CI open that PR?
-- **Q5** — Node matrix `[20, 22]` in `pr.yml` (recommended), or Node 22 only?
+- **Q5** — Node matrix in `pr.yml`: 22 and 24 (revised; see 14.5).
 - **Q6** — LiteLLM image pin: which image and digest? Not known yet. The owner or the reviewer gives the digest; the agent does not guess one. (Needed for B1 and T9, not for T1–T7.)
 - **Q7** — Confirm the ledger wording for P4-STAT-001 (section 2) by sharing the row, or confirm that the wording in section 1.1 is the acceptance text.
 - **Q8** — Nightly schedule: `30 9 * * *` UTC (recommended, D9). Confirm the owner is happy with 01:30 PST or 02:30 PDT as the start.
@@ -1045,7 +1045,8 @@ Between T6 and T7, the reviewer may ask for a check of the actual `pr` run on a 
 - **Q2** — Resolved: `pr.yml` replaces `ci.yml`. `ci.yml` is deleted in T6, and the required-check names in `docs/branch-protection.md` are updated in the same commit.
 - **Q3** — Resolved: Twenty is the first Gemma target (Part A verified Twenty MCP tool calling end to end, 7 tools, scoped key). Outline is in the harness (merge `059b582`, PR #60, with Nextcloud, Penpot, Mattermost) but its tool calls are unverified. Cal and Documenso are not used.
 - **Q4** — Resolved: a human commits any Gemma finding on a feat PR. CI does not open PRs.
-- **Q5** — Resolved: Node 20 and 22 matrix in `pr.yml`.
+- **Q5** — Resolved, revised: the `pr.yml` matrix is Node 22 and 24. Node 20 is dropped (end of life 30 April 2026). `engines.node` is `>=22`. The earlier 20-and-22 answer is superseded. `nightly.yml` stays on Node 22 to match the harness.
+- Test runner: `npm test` uses `node --test "dist-test/**/*.test.js"` (quoted glob, Node 22+). The earlier `scripts/run-tests.mjs` workaround was removed because it only existed for Node 20.
 - **Q6** — Open: LiteLLM image digest. Needed for B1 and T9, not for T1–T7.
 - **Q7** — Resolved: the P4-STAT-001 row is in section 2 (verified).
 - **Q8** — Resolved: cron `30 9 * * *` UTC.
