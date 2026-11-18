@@ -1,4 +1,4 @@
 {
-  "_comment": "requiredObjects: standard Twenty objects the list result must include (whole word). Set from the decision; the first CI run captures the real output to evidence/ for verification.",
-  "requiredObjects": ["person", "company", "opportunity"]
+  "_comment": "requiredObjects: Twenty object API names that the list_object_metadata_names result must include (whole word). Taken from the captured output of run 44294451265 (plural API names).",
+  "requiredObjects": ["people", "companies", "opportunities"]
 }
