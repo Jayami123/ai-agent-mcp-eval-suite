@@ -22,6 +22,20 @@ npm run check
 | stub    | `stub` (default) | Scripted fake model server, unit tests, determinism checks | No                   |
 | nightly | `nightly`     | Real Gemma through LiteLLM on a schedule, from GitHub Actions only | Yes (`GEMINI_API_KEY`, Actions secret) |
 
+## Stack tests (L1)
+
+Three tests run real products through the harness. The two stub ones run in PR CI and need Docker:
+
+```bash
+npm run build
+npm run stub:up                      # fixture stub as a container on qa-harness-p4, 127.0.0.1:8787
+P4_STACK_TESTS=1 npm run test:stack:librechat   # also needs PRODUCTS_ROOT with the Twenty fork
+P4_STACK_TESTS=1 npm run test:stack:openclaw
+npm run stub:down
+```
+
+The Gemma test (`npm run test:nightly`) goes LiteLLM, LibreChat, Twenty MCP and runs only in the nightly workflow. See `docs/plans/2026-11-18-suite-l1-gaps.md`.
+
 ## Contact
 
 Maintained by the owner of this repository (Jayami Hettigoda).

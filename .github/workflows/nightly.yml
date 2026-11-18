@@ -39,6 +39,12 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
       - name: Require GEMINI_API_KEY (fail closed)
         run: |
           if [ -z "${GEMINI_API_KEY:-}" ]; then
@@ -70,7 +76,8 @@ jobs:
           grep -F "${expected}" node_modules/qa-portfolio-harness/dist/adapters/litellm-env.js
           echo "LiteLLM image pin matches the harness."
 
-      - name: Gemma L1 smoke
+      # Gemma goes LiteLLM -> LibreChat -> Twenty MCP. LibreChat never receives the key; only LiteLLM does.
+      - name: Gemma L1 smoke through LibreChat
         run: npm run test:nightly
 
       - name: Upload evidence
