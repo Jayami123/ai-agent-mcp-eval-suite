@@ -24,7 +24,7 @@ npm run check
 
 ## Stack tests (L1)
 
-Three tests run real products through the harness. The LibreChat stub test runs in PR CI and needs Docker. The OpenClaw stub test is written but skipped by name until the harness gains one primitive (`docs/findings/l1-openclaw-stub-call.md`):
+Three tests run real products through the harness. The two stub tests (LibreChat and OpenClaw) run in PR CI and need Docker:
 
 ```bash
 npm run build
