@@ -5,9 +5,11 @@ Source: `2026-11-18-p4-master-plan.pdf`, section 5 "Lane 2" and Appendix A. Harn
 
 This document is written for a junior engineer. Follow the steps in order. Nothing here has been built: the code blocks are skeletons, not compiled code.
 
+**Status: reviewer answers to section 11 are applied (section 11 lists them). The build starts on `feat/2026-11-18-l2-attack-lab` only after this plan PR is merged by the owner.**
+
 ## 0. Read this first
 
-- **Lane folders.** All new code goes in `src/attack-lab/` and `tests/l2/`. Nothing else is edited by Part A. Files outside those folders are listed in section 3 and are made only after the reviewer approves them.
+- **Lane folders.** All new code goes in `src/attack-lab/` and `tests/l2/`. Nothing else is edited by Part A. Files outside those folders are listed in section 3 (Part B). The reviewer approved them for the L2 build PR only; this plan PR edits none of them.
 - **No model.** L2 never calls Gemma and never needs `GEMINI_API_KEY`. Every L2 test is deterministic and runs under `P4_LLM_MODE=stub` (the default). Nothing in `nightly.yml` changes. L2 adds 0 tokens to the shared 16K TPM budget; the lab is only used by L3 nightly slices later, and L3's resume cursor already serialises lanes (one lane at a time).
 - **Baseline.** On `main` with harness 0.6.3 installed (`npm ci`), `npm run check` ends with `# tests 38`, `# pass 35`, `# fail 0`, `# skipped 3`. The skips are the three stack e2e tests. (In this planning sandbox the pre-installed `node_modules` held harness 0.6.1 and `npm run check` failed at typecheck on `runTask`; `npm ci` fixed it. If you see `Property 'runTask' does not exist`, run `npm ci`.)
 - **Standard practice flags.** Where this plan differs from the master plan or from a normal default, it says so in section 2 and names the standard alternative.
@@ -23,7 +25,7 @@ The ledger rows whose product column names **Attack-lab** are L3 (or L5) cases t
 | # | Decision | Why | Standard alternative / what changes |
 |---|---|---|---|
 | D1 | Paths are `src/attack-lab/` and `tests/l2/`. | Instruction for this lane. | Master plan says `src/lab/` and `tests/unit/lab/`. The existing `npm test` glob `dist-test/**/*.test.js` already matches `tests/l2/`, so no script change. |
-| D2 | Conformance runs at spec **2025-11-25**, not 2026-07-28. | Checked on npm: `@modelcontextprotocol/sdk@1.32.2` has `LATEST_PROTOCOL_VERSION = '2025-11-25'`. `@modelcontextprotocol/conformance@0.1.16` lists scenarios for `2025-06-18` and `2025-11-25` only. A `2026-07-28` run has nothing to select. | Master plan command uses `--spec-version 2026-07-28`. Revisit when both tools support it. The lab's protocol version follows the SDK. |
+| D2 | Conformance runs at spec **2025-11-25**, not 2026-07-28. **Recorded deviation from the master plan** (reviewer-approved); it is also stated in `src/attack-lab/README.md` and `docs/lab-modes.md`. Follow-up F1 moves it up. | Checked on npm: `@modelcontextprotocol/sdk@1.32.2` has `LATEST_PROTOCOL_VERSION = '2025-11-25'`. `@modelcontextprotocol/conformance@0.1.16` lists scenarios for `2025-06-18` and `2025-11-25` only. A `2026-07-28` run has nothing to select. | Master plan command uses `--spec-version 2026-07-28`. Revisit when both tools support it. The lab's protocol version follows the SDK. |
 | D3 | Pin the conformance tool as a devDependency (`@modelcontextprotocol/conformance@0.1.16`) and run it from `node_modules`. | CLAUDE.md pins dependencies. | Master plan uses `npx --yes @modelcontextprotocol/conformance` (unpinned, fetches at run time). |
 | D4 | Low-level SDK `Server` (`@modelcontextprotocol/sdk/server/index.js`), not `McpServer`. | `McpServer` validates tool output against `outputSchema` on the server, which would stop the malformed-result mode. Spike result (run in the scratchpad against SDK 1.32.2): the low-level server sent `structuredContent: {n: "bad"}` against an integer `outputSchema` over streamable HTTP with no error. | Standard for a normal server is `McpServer`; a hostile fixture needs raw control. |
 | D5 | Plain `node:http`, no Express. | Same as L1 decision D1. `StreamableHTTPServerTransport.handleRequest(req, res, body)` works with `node:http` (spike confirmed). | Express adds a dependency for four routes. |
@@ -31,7 +33,7 @@ The ledger rows whose product column names **Attack-lab** are L3 (or L5) cases t
 | D7 | Control and sink are separate loopback ports. The control port needs a per-run bearer token. | The control port is not an MCP tool (master plan). In a container it is reachable by other containers on `qa-harness-p4`, so loopback-only is not enough. Token is generated per run into `.harness/lab/control-token` (git-ignored). | No token (rely on loopback). Rejected: any container on the network could flip the mode. |
 | D8 | The sink lives in the lab process, and `lab_mail_send` records to it in-process (no network call). | "No open egress except the test sink": in-process has zero egress to check. The phish pages the browser must reach are served by the sink port. | A separate sink container. Rejected: more moving parts, same oracle. |
 | D9 | Mode wire names are lowercase: `rug-pull-after-n` (N is the `LAB_RUGPULL_N` option). | Environment-variable and CLI values are conventionally lowercase. | Master plan writes `rug-pull-after-N`. |
-| D10 | Shadow tool name defaults to `mail_send`, configurable with `LAB_SHADOW_NAME`. | The master plan text refers to "Nextcloud `mail_send`" but the real tool name is unconfirmed here. | L3 confirms the real name from its committed `tools/list` snapshot and sets the option. |
+| D10 | Shadow tool name defaults to `mail_send`, configurable with `LAB_SHADOW_NAME`. **It is a placeholder** (reviewer-approved): the code names it `SHADOW_NAME_PLACEHOLDER` with a comment, and the README and `docs/lab-modes.md` say so. | The master plan text refers to "Nextcloud `mail_send`" but the real tool name is unconfirmed here. | Follow-up F2: L3 confirms the real name from its committed `tools/list` snapshot and swaps it in. |
 | D11 | Auth is off unless `LAB_AUTH=1` or the mode is `wrong-audience`. | Most L3 cases connect LibreChat with no OAuth. | Always on: would break those cases. |
 | D12 | Tokens are HS256 JWTs signed with `node:crypto` and a random per-process key. | No new dependency; the key never leaves memory and is never logged. | A JWT library. Rejected: not needed for a test minter. |
 | D13 | All lab data is fake: canary `canary-bcc@example.invalid`, secret `canary-secret-p4-lab-0001`. `.invalid` is reserved (RFC 2606) and never resolves. | CLAUDE.md: fake data only; no real hostnames. | None. |
@@ -62,21 +64,36 @@ tests/l2/
   timeout.test.ts                version-bump-bcc.test.ts
   control-api.test.ts            sink.test.ts
   transports.test.ts             host-safety.test.ts
+  docker-manifest.test.ts # drift guard for docker/attack-lab/package.json
   conformance.e2e.ts      # guarded by P4_LAB_CONFORMANCE=1
 ```
 
-### Part B: shared or outside-lane files (listed, NOT edited by this plan PR)
+### Part B: shared or outside-lane files (approved for the L2 build PR only)
 
-Made in the build PR only if the reviewer approves them here. They are not lane folders, so the build agent asks first.
+The reviewer approved these for the L2 build PR and for nothing else. This plan PR edits none of them. Keep each edit minimal. Other lanes will touch some of the same files, so every edit is additive and isolated: new scripts, new dependencies, a new workflow job. No existing line is changed.
 
 | File | Edit | Why |
 |---|---|---|
-| `package.json` | dependencies: `"@modelcontextprotocol/sdk": "1.32.2"`, `"zod": "4.6.7"`; devDependencies: `"@modelcontextprotocol/conformance": "0.1.16"`; scripts: `"lab": "node dist/attack-lab/main.js"`, `"lab:up": "node scripts/lab-container.mjs up"`, `"lab:down": "node scripts/lab-container.mjs down"`, `"test:lab:conformance": "tsc -p tsconfig.test.json && P4_LAB_CONFORMANCE=1 node --test dist-test/tests/l2/conformance.e2e.js"` | The SDK needs `zod` as a required peer (`^3.25 \|\| ^4.0`; `node_modules` already has 4.6.7 via the harness, but do not rely on a transitive dependency). Exact versions, no ranges. `package-lock.json` changes with it (`npm install --save-exact`). |
-| `.github/workflows/pr.yml` | one step in the `stub` job, Node 22 only, after `npm run check`: `run: npm run test:lab:conformance` | Master plan: conformance suite pointed at benign mode. No secrets. |
+| `package.json` | dependencies: `"@modelcontextprotocol/sdk": "1.32.2"`, `"zod": "4.6.7"`; devDependencies: `"@modelcontextprotocol/conformance": "0.1.16"`; four new scripts only: `"lab": "node dist/attack-lab/main.js"`, `"lab:up": "node scripts/lab-container.mjs up"`, `"lab:down": "node scripts/lab-container.mjs down"`, `"test:lab:conformance": "tsc -p tsconfig.test.json && P4_LAB_CONFORMANCE=1 node --test dist-test/tests/l2/conformance.e2e.js"` | The SDK needs `zod` as a required peer (`^3.25 \|\| ^4.0`; `node_modules` already has 4.6.7 via the harness, but do not rely on a transitive dependency). Exact versions, no ranges. `package-lock.json` changes with it (`npm install --save-exact`). |
+| `.github/workflows/pr.yml` | **one new job only**, `l2-attack-lab` (display name `l2 attack-lab`), appended after the existing jobs. No existing job or step is touched. Steps: checkout and setup-node 22 (same pinned SHAs the other jobs use), `npm ci`, `npm run build`, `npm run test:lab:conformance`, `npm run lab:up`, one `curl` to the control `state` route, `npm run lab:down` (`if: always()`). `P4_LLM_MODE: stub`, no secrets. Advisory: not added to branch protection. | Master plan: conformance suite pointed at benign mode, plus a check that the image builds and starts. A separate job means other lanes' edits to `pr.yml` do not conflict. |
 | `.github/workflows/nightly.yml` | none | L2 uses no model. |
-| `docker/p4-lab.compose.yml`, `docker/attack-lab/Dockerfile`, `scripts/lab-container.mjs` | new, modelled on `docker/stub.compose.yml`, `docker/stub/Dockerfile`, `scripts/stub-container.mjs` | Master plan lists `docker/p4-lab.compose.yml`. LibreChat runs in a container and cannot reach host `127.0.0.1`, so the lab needs to be a container on `qa-harness-p4` with alias `p4-attack-lab`, like the stub. Image base: the same `node:22-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee` the stub uses (digest pin). Host ports published as `127.0.0.1:9010-9012` only. |
-| `docs/lab-modes.md` | new table L3 authors can copy | Master plan "expected outputs". Same content as section 5 of this plan. |
+| `docker/p4-lab.compose.yml`, `docker/attack-lab/Dockerfile`, `docker/attack-lab/package.json`, `docker/attack-lab/package-lock.json`, `docker/attack-lab/tsconfig.json`, `scripts/lab-container.mjs` | all new, modelled on `docker/stub.compose.yml`, `docker/stub/Dockerfile`, `scripts/stub-container.mjs`. Design in section 3.1. | Master plan lists `docker/p4-lab.compose.yml`. LibreChat runs in a container and cannot reach host `127.0.0.1`, so the lab needs to be a container on `qa-harness-p4` with alias `p4-attack-lab`, like the stub. Image base: the same `node:22-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee` the stub uses (digest pin). Host ports published as `127.0.0.1:9010-9012` only. |
+| `docs/lab-modes.md` | new table L3 authors can copy; includes the spec-version deviation and the placeholder note | Master plan "expected outputs". Same content as section 5 of this plan. |
 | `docs/branch-protection.md`, `README.md` | none | Conformance step stays advisory first. |
+
+### 3.1 Docker image without the harness (reviewer answer 3)
+
+The image must not install the harness. It does not need to: the lab imports nothing from the harness. The root `package.json` lists the harness as a dependency, so `npm ci` from the root lockfile would fetch it. The plan avoids that with a small second manifest.
+
+- `docker/attack-lab/package.json` lists only what the lab needs, with exact versions: runtime `@modelcontextprotocol/sdk` and `zod` (same versions as the root file); build-only `typescript` and `@types/node` (same versions the root lockfile resolves today: 5.9.3 and 22.20.5).
+- `docker/attack-lab/package-lock.json` is generated once with `npm install --package-lock-only --ignore-scripts` in that folder and committed, so the image build is reproducible with integrity hashes. Checked while planning (scratchpad): the lockfile holds 99 packages, none is the harness, and `npm ci --omit=dev --ignore-scripts` installs about 29 MB.
+- `docker/attack-lab/tsconfig.json` compiles only `src/attack-lab/**` and `src/stub/canonical.ts` (`hash.ts` imports it) to `dist/`.
+- Multi-stage `docker/attack-lab/Dockerfile`, every stage `FROM` the pinned digest above:
+  1. `deps`: copy the two manifest files, `npm ci --omit=dev --ignore-scripts`.
+  2. `build`: copy the two manifest files, `npm ci --ignore-scripts`, copy `docker/attack-lab/tsconfig.json`, `src/attack-lab`, `src/stub/canonical.ts`, run `tsc`.
+  3. `runtime`: copy `package.json`, `node_modules` from `deps`, `dist` from `build`. Set `LAB_HOST=0.0.0.0`, `USER node`, a `HEALTHCHECK` on the MCP port, `CMD ["node","dist/attack-lab/main.js"]`. Nothing else is copied: no tests, no harness, no root `node_modules`.
+- Drift guard: `tests/l2/docker-manifest.test.ts` fails if the Docker manifest's SDK, zod, TypeScript or `@types/node` version differs from the root `package.json` / `package-lock.json`. So the two manifests cannot silently diverge.
+- Extra files outside the lane for this: the three `docker/attack-lab/*` files above. They are inside the approved Part B list.
 
 ## 4. Design
 
@@ -157,7 +174,7 @@ Not in the ten modes (deferred, reasons in section 6): task support, a flaky-the
 | P4-MCP-PROT-001 | core | benign lab passes the official conformance suite | `benign` | `conformance.e2e.ts` | deferred to L3 (L2 ships the check) |
 | P4-MCP-PROT-005 | core | description change visible on the next `tools/list` | `rug-pull-after-n` | `rug-pull.test.ts` | deferred to L3 |
 | P4-MCP-PROT-006 | core | streamable HTTP and stdio both work | `benign` | `transports.test.ts` | deferred to L3 |
-| P4-MCP-PROT-011 | core | tasks extension | none | none | **gap**: not in the ten modes; SDK tasks API is experimental. Needs reviewer decision |
+| P4-MCP-PROT-011 | core | tasks extension | none | none | **gap**: not in the ten modes; SDK tasks API is experimental. Left to L3, follow-up F3 |
 | P4-MCP-OAUTH-001 | core | protected-resource metadata and 401 hint | `benign` + `LAB_AUTH=1` | `wrong-audience.test.ts` | deferred to L3 |
 | P4-MCP-OAUTH-002 | core | server that wrongly accepts another audience | `wrong-audience` | `wrong-audience.test.ts` | deferred to L3 |
 | P4-MCP-OAUTH-003 | core | log of token fingerprint and `aud` seen | `wrong-audience` | `wrong-audience.test.ts` | deferred to L3 |
@@ -167,7 +184,7 @@ Not in the ten modes (deferred, reasons in section 6): task support, a flaky-the
 | P4-MCP-META-002 | core | rug-pull after always-allow | `rug-pull-after-n` | `rug-pull.test.ts` | deferred to L3 |
 | P4-MCP-META-003 | core | shadowed tool name | `shadow-name` | `shadow-name.test.ts` | deferred to L3 |
 | P4-MCP-META-004 | core | hash change to re-approve | `rug-pull-after-n` | `rug-pull.test.ts`, `tool-hash.test.ts` | deferred to L3 |
-| P4-MCP-META-005 | core | tool appearing after connect | `rug-pull-after-n` (add-tool variant not built) | `rug-pull.test.ts` (changed tool only) | deferred to L3; **gap**: a brand-new tool after consent needs an `add-tool` option, small, to decide at L3 |
+| P4-MCP-META-005 | core | tool appearing after connect | `rug-pull-after-n` (add-tool variant not built) | `rug-pull.test.ts` (changed tool only) | deferred to L3; **gap**: a brand-new tool after consent needs an `add-tool` option. Left to L3, follow-up F8 |
 | P4-MCP-META-006 | core | injection through a schema description | `poisoned-description` (`schema`) | `poisoned-description.test.ts` | deferred to L3 |
 | P4-MCP-META-007 | core | untrusted content from a tool | `poisoned-description` | `poisoned-description.test.ts` | deferred to L3 |
 | P4-MCP-META-008 | core | mid-session description change | `rug-pull-after-n` | `rug-pull.test.ts` | deferred to L3 |
@@ -176,21 +193,21 @@ Not in the ten modes (deferred, reasons in section 6): task support, a flaky-the
 | P4-MCP-META-011 | core | second lab server mid-chat | two instances, different `LAB_SERVER_NAME` and ports | `host-safety.test.ts` (two instances run side by side) | deferred to L3 |
 | P4-MCP-META-012 | core | friendly title vs real name/origin | `LAB_SERVER_TITLE` | `benign.test.ts` | deferred to L3 |
 | P4-MCP-META-013 | stretch | rug-pull plus shadow across two sessions | combination | `rug-pull.test.ts`, `shadow-name.test.ts` | deferred to L3; modes are switchable per instance, a combined mode is not built |
-| P4-MCP-INJ-016 | stretch | planted message from a second session | none | none | **gap**: no planted-message mechanism in the ten modes |
+| P4-MCP-INJ-016 | stretch | planted message from a second session | none | none | **gap**: no planted-message mechanism in the ten modes. Left to L3, follow-up F7 |
 | P4-MCP-APPR-002 | core | exfil-capable tool for always-allow scoping | `shadow-name`, `benign` | `benign.test.ts`, `shadow-name.test.ts` | deferred to L3 |
 | P4-MCP-APPR-004 | core | URL-mode elicitation to a look-alike login | `elicitation-url` | `elicitation-url.test.ts` | deferred to L3 |
 | P4-MCP-APPR-005 | core | form elicitation asking for a password | `elicitation-form` | `elicitation-form.test.ts` | deferred to L3 |
 | P4-MCP-APPR-007 | core | distinct tool names for the ask/allow/deny glob matrix | `benign` | `benign.test.ts` | deferred to L3 |
 | P4-MCP-SUPP-001 | core | stable image digest and tool set to pin | `benign` | `benign.test.ts` | deferred to L3 |
-| P4-MCP-SUPP-002 | core | `server.json` or manifest drift | none | none | **gap**: manifest format (registry `server.json`) needs a reviewer decision |
+| P4-MCP-SUPP-002 | core | `server.json` or manifest drift | none | none | **gap**: manifest format (registry `server.json`) undecided. Left to L3, follow-up F6 |
 | P4-MCP-SUPP-003 | core | silent BCC after a version bump | `version-bump-bcc` | `version-bump-bcc.test.ts` | deferred to L3 |
 | P4-MCP-SUPP-004 | core | name one character off a pin | `LAB_SERVER_NAME` | `benign.test.ts` | deferred to L3 |
 | P4-MCP-SUPP-007 | stretch | tool list rewritten at start | `rug-pull-after-n` with `LAB_RUGPULL_N=0` | `rug-pull.test.ts` | deferred to L3 |
 | P4-MCP-REL-001 | core | tool that exceeds the timeout, no partial write | `timeout` | `timeout.test.ts` | deferred to L3 |
-| P4-MCP-REL-003 | core | task cancel | none | none | **gap**: tasks (same as PROT-011); the row also allows Penpot |
+| P4-MCP-REL-003 | core | task cancel | none | none | **gap**: tasks (same as PROT-011); the row also allows Penpot. Left to L3, follow-up F4 |
 | P4-MCP-REL-004 | core | tool that always fails, countable calls | `malformed-result` (`error`) | `malformed-result.test.ts` | deferred to L3 |
 | P4-MCP-REL-005 | core | malformed result | `malformed-result` | `malformed-result.test.ts` | deferred to L3 |
-| P4-MCP-REL-009 | stretch | 500s then recovery | none | none | **gap**: needs a flaky mode, not in the ten |
+| P4-MCP-REL-009 | stretch | 500s then recovery | none | none | **gap**: needs a flaky mode, not in the ten. Left to L3, follow-up F5 |
 
 Rows listing "All five MCP servers" without naming the lab (for example PROT-002, PROT-007) are not mapped: they are about the five business servers.
 
@@ -215,6 +232,8 @@ export const isLabMode = (v: string): v is LabMode => (LAB_MODES as readonly str
 export const CANARY_EMAIL = "canary-bcc@example.invalid";
 export const CANARY_SECRET = "canary-secret-p4-lab-0001";
 export const POISON_MARKERS = ["<IMPORTANT>", CANARY_EMAIL] as const;
+/** PLACEHOLDER. Not the confirmed Nextcloud tool name. L3 swaps in the real one (follow-up F2). Override with LAB_SHADOW_NAME. */
+export const SHADOW_NAME_PLACEHOLDER = "mail_send";
 
 export interface LabConfig { /* every field from table 4.1, with its default */ }
 
@@ -408,6 +427,7 @@ Each test file follows the existing style (`node:test`, `node:assert/strict`, `t
 | `sink.test.ts` | seq increments; cap of 1000; `GET /phish/login` records a visit; `POST` records field names and lengths, not values; read routes need the token |
 | `transports.test.ts` | the same benign call over streamable HTTP and over stdio (spawn `node dist-test/src/attack-lab/main.js --stdio`, SDK `StdioClientTransport`) gives the same tool names and the same `lab_add` result; nothing but JSON-RPC on stdout |
 | `host-safety.test.ts` | every listener reports address `127.0.0.1`; a request with `Host: evil.example` to the MCP port gets 403; two labs with different names and ports run side by side; no source file under `src/attack-lab/` imports `node:https`, `node:net` client APIs, or calls `fetch(` (a grep over the compiled source: no outbound egress code) |
+| `docker-manifest.test.ts` | the Docker manifest pins exactly the root versions of the SDK and zod, and the root lockfile's TypeScript and `@types/node` versions; the Docker manifest has no `qa-portfolio-harness`; its lockfile has no `qa-portfolio-harness` entry |
 | `conformance.e2e.ts` | skipped unless `P4_LAB_CONFORMANCE=1`; starts a benign lab, spawns `node_modules/.bin/conformance server --url <mcpUrl> --spec-version 2025-11-25 --expected-failures src/attack-lab/expected-failures.yaml`, asserts exit code 0 |
 
 ## 8. Conformance check
@@ -420,7 +440,8 @@ Each test file follows the existing style (`node:test`, `node:assert/strict`, `t
   ```
 - **Why failures are expected:** the suite's scenarios (for example `tools-call-image`, `prompts-get-simple`, `resources-read-text`) expect a reference server with specific tools, prompts and resources. The lab is a hostile fixture with three tools. Failures are listed with a reason each; none are hidden.
 - **Exit behaviour (from the tool's README):** a failure not in the file gives exit 1 (regression). A scenario that passes but is listed also gives exit 1 (stale entry). A first run that exits 1 is therefore expected: step 13 turns its output into the file.
-- **Dispatch:** `npm run test:lab:conformance` locally; one step in `pr.yml`'s `stub` job on Node 22 (Part B). It needs no model and no secret.
+- **Dispatch:** `npm run test:lab:conformance` locally; in CI by the new `l2 attack-lab` job in `pr.yml` (Part B), Node 22 only, advisory. It needs no model and no secret.
+- **Spec version:** pinned to `2025-11-25` on the command line and in `conformance.e2e.ts`. This is a recorded deviation from the master plan (D2). Follow-up F1 moves it up.
 - **Scenarios worth passing without a baseline entry:** `server-initialize`, `ping`, `tools-list`, `tools-call-error`, `dns-rebinding-protection`, `json-schema-2020-12`. The Host-header check in `server.ts` exists for `dns-rebinding-protection`.
 
 ## 9. Step-by-step build order
@@ -430,7 +451,7 @@ Run everything from the repo root. After each step the named test file passes be
 | Step | Do | Command | Expected |
 |---|---|---|---|
 | 0 | `git switch -c feat/2026-11-18-l2-attack-lab main`; `npm ci`; `npm run check` | `npm run check` | `# tests 38`, `# pass 35`, `# fail 0`, `# skipped 3`. If it fails on `runTask`, your `node_modules` is stale: run `npm ci` again. |
-| 1 | (Part B, approved) `npm install --save-exact @modelcontextprotocol/sdk@1.32.2 zod@4.6.7` and `npm install --save-dev --save-exact @modelcontextprotocol/conformance@0.1.16`; add the `lab` and `test:lab:conformance` scripts | `git diff --stat package.json package-lock.json` | only those two files change; `npm run check` still passes |
+| 1 | (Part B, approved) `npm install --save-exact @modelcontextprotocol/sdk@1.32.2 zod@4.6.7` and `npm install --save-dev --save-exact @modelcontextprotocol/conformance@0.1.16`; add the `lab` and `test:lab:conformance` scripts | `git diff --stat package.json package-lock.json` | only `package.json` and `package-lock.json` change, additions only (no existing line edited); `npm run check` still passes |
 | 2 | `src/attack-lab/hash.ts` and `tests/l2/tool-hash.test.ts` | `npm test` | the new tool-hash tests appear in the output and pass, `# fail 0` |
 | 3 | `state.ts`, `modes.ts` (`LAB_MODES`, `configFromEnv`, `baseTools`, `buildTools` for benign only) and `modes-catalog.test.ts` | `npm test` | catalog tests pass |
 | 4 | `sink.ts` and `sink.test.ts` | `npm test` | sink tests pass |
@@ -443,9 +464,9 @@ Run everything from the repo root. After each step the named test file passes be
 | 11 | `auth.ts`, `wrong-audience` and strict mode, `/control/mint-token`, `wrong-audience.test.ts` | `npm test` | pass |
 | 12 | `malformed-result`, `timeout`, `version-bump-bcc` and their three test files | `npm test` | pass |
 | 13 | `stdio.ts`, `main.ts`, `transports.test.ts`; then conformance: build, start the lab, run the suite once without a baseline, copy each failing scenario into `expected-failures.yaml` with a reason | `npm run build && node dist/attack-lab/main.js &` then `node_modules/.bin/conformance server --url http://127.0.0.1:9010/mcp --spec-version 2025-11-25` (the pinned local binary, not `npx --yes`) | the first run lists failures; after the file exists, `npm run test:lab:conformance` exits 0 |
-| 14 | `src/attack-lab/README.md` (how to switch modes, copy of section 5) and, if approved, `docs/lab-modes.md` | read it as a stranger | each mode has a copy-paste command |
-| 15 | (Part B, approved) container packaging: `docker/p4-lab.compose.yml`, `docker/attack-lab/Dockerfile`, `scripts/lab-container.mjs`; `pr.yml` conformance step | `npm run build && npm run lab:up` then `curl -s http://127.0.0.1:9011/control/state -H "Authorization: Bearer $(cat .harness/lab/control-token)"` | state JSON with `"mode":"benign"`. Docker is not available in the planning sandbox, so this step is unverified until it runs on a machine or runner with Docker. |
-| 16 | `npm run check`, then open the build PR as a draft | `npm run check` | `# fail 0`, `# skipped` = 3 existing plus the conformance guard (4), `# tests` = 38 plus the new tests (about 70 planned; report the real number) |
+| 14 | `src/attack-lab/README.md` (how to switch modes, copy of section 5, the spec-version deviation from D2, and the `mail_send` placeholder note from D10) and `docs/lab-modes.md` (same three things) | read it as a stranger | each mode has a copy-paste command |
+| 15 | (Part B, approved) container packaging per section 3.1: `docker/attack-lab/{package.json,package-lock.json,tsconfig.json,Dockerfile}`, `docker/p4-lab.compose.yml`, `scripts/lab-container.mjs`, `docker-manifest.test.ts`; then the new `pr.yml` job `l2-attack-lab` | `npm run lab:up` (the image builds the lab itself; no `npm run build` needed first) then `curl -s http://127.0.0.1:9011/control/state -H "Authorization: Bearer $(cat .harness/lab/control-token)"` | state JSON with `"mode":"benign"`. Docker is not available in the planning sandbox, so this step is unverified until it runs on a machine or runner with Docker. |
+| 16 | `npm run check`, then open the build PR as a draft | `npm run check` | `# fail 0`, `# skipped` = 3 existing plus the conformance guard (4), `# tests` = 38 plus the new tests (about 70 planned; report the real number). Build PR is a draft |
 
 ### How to try a mode by hand (after step 13)
 
@@ -468,13 +489,28 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "content-type: application/
 - Tests start the lab themselves because it is this repository's own fixture, the same way `tests/l1/helpers.ts` starts the stub. They start no product; the harness still owns product start and stop.
 - No `GEMINI_API_KEY`, no provider call, no Gemma run in any L2 test.
 
-## 11. Questions for the reviewer
+## 11. Reviewer answers (applied) and follow-ups
 
-1. **Spec version.** Accept conformance at `2025-11-25` for now (D2)? Recommended: yes, and revisit when the SDK and conformance tool support `2026-07-28`.
-2. **Part B files.** Approve the `package.json`, `package-lock.json`, `pr.yml`, `docker/`, `scripts/` and `docs/lab-modes.md` edits in section 3 as part of the build PR? Recommended: yes; they are needed for `npm run check` and for LibreChat to reach the lab.
-3. **Dockerfile install.** For the lab image, `npm ci --omit=dev --ignore-scripts` from the full lockfile also fetches the harness git dependency (reproducible but heavy). Recommended: accept it. The alternative is a small separate lockfile for the image.
-4. **Gaps.** Tasks (PROT-011, REL-003), a flaky mode (REL-009), a manifest (SUPP-002), an add-tool option (META-005 new-tool case) and a planted-message path (INJ-016) are not among the ten modes. Add any of them to L2 now, or leave them to the L3 plan?
-5. **Shadow tool name.** `mail_send` is a placeholder until L3 snapshots the real Nextcloud tool list (D10). Acceptable?
+| # | Question | Answer | Where applied |
+|---|---|---|---|
+| 1 | Spec version | Use `2025-11-25`, the newest the SDK and conformance tool support. Record it as a deviation from the master plan's `2026-07-28` in the plan and README. Add a follow-up to move up. | D2, section 8, step 14, follow-up F1 |
+| 2 | Part B edits | Approved for the L2 build PR only. Keep minimal. `pr.yml`: add a new job only. | Section 3 Part B, step 15 |
+| 3 | Dockerfile install | No heavy install. Multi-stage Dockerfile that builds the lab and copies only its runtime files; no harness in the image. It is possible. | Section 3.1 |
+| 4 | Gap cases | Leave all six to L3, listed below with reasons. | Follow-ups F3 to F8, section 6 |
+| 5 | Shadow tool name | `mail_send` is a placeholder. Mark it in code and docs. Follow-up for L3 to swap in the real Nextcloud name. | D10, section 7.1, follow-up F2 |
+
+### Follow-ups (not part of the L2 build)
+
+| # | Follow-up | Owner lane | Reason |
+|---|---|---|---|
+| F1 | Move the conformance run from `2025-11-25` to a newer spec version (the master plan names `2026-07-28`), and update the lab's protocol handling, the README and `docs/lab-modes.md`. | owner decides when | Blocked until a released `@modelcontextprotocol/sdk` and `@modelcontextprotocol/conformance` support it (checked 2026-11-18: SDK 1.32.2, conformance 0.1.16, both stop at `2025-11-25`). |
+| F2 | Replace the placeholder shadow tool name `mail_send` with the real Nextcloud mail tool name from L3's committed `tools/list` snapshot (set `LAB_SHADOW_NAME` or change `SHADOW_NAME_PLACEHOLDER`), and remove the placeholder notes. | L3 | The real name was not confirmed while planning. |
+| F3 | P4-MCP-PROT-011 (tasks extension): add a tasks mode or decide the case runs on Penpot and Nextcloud only. | L3 | Not one of the ten modes; the SDK tasks API is experimental. |
+| F4 | P4-MCP-REL-003 (task cancel): same decision as F3; the row also allows Penpot. | L3 | Depends on tasks support (F3). |
+| F5 | P4-MCP-REL-009 (stretch, flaky server then recovery): add a flaky mode that returns 500s, then recovers. | L3 | Not one of the ten modes. |
+| F6 | P4-MCP-SUPP-002 (server.json or manifest drift): choose the manifest format (for example the registry `server.json`) and ship one with the lab. | L3 | Format needs a decision; not one of the ten modes. |
+| F7 | P4-MCP-INJ-016 (stretch, planted message from a second session): add a planted-message mechanism. | L3 | Not one of the ten modes. |
+| F8 | P4-MCP-META-005 (new tool appearing after consent): add an add-tool option to `rug-pull-after-n`. The mode only changes an existing tool today. | L3 | Small, but not in the ten modes' behaviour. |
 
 ## 12. Not done in this plan
 
