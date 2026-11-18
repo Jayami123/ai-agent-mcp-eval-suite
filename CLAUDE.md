@@ -5,8 +5,8 @@ These rules apply to every agent and every change in this repository.
 ## Workflow
 
 - Plan first after the bootstrap. Write the plan as a document under `docs/plans/`, open a draft PR that contains only the plan, and stop for the reviewer's approval before building.
-- Work on `feat/YYYY-MM-DD-<slug>` branches only. Never use `claude/` branch names.
-- Only the bootstrap commit goes directly to `main`. After that, every change goes through a `feat/` branch and a draft PR.
+- Work on `feat/`, `fix/`, `chore/` or `docs/` branches only, named `<type>/YYYY-MM-DD-<slug>`. Never use `claude/` branch names.
+- Only the bootstrap commit goes directly to `main`. After that, every change goes through one of those branches and a draft PR.
 - Never squash, rebase, amend or force-push. Merge commits only.
 - The builder never merges and never tags. The owner merges and tags.
 - Never enable auto-merge unless the owner asks.
