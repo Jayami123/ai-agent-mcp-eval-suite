@@ -1,0 +1,12 @@
+{
+  "id": "smoke-search-001",
+  "description": "Fake data only. One search tool call, then a final text turn.",
+  "turns": [
+    {
+      "tool_calls": [
+        { "name": "search_records", "arguments": { "query": "fake-alpha", "limit": 5 } }
+      ]
+    },
+    { "content": "Found the fake record." }
+  ]
+}
