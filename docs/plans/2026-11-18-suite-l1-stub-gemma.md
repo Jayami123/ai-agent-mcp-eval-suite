@@ -633,6 +633,8 @@ Rules:
 
 ### 8.2 Gemma e2e skeleton: `tests/l1/gemma-tool-call.e2e.ts` (written in T9, after the T8 pin)
 
+Decision (2026-11-18): the L1 e2e calls **`list_object_metadata_names`** only, pinned by exact name. Twenty's MCP tools (`search_help_center`, `get_tool_catalog`, `execute_tool`, `load_skills`, `list_object_metadata_names`, `list_skills`, `learn_tools`) have no direct records list. Trajectories through `execute_tool`, `learn_tools` or `get_tool_catalog` are deferred to Lane 2. The state check requires the standard objects `person`, `company` and `opportunity` as whole words in the result (`tests/l1/twenty-seed.expected.json`).
+
 Target product: **Twenty** (reviewer answer Q3). Reason: Part A verified Twenty MCP tool calling end to end (7 tools, scoped key). Outline tool calls are unverified (tools/list only), so Outline is not the first target. Do not switch to Cal or Documenso. The Gemma path never uses a fixture marker or fixture header.
 
 The file has this shape. Every import from the harness must use the exact names that B1 exports; read B1's README and `dist/index.d.ts` at the pinned tag. **Do not guess names.**
@@ -776,7 +778,7 @@ export class Pacer {
 }
 ```
 
-- No automatic retry on 429. A 429 is recorded as `partial`.
+- Decision (supersedes the no-retry rule above): the suite has **no pacer**. A 429 or `RESOURCE_EXHAUSTED` is retried a bounded number of times (waits of 15 s and 45 s before retries 1 and 2; the values are a chosen bound). A 429 that persists after the retries is recorded as `partial`.
 - The 14,400 RPD limit is a backstop: one nightly job is far below it. Do not add a loop that could exceed it.
 
 ---

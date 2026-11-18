@@ -4,15 +4,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { getAdapter, type AuthSession, type ProductAdapter } from "qa-portfolio-harness";
 
-// L1 smoke: a real model (Gemma through LiteLLM alias p4-nightly) calls a real MCP tool on Twenty.
+// L1 smoke: a real model (Gemma through LiteLLM alias p4-nightly) calls one real Twenty MCP tool.
+// Target is list_object_metadata_names only. Trajectories through execute_tool, learn_tools or
+// get_tool_catalog are deferred to Lane 2 (see plan section 8.2).
 // Runs only in the nightly workflow. Never uses a fixture header or marker (the stub path is separate).
 // Never asserts on reply text. Never prints the key, a bearer token or any header value.
 
 const ENABLED = process.env["P4_LLM_MODE"] === "nightly" && Boolean(process.env["GEMINI_API_KEY"]);
 const MODEL_ALIAS = "p4-nightly";
 const MAX_TURNS = 4;
-// Pacing from plan section 8.7 (UNVERIFIED limits; 25 s gap between heavy turns).
-const PACE_MS = 25_000;
+// Exact Twenty MCP tool name, from the real tools/list. Pinned, no pattern matching.
+const TWENTY_LIST_TOOL_NAME = "list_object_metadata_names";
+// Bounded retry on 429 or RESOURCE_EXHAUSTED: waits before retry 1 and retry 2. No pacer in the suite.
+// After the last retry still rate-limited, the run records `partial`. The wait values are a chosen bound.
+const RETRY_DELAYS_MS = [15_000, 45_000];
 const REQUEST_TIMEOUT_MS = 120_000;
 const MCP_PROTOCOL_VERSION = "2025-03-26";
 const DID_NOT_COMPLETE = "run did not complete";
@@ -35,26 +40,14 @@ interface E2eRecord {
   status: Status;
   runId: string;
   model: string;
-  listTool: string | null;
+  listTool: string;
+  toolNames: string[];
   turns: number;
   trajectory: TrajectoryStep[];
   httpStatuses: number[];
   finishReasons: string[];
   stateCheck: string;
   reason: string;
-}
-
-/** Heavy turns are spaced by at least minGapMs (plan section 8.7). No retry on 429. */
-export class Pacer {
-  private last = 0;
-  constructor(private readonly minGapMs: number) {}
-  async beforeHeavyTurn(): Promise<void> {
-    const wait = this.last + this.minGapMs - Date.now();
-    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  }
-  afterHeavyTurn(): void {
-    this.last = Date.now();
-  }
 }
 
 function runId(): string {
@@ -91,11 +84,14 @@ interface McpCtx {
   nextId: number;
 }
 
+interface McpMessage {
+  id?: number;
+  result?: unknown;
+  error?: { code?: number };
+}
+
 /** Sends one JSON-RPC message. Accepts a JSON or SSE response and returns the message whose id matches. */
-async function mcpSend(
-  ctx: McpCtx,
-  body: { id?: number; method: string; params?: unknown },
-): Promise<{ id?: number; result?: unknown; error?: { code?: number } } | undefined> {
+async function mcpSend(ctx: McpCtx, body: { id?: number; method: string; params?: unknown }): Promise<McpMessage | undefined> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
     accept: "application/json, text/event-stream",
@@ -118,8 +114,8 @@ async function mcpSend(
     ? text
         .split("\n")
         .filter((line) => line.startsWith("data:"))
-        .map((line) => JSON.parse(line.slice(5).trim()) as { id?: number; result?: unknown; error?: { code?: number } })
-    : [JSON.parse(text) as { id?: number; result?: unknown; error?: { code?: number } }];
+        .map((line) => JSON.parse(line.slice(5).trim()) as McpMessage)
+    : [JSON.parse(text) as McpMessage];
   return messages.find((m) => m.id === body.id);
 }
 
@@ -142,17 +138,12 @@ async function mcpHandshake(ctx: McpCtx): Promise<McpTool[]> {
   return listed.tools ?? [];
 }
 
-/**
- * Exact name of the Twenty tool that lists records. Set from the real tools/list, never guessed.
- * Null until chosen: the test then fails closed and prints every tool name (names are not secrets).
- */
-const TWENTY_LIST_TOOL_NAME: string | null = null;
-
+/** The pinned list tool must exist in the real tools/list. Fails closed otherwise. */
 function pickListTool(tools: McpTool[]): McpTool {
   const found = tools.find((t) => t.name === TWENTY_LIST_TOOL_NAME);
-  if (TWENTY_LIST_TOOL_NAME === null || !found) {
+  if (!found) {
     const names = tools.map((t) => t.name).join(", ");
-    throw new Error(`TWENTY_LIST_TOOL_UNSET: choose the records list tool from the ${tools.length} tools: [${names}]`);
+    throw new Error(`TWENTY_LIST_TOOL_MISSING: ${TWENTY_LIST_TOOL_NAME} is not in tools/list: [${names}]`);
   }
   return found;
 }
@@ -171,8 +162,7 @@ interface McpCallResult {
 }
 
 interface SeedExpectation {
-  recordCount: number | null;
-  knownNames: string[];
+  requiredObjects: string[];
 }
 
 type StateVerdict = { outcome: "pass" | "fail" | "unverified"; detail: string };
@@ -182,60 +172,33 @@ const SEED_EXPECTED_FILE = path.resolve(process.cwd(), "tests", "l1", "twenty-se
 function readSeedExpectation(): SeedExpectation {
   const raw = JSON.parse(fs.readFileSync(SEED_EXPECTED_FILE, "utf8")) as Partial<SeedExpectation>;
   return {
-    recordCount: typeof raw.recordCount === "number" ? raw.recordCount : null,
-    knownNames: Array.isArray(raw.knownNames) ? raw.knownNames.filter((n): n is string => typeof n === "string") : [],
+    requiredObjects: Array.isArray(raw.requiredObjects)
+      ? raw.requiredObjects.filter((n): n is string => typeof n === "string")
+      : [],
   };
 }
 
-/** First array of objects found in the parsed list result (top level, or one level down). */
-function findRecordArray(value: unknown, depth = 0): unknown[] | undefined {
-  if (Array.isArray(value) && value.length > 0 && value.every((v) => typeof v === "object" && v !== null)) {
-    return value;
-  }
-  if (depth >= 2 || typeof value !== "object" || value === null) return undefined;
-  for (const child of Object.values(value)) {
-    const found = findRecordArray(child, depth + 1);
-    if (found) return found;
-  }
-  return undefined;
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
- * Asserts the list tool's result against the seeded Twenty records: the record count and at least one
- * known name. Expectations come from tests/l1/twenty-seed.expected.json, filled from a real seed run.
+ * The list result must include each required standard object as a whole word (person, company, opportunity).
  * Null or empty expectations are "unverified", which is never a pass.
  */
-function checkSeededState(results: McpCallResult[]): StateVerdict {
+function checkSeededState(result: McpCallResult | undefined): StateVerdict {
   const expected = readSeedExpectation();
-  if (expected.recordCount === null || expected.knownNames.length === 0) {
-    return { outcome: "unverified", detail: "tests/l1/twenty-seed.expected.json has no verified recordCount/knownNames" };
+  if (expected.requiredObjects.length === 0) {
+    return { outcome: "unverified", detail: "tests/l1/twenty-seed.expected.json has no requiredObjects" };
   }
-  const last = results[results.length - 1];
-  if (!last) return { outcome: "fail", detail: "no successful list-tool result to check" };
-  if (last.isError) return { outcome: "fail", detail: "list-tool result has isError set" };
-  const text = (last.content ?? []).map((c) => c.text ?? "").join("\n");
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text) as unknown;
-  } catch {
-    return { outcome: "fail", detail: "list-tool result text is not JSON" };
-  }
-  const records = findRecordArray(parsed);
-  if (!records) return { outcome: "fail", detail: "no record array in the list-tool result" };
-  if (records.length !== expected.recordCount) {
-    return {
-      outcome: "fail",
-      detail: `record count ${records.length} != expected ${expected.recordCount}`,
-    };
-  }
-  const missing = expected.knownNames.filter((name) => !text.includes(name));
+  if (!result) return { outcome: "fail", detail: "no successful list-tool result to check" };
+  if (result.isError) return { outcome: "fail", detail: "list-tool result has isError set" };
+  const text = (result.content ?? []).map((c) => c.text ?? "").join("\n");
+  const missing = expected.requiredObjects.filter((name) => !new RegExp(`\\b${escapeRegExp(name)}\\b`).test(text));
   if (missing.length > 0) {
-    return { outcome: "fail", detail: `known name(s) not in result: ${missing.length} missing` };
+    return { outcome: "fail", detail: `required object(s) not in result: ${missing.join(", ")}` };
   }
-  return {
-    outcome: "pass",
-    detail: `record count ${records.length} matches; ${expected.knownNames.length} known name(s) found`,
-  };
+  return { outcome: "pass", detail: `required objects present: ${expected.requiredObjects.join(", ")}` };
 }
 
 interface ChatBody {
@@ -253,7 +216,7 @@ interface ChatResult {
   body: ChatBody | null;
 }
 
-async function chat(session: AuthSession, messages: unknown[], tools: unknown[]): Promise<ChatResult> {
+async function chatOnce(session: AuthSession, messages: unknown[], tools: unknown[]): Promise<ChatResult> {
   const res = await fetch(`${session.baseUrl}/v1/chat/completions`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: session.authorizationHeader },
@@ -270,8 +233,25 @@ async function chat(session: AuthSession, messages: unknown[], tools: unknown[])
   return { status: res.status, body };
 }
 
+function isRateLimited(result: ChatResult): boolean {
+  return result.status === 429 || Boolean(result.body?.error?.message?.includes("RESOURCE_EXHAUSTED"));
+}
+
+/** Retries only on rate limits, with the bounded delays above. Returns the last result. */
+async function chatWithRetry(session: AuthSession, messages: unknown[], tools: unknown[], rec: E2eRecord): Promise<ChatResult> {
+  let result = await chatOnce(session, messages, tools);
+  rec.httpStatuses.push(result.status);
+  for (const delay of RETRY_DELAYS_MS) {
+    if (!isRateLimited(result)) break;
+    await new Promise((r) => setTimeout(r, delay));
+    result = await chatOnce(session, messages, tools);
+    rec.httpStatuses.push(result.status);
+  }
+  return result;
+}
+
 test(
-  "L1 smoke: Gemma calls a real MCP tool through p4-nightly",
+  "L1 smoke: Gemma calls list_object_metadata_names through p4-nightly",
   {
     skip: ENABLED ? false : "requires P4_LLM_MODE=nightly and GEMINI_API_KEY (nightly workflow only)",
     timeout: 15 * 60_000,
@@ -282,19 +262,19 @@ test(
       status: "partial",
       runId: id,
       model: MODEL_ALIAS,
-      listTool: null,
+      listTool: TWENTY_LIST_TOOL_NAME,
+      toolNames: [],
       turns: 0,
       trajectory: [],
       httpStatuses: [],
       finishReasons: [],
-      stateCheck: "not run: Twenty seed record count is not verified yet (plan section 8.2 step 5)",
+      stateCheck: "not run",
       reason: DID_NOT_COMPLETE,
     };
 
     process.env["TWENTY_MCP"] = "1";
     const twenty = getAdapter("twenty");
     const litellm = getAdapter("litellm");
-    const pacer = new Pacer(PACE_MS);
     try {
       // The harness owns start and stop. The test only asks it to bring the products up.
       await twenty.up();
@@ -306,8 +286,8 @@ test(
       const mcp = readTwentyMcp(twenty);
       const ctx: McpCtx = { url: mcp.url, authorization: mcp.authorization, nextId: 1 };
       const tools = await mcpHandshake(ctx);
+      rec.toolNames = tools.map((t) => t.name);
       const listTool = pickListTool(tools);
-      rec.listTool = listTool.name;
       const llmTools = [
         {
           type: "function",
@@ -316,22 +296,19 @@ test(
       ];
 
       const messages: unknown[] = [
-        { role: "user", content: "List the records. Call the tool that lists records, then stop." },
+        { role: "user", content: `Call the tool ${listTool.name} once, then stop.` },
       ];
 
       // Set when the loop stops on a non-assertion outcome (plan section 8.6).
       let stopped: Status | null = null;
-      const listResults: McpCallResult[] = [];
+      let listResult: McpCallResult | undefined;
       for (let turn = 0; turn < MAX_TURNS && stopped === null; turn++) {
-        await pacer.beforeHeavyTurn();
-        const result = await chat(session, messages, llmTools);
-        pacer.afterHeavyTurn();
+        const result = await chatWithRetry(session, messages, llmTools, rec);
         rec.turns = turn + 1;
-        rec.httpStatuses.push(result.status);
 
-        if (result.status === 429 || result.body?.error?.message?.includes("RESOURCE_EXHAUSTED")) {
+        if (isRateLimited(result)) {
           stopped = "partial";
-          rec.reason = `quota exhausted at turn ${turn} (HTTP ${result.status}); no retry`;
+          rec.reason = `rate limited at turn ${turn} after ${RETRY_DELAYS_MS.length} retries (last HTTP ${result.status})`;
           break;
         }
         if (result.status !== 200 || !result.body) {
@@ -364,7 +341,7 @@ test(
           const out = (await mcpRequest(ctx, "tools/call", { name: call.function.name, arguments: args })) as
             | McpCallResult
             | undefined;
-          if (call.function.name === listTool.name && out) listResults.push(out);
+          if (call.function.name === listTool.name && out) listResult = out;
           messages.push({
             role: "tool",
             tool_call_id: call.id,
@@ -408,7 +385,16 @@ test(
         writeRecord(rec);
         assert.fail(rec.reason);
       }
-      const state = checkSeededState(listResults);
+
+      // Raw list output is kept as CI evidence (object names only; no credentials). Used to verify the expectations.
+      if (listResult) {
+        const dir = evidenceDir(id);
+        fs.mkdirSync(dir, { recursive: true });
+        const text = (listResult.content ?? []).map((c) => c.text ?? "").join("\n");
+        fs.writeFileSync(path.join(dir, "twenty-list-output.txt"), `${text}\n`);
+      }
+
+      const state = checkSeededState(listResult);
       rec.stateCheck = state.detail;
       if (state.outcome === "fail") {
         rec.status = "fail";
