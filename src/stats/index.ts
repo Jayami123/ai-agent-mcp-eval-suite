@@ -12,3 +12,7 @@ export * from "./quarantine.js";
 export * from "./quarantine-list.js";
 export * from "./throttle.js";
 export * from "./slice.js";
+export * from "./paired.js";
+export * from "./model-swap.js";
+export * from "./prompt-regression.js";
+export * from "./budget.js";
