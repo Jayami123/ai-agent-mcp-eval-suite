@@ -1021,6 +1021,9 @@ Between T6 and T7, the reviewer may ask for a check of the actual `pr` run on a 
 - **UNVERIFIED** R8 — the Docker registries the harness products need (section 11). Read the compose files at the pinned tag.
 - **UNVERIFIED** R9 — GitHub scheduled runs can start late under load. The 09:30 UTC start has a one-hour margin before the RPD window question matters. Acceptable; not a blocker.
 - **UNVERIFIED** R10 — the `node --test` skip output format (`skip` option with a reason). Confirm the exact skipped line in T9 by running it.
+- **UNVERIFIED** R11 — the cause of the HTTP 503 seen in nightly run 44293011088 (first call to LiteLLM, turn 0). The body was not recorded in that run. Later runs (44294451265, 44295128198) got HTTP 200 on every call and no 503 recurred, so the cause is undiagnosed. The e2e now records any non-rate-limit error body and the LiteLLM log as redacted evidence (`evidence/nightly/<run-id>/`).
+- **UNVERIFIED** R12 — the retry waits are chosen values, not measured limits: 15 s and 45 s for rate limits (429 or `RESOURCE_EXHAUSTED`), and 30 s for one Google-side overload retry. Check them against the provider's documented behaviour before relying on them.
+- **DEFERRED** R13 — Lane 2 trajectories. The L1 e2e calls only `list_object_metadata_names`. Trajectories through `execute_tool`, `learn_tools` and `get_tool_catalog` are not tested in L1 and are deferred to Lane 2 (see the decision note in section 8.2).
 
 ### 14.3 Non-standard choices (flagged)
 

@@ -4,9 +4,6 @@ on:
   schedule:
     - cron: "30 9 * * *"   # 09:30 UTC = 01:30 PST or 02:30 PDT, after Pacific midnight
   workflow_dispatch:
-  push:
-    branches:
-      - feat/2026-11-18-suite-l1-stub-gemma   # temporary: remove before merge
 
 permissions:
   contents: read
