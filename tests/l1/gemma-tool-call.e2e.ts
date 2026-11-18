@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { getAdapter, type AuthSession } from "qa-portfolio-harness";
 import { collectContainerLogs, redact, runId, writeEvidence } from "./evidence.js";
 import { lcChat, lcCreateAgent, mcpToolName, type LcChatOutcome } from "./librechat-client.js";
-import { checkSeededText } from "./seed-check.js";
+import { classifyGemmaOutcome, isRateLimited, type GemmaStatus } from "./gemma-classify.js";
 
 // L1 smoke: a real model (Gemma, LiteLLM alias p4-nightly) calls one real Twenty MCP tool THROUGH LibreChat.
 // Chain: LibreChat agent -> LiteLLM (p4-nightly -> Gemma) -> back through LibreChat to the Twenty MCP server.
@@ -19,10 +19,11 @@ const TWENTY_LIST_TOOL_NAME = "list_object_metadata_names";
 const SERVER = "twenty";
 // Rate limits (429 or RESOURCE_EXHAUSTED): retry the whole chat after 15 s, then 45 s. Still limited = partial.
 const RETRY_DELAYS_MS = [15_000, 45_000];
+const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 const CHAT_TIMEOUT_MS = 240_000;
 const DID_NOT_COMPLETE = "run did not complete";
 
-type Status = "pass" | "fail" | "blocked by provider" | "partial" | "finding:gemma-tool-calling";
+type Status = GemmaStatus | "partial"; // "partial" is also the initial value until the run completes
 
 interface E2eRecord {
   status: Status;
@@ -38,14 +39,6 @@ interface E2eRecord {
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-
-function isRateLimited(text: string): boolean {
-  return /\b429\b|RESOURCE_EXHAUSTED|rate.?limit/i.test(text);
-}
-
-function isContentFilter(text: string): boolean {
-  return /content_filter|safety/i.test(text);
-}
 
 test(
   "L1 smoke: Gemma calls list_object_metadata_names through LibreChat (p4-nightly)",
@@ -101,7 +94,7 @@ test(
       });
 
       let outcome: LcChatOutcome | undefined;
-      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         rec.attempts = attempt + 1;
         outcome = await lcChat(session, {
           agentId,
@@ -119,80 +112,19 @@ test(
       writeEvidence(dir, "librechat-outcome.json", `${redact(JSON.stringify(outcome, null, 2), secrets())}\n`);
 
       if (outcome.errorText !== "") {
-        const excerpt = redact(outcome.errorText, secrets());
-        rec.errorExcerpt = excerpt.slice(0, 500);
-        if (isRateLimited(outcome.errorText)) {
-          // 429 after all retries is partial, never a fail.
-          rec.status = "partial";
-          rec.reason = `rate limited after ${rec.attempts} attempt(s)`;
-          writeRecord();
-          return;
-        }
-        if (isContentFilter(outcome.errorText)) {
-          rec.status = "blocked by provider";
-          rec.reason = "provider safety filter";
-          writeRecord();
-          return;
-        }
-        // Any other error is a fail.
-        rec.status = "fail";
-        rec.reason = `LibreChat reported an error (not a rate limit): ${rec.errorExcerpt}`;
-        writeRecord();
-        assert.fail(rec.reason);
+        rec.errorExcerpt = redact(outcome.errorText, secrets()).slice(0, 500);
       }
-
       const listed = outcome.toolCalls.filter((c) => c.name === toolName);
-      if (outcome.toolCalls.length === 0) {
-        rec.status = "finding:gemma-tool-calling";
-        rec.reason = "no tool call in the saved assistant message";
-        writeEvidence(
-          dir,
-          "finding-gemma-tool-calling.md",
-          [
-            "# Finding: Gemma did not return a tool call",
-            "",
-            `Run: ${id}. Alias: ${MODEL_ALIAS}. Tool offered: ${toolName}. Path: LibreChat agent.`,
-            "The request required a tool call and the saved assistant message had none.",
-            "A human commits this finding through a feat/ PR. The test does not push.",
-            "",
-          ].join("\n"),
-        );
-        writeRecord();
-        return;
-      }
-      if (listed.length === 0) {
-        rec.status = "fail";
-        rec.reason = `no call to ${toolName} in the trajectory`;
-        writeRecord();
-        assert.fail(rec.reason);
-      }
-      if (!listed.every((c) => typeof c.arguments === "object" && c.arguments !== null)) {
-        rec.status = "fail";
-        rec.reason = `a ${toolName} call had non-object arguments`;
-        writeRecord();
-        assert.fail(rec.reason);
-      }
+      writeEvidence(dir, "twenty-list-output.txt", `${redact(listed.map((c) => c.output ?? "").join("\n"), secrets())}\n`);
 
-      const outputText = listed.map((c) => c.output ?? "").join("\n");
-      writeEvidence(dir, "twenty-list-output.txt", `${redact(outputText, secrets())}\n`);
-      const state = checkSeededText(outputText);
-      rec.stateCheck = state.detail;
-      if (state.outcome === "fail") {
-        rec.status = "fail";
-        rec.reason = `state check failed: ${state.detail}`;
-        writeRecord();
-        assert.fail(rec.reason);
-      }
-      if (state.outcome === "unverified") {
-        // A pass must not mean only "the tool was called".
-        rec.status = "partial";
-        rec.reason = `Gemma called ${toolName}; state check unverified: ${state.detail}`;
-        writeRecord();
-        return;
-      }
-      rec.status = "pass";
-      rec.reason = `Gemma called ${toolName} ${listed.length} time(s) through LibreChat; state check passed`;
+      // The outcome rules live in gemma-classify.ts and are unit tested. Only partial (429 or RESOURCE_EXHAUSTED after
+      // all retries) and blocked by provider (safety refusal) end without failing the test. Everything else fails.
+      const verdict = classifyGemmaOutcome({ outcome, toolName, attempts: rec.attempts, maxAttempts: MAX_ATTEMPTS });
+      rec.status = verdict.status;
+      rec.reason = verdict.reason;
+      if (verdict.stateCheck !== undefined) rec.stateCheck = verdict.stateCheck;
       writeRecord();
+      if (verdict.status === "fail") assert.fail(`${verdict.reason}${rec.errorExcerpt ? `: ${rec.errorExcerpt}` : ""}`);
     } catch (err) {
       if (rec.reason === DID_NOT_COMPLETE) {
         rec.reason = `run error before completion: ${redact((err as Error).message, secrets())}`;
