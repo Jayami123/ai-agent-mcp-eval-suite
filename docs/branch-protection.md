@@ -13,3 +13,5 @@ Apply these settings in GitHub → the suite repo → Settings → Branches → 
   - `pr / stub (24)`
 
 The bootstrap `ci.yml` check (`CI / check`) was removed in favour of `pr.yml`. Do not select it.
+
+The `l1 librechat stub` and `l1 openclaw stub` jobs in the same workflow run real products through the harness. Keep them out of the required checks until the owner has seen them stable; they are advisory at first.

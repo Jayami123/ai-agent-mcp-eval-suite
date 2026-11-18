@@ -1,0 +1,24 @@
+# The fixture stub as a container (not a host bind), so LiteLLM reaches it at http://p4-stub:8787/v1 on qa-harness-p4.
+# The host publish is 127.0.0.1 only; tests read the recorder at http://127.0.0.1:8787/__trace.
+#   npm run build && npm run stub:up        # and: npm run stub:down
+name: p4-suite-stub
+
+services:
+  p4-stub:
+    build:
+      context: ..
+      dockerfile: docker/stub/Dockerfile
+    image: p4-suite-stub:local
+    container_name: p4-suite-stub
+    ports:
+      - "127.0.0.1:8787:8787"
+    networks:
+      default: {}
+      p4:
+        aliases:
+          - p4-stub
+
+networks:
+  p4:
+    external: true
+    name: qa-harness-p4
