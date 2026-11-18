@@ -31,9 +31,12 @@ export interface LcChatOutcome {
 }
 
 const REQUEST_TIMEOUT_MS = 60_000;
+// LibreChat's uaParser middleware (api/server/middleware/uaParser.js) answers "Illegal request" to any caller whose
+// User-Agent is not a recognised browser, and logs a violation. This test client is not a browser, so it names one.
+const BROWSER_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
 function headers(session: AuthSession): Record<string, string> {
-  return { "content-type": "application/json", authorization: session.authorizationHeader };
+  return { "content-type": "application/json", authorization: session.authorizationHeader, "user-agent": BROWSER_USER_AGENT };
 }
 
 async function readJson(res: Response, what: string): Promise<unknown> {
@@ -170,7 +173,7 @@ export async function lcChat(
 
   let errorText = "";
   const stream = await fetch(`${session.baseUrl}/api/agents/chat/stream/${startBody.streamId}`, {
-    headers: { authorization: session.authorizationHeader, accept: "text/event-stream" },
+    headers: { authorization: session.authorizationHeader, accept: "text/event-stream", "user-agent": BROWSER_USER_AGENT },
     signal: AbortSignal.timeout(Math.max(1000, deadline - Date.now())),
   });
   if (!stream.ok || !stream.body) {
@@ -203,7 +206,7 @@ export async function lcChat(
   let savedStatus = 0;
   for (let attempt = 0; attempt < 15; attempt++) {
     const res = await fetch(`${session.baseUrl}/api/messages/${conversationId}`, {
-      headers: { authorization: session.authorizationHeader },
+      headers: { authorization: session.authorizationHeader, "user-agent": BROWSER_USER_AGENT },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     savedStatus = res.status;

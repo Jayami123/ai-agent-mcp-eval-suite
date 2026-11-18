@@ -11,14 +11,21 @@ import { readStubTrace, requireStubContainer, resetStubTrace, STUB_UPSTREAM_URL,
 // nothing. The fixture is chosen by the [fixture:<id>] marker in the task text (the X-P4-Fixture header does not pass
 // through OpenClaw). Stub mode only: no GEMINI_API_KEY, no secrets.
 
+// BLOCKED by a missing harness primitive (see docs/findings/l1-openclaw-stub-call.md): the harness OpenClaw config leaves
+// Tool Search on, which hides client function tools, so the model is never offered search_records. The harness must write
+// tools.toolSearch=false when OPENCLAW_RESPONSES_API=1. Until a harness tag does that, this test is skipped by name, not
+// passed. Remove BLOCKER (and repin the harness) to run it.
+const BLOCKER =
+  "BLOCKED: harness OpenClaw config lacks tools.toolSearch=false, so client tools are hidden behind Tool Search (docs/findings/l1-openclaw-stub-call.md)";
 const ENABLED = process.env["P4_STACK_TESTS"] === "1";
 const FIXTURE = "smoke-search-001";
 const EXPECTED = { name: "search_records", arguments: { query: "fake-alpha", limit: 5 } };
 
 test(
   "L1 stub: OpenClaw run returns the stub's tool call and the trace matches",
-  { skip: ENABLED ? false : "requires P4_STACK_TESTS=1 (PR CI stack job)", timeout: 30 * 60_000 },
+  { skip: BLOCKER, timeout: 30 * 60_000 },
   async () => {
+    assert.ok(ENABLED, "set P4_STACK_TESTS=1 to run this test once the blocker is removed");
     const dir = path.join("stack", `openclaw-stub-${runId()}`);
     process.env["P4_LLM_MODE"] = "stub";
     process.env["P4_STUB_API_BASE"] = STUB_UPSTREAM_URL;
