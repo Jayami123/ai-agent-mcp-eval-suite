@@ -142,17 +142,19 @@ async function mcpHandshake(ctx: McpCtx): Promise<McpTool[]> {
   return listed.tools ?? [];
 }
 
-/** The list tool is picked by name from tools/list, never guessed. Exactly one candidate must match. */
+/**
+ * Exact name of the Twenty tool that lists records. Set from the real tools/list, never guessed.
+ * Null until chosen: the test then fails closed and prints every tool name (names are not secrets).
+ */
+const TWENTY_LIST_TOOL_NAME: string | null = null;
+
 function pickListTool(tools: McpTool[]): McpTool {
-  const candidates = tools.filter((t) => /(^|_)list(_|$)/i.test(t.name));
-  if (candidates.length !== 1) {
-    // Tool names are product metadata, not secrets. Printed so the exact list tool can be chosen from the real list.
-    const names = candidates.map((t) => t.name).join(", ");
-    throw new Error(
-      `TWENTY_LIST_TOOL_NOT_UNIQUE: found ${candidates.length} candidates in ${tools.length} tools: [${names}]`,
-    );
+  const found = tools.find((t) => t.name === TWENTY_LIST_TOOL_NAME);
+  if (TWENTY_LIST_TOOL_NAME === null || !found) {
+    const names = tools.map((t) => t.name).join(", ");
+    throw new Error(`TWENTY_LIST_TOOL_UNSET: choose the records list tool from the ${tools.length} tools: [${names}]`);
   }
-  return candidates[0] as McpTool;
+  return found;
 }
 
 function parseArgs(raw: string): unknown {
