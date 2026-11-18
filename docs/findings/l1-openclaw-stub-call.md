@@ -5,8 +5,8 @@ Gap 3 of the L1 acceptance list: one benign stub-driven tool call through OpenCl
 **Status: resolved.** Harness 0.6.3 added the missing primitive, and the test now runs in PR CI.
 
 - Test: `tests/l1/openclaw-stub-tool-call.e2e.ts`. PR CI job: `l1 openclaw stub`.
-- Fix: `qa-portfolio-harness` PR 65, merge commit `4650a17888564d8296fb69e0cf640b33b44bd7df` (release 0.6.3). The suite pins that
-  commit until the `v0.6.3` tag exists, then repins to the tag.
+- Fix: `qa-portfolio-harness` PR 65, merge commit `4650a17888564d8296fb69e0cf640b33b44bd7df`, released as tag `v0.6.3`. The
+  suite pins `#v0.6.3`.
 - Verified in [run 44336471743](https://github.com/Jayami123/ai-agent-mcp-eval-suite/actions/runs/44336471743), job
   `l1 openclaw stub` ([job 134914449853](https://github.com/Jayami123/ai-agent-mcp-eval-suite/actions/runs/44336471743/job/134914449853)),
   commit `7d02ce66a04325d4152bb3fe4138352d53d1b565`, success. The evidence from that run shows:
