@@ -1,0 +1,15 @@
+{
+  "name": "p4-attack-lab-image",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Runtime and build dependencies for the attack-lab container image. Kept apart from the root package.json so the image does not install the harness. tests/l2/docker-manifest.test.ts keeps the versions equal to the root.",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}

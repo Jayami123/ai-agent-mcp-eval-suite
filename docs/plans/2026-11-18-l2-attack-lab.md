@@ -515,3 +515,20 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "content-type: application/
 ## 12. Not done in this plan
 
 No code, no test, no Docker run, no conformance run against the lab. The only things executed while planning: `npm ci` and `npm run check` on `main` for the baseline, and a scratchpad spike (outside the repo) that confirmed the low-level SDK server, plain `node:http` streamable HTTP and the malformed-result behaviour in D4. The conformance scenario list and the `expected-failures` file format were read from the installed `@modelcontextprotocol/conformance@0.1.16`.
+
+## 13. Build amendments (recorded in the build PR)
+
+Things the build found or the reviewer added after approving the plan. The plan text above is left as approved.
+
+| # | Amendment | Why |
+|---|---|---|
+| A1 | The base tool set has five tools, not three: `lab_echo`, `lab_add`, `lab_mail_send` plus `test_error_handling` and `json_schema_2020_12_tool`. | The official scenarios `tools-call-error` and `json-schema-2020-12` look for these two names. The reviewer requires both to pass, so the benign lab offers them. |
+| A2 | `malformed-result` has three variants (`schema`, `oversize`, `error`); the `content` variant in section 4.1 is not built. | The SDK server validates the shape of every `tools/call` result, so an invalid content block becomes a JSON-RPC error (-32602) and cannot be sent. Checked against SDK 1.32.2. |
+| A3 | The MCP port checks the `Origin` header as well as `Host`. | The `dns-rebinding-protection` scenario sends both and expects a 4xx for a foreign pair and 2xx for a localhost pair. |
+| A4 | `json-schema-2020-12` is outside the conformance tool's default ("active") suite, so `conformance.e2e.ts` runs it by name. It reads each scenario's `checks.json` and asserts the six must-pass scenarios have no non-`SUCCESS` check. | Reviewer point 3. |
+| A5 | `server-initialize`, `ping`, `tools-list`, `tools-call-error`, `dns-rebinding-protection` and `json-schema-2020-12` are never listed in `expected-failures.yaml`. `tests/l2/expected-failures.test.ts` enforces it. | Reviewer point 3. |
+| A6 | `docker/p4-lab.compose.yml` sets `LAB_RESOURCE=http://p4-attack-lab:9010/mcp` and `LAB_ALLOWED_HOSTS=p4-attack-lab:9010`. `tests/l2/container-files.test.ts` checks it. | Reviewer point 1. |
+| A7 | `scripts/lab-container.mjs up` writes a fresh token to `.harness/lab/control-token` on the host and passes it to the container as the `LAB_CONTROL_TOKEN` environment variable of the `docker compose` process. It is never a build arg and is never printed. The Dockerfile has no `ARG` and does not mention the token. | Reviewer point 2. |
+| A8 | The timeout test asserts the unaborted call takes at least 400 ms (`performance.now()` around the call), and under 5 s. | Reviewer point 4. |
+| A9 | The `pr.yml` addition is one new job, `l2-attack-lab`. It also checks, from the running container, the state route, the resource URL in the metadata and that the image holds no harness. | Reviewer answer 2. |
+| A10 | The conformance test spawns the tool asynchronously. | The lab runs in the test's own process; a blocking spawn would stop it from answering. |
