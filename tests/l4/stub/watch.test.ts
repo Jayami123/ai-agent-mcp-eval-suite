@@ -45,3 +45,15 @@ test("stub watch: a body that is not JSON is a 400 and short values are ignored"
     await stub.close();
   }
 });
+
+test("stub marker: the same id written with markdown escapes is still one id", async () => {
+  const stub = await startStub();
+  try {
+    const r = await postChat(stub.port, { messages: [{ role: "user", content: "[fixture:smoke-search-001] hi" }, { role: "user", content: "quoted: \\[fixture:smoke-search-001\\] hi" }] });
+    assert.equal(r.status, 200);
+    const two = await postChat(stub.port, { messages: [{ role: "user", content: "[fixture:smoke-search-001]" }, { role: "user", content: "[fixture:oc-rel-004]" }] });
+    assert.equal(two.status, 400, "two different ids are still refused");
+  } finally {
+    await stub.close();
+  }
+});

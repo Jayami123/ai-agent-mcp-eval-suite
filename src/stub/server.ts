@@ -117,7 +117,8 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     // Fallback only when the header is absent (some proxies drop custom headers).
     const ids = new Set<string>();
     for (const message of messages) {
-      for (const match of messageText(message).matchAll(FIXTURE_MARKER)) ids.add(match[1] ?? "");
+      // A client may render the marker with markdown escapes (a quoted reply shows it as \[fixture:id\]). Drop trailing backslashes so the same id is one id.
+      for (const match of messageText(message).matchAll(FIXTURE_MARKER)) ids.add((match[1] ?? "").replace(/\\+$/, ""));
     }
     if (ids.size === 0) {
       sendJson(res, 400, { error: { message: "no fixture id in X-P4-Fixture header or [fixture:<id>] message marker" } });
