@@ -78,6 +78,8 @@ export interface CaseContext {
   resetRecorders(): Promise<void>;
   /** Runs a check that is expected to fail because of a confirmed product behaviour. Passes while it fails, fails when it stops failing. */
   expectedDefect(finding: string, check: () => Promise<void> | void): Promise<void>;
+  /** Ends the case as skipped with a named reason found by a real probe of OpenClaw. Use only where the case text allows a skip. */
+  skipNow(reason: string): never;
   note(text: string): void;
   assert: typeof assert;
 }
@@ -145,9 +147,12 @@ async function quiet(mc: MockChannelClient, quietMs: number, capMs: number): Pro
   }
 }
 
+/** Thrown by ctx.skipNow to end a case whose capability check says the case does not apply. */
+class SkipSignal extends Error {}
+
 export function l4Case(spec: CaseSpec): void {
   const reason = spec.skip ?? skipReason(spec.needs ?? ["stack"]);
-  test(`${spec.id}: ${spec.kind}${spec.measured === true ? " (measured, stub plumbing)" : ""}`, { skip: reason, timeout: 15 * 60_000 }, async () => {
+  test(`${spec.id}: ${spec.kind}${spec.measured === true ? " (measured, stub plumbing)" : ""}`, { skip: reason, timeout: 15 * 60_000 }, async (t) => {
     process.env["P4_LLM_MODE"] = process.env["P4_LLM_MODE"] ?? "stub";
     delete process.env["GEMINI_API_KEY"]; // a PR gate never has a key
     assert.notEqual(process.env["P4_LLM_MODE"], "nightly", "L4 gates run on the stub model only; the nightly slice is not wired in this lane");
@@ -239,10 +244,17 @@ export function l4Case(spec: CaseSpec): void {
         }
         assert.ok(failed, `expectedDefect "${finding}" no longer fails: the product behaviour changed, so remove the marker (${spec.id})`);
       },
+      skipNow: (why) => {
+        notes.push(`skipped: ${why}`);
+        t.skip(why);
+        throw new SkipSignal(why);
+      },
       note: (text) => void notes.push(text),
     };
     try {
       await spec.run(ctx);
+    } catch (err) {
+      if (!(err instanceof SkipSignal)) throw err;
     } finally {
       await writeCaseEvidence(dir, mc, oc, notes, spec).catch(() => undefined);
     }

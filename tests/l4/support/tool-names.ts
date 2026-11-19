@@ -28,7 +28,8 @@ export function isDenied(result: string): boolean {
 
 /** web_fetch refused by the private-network guard. */
 export function isFetchBlocked(result: string): boolean {
-  return /Blocked: resolves to private\/internal\/special-use IP address/i.test(result);
+  // Two wordings: a host name that resolves to a private address, and a host name or literal address that is blocked outright.
+  return /Blocked(?:: resolves to| hostname or) private\/internal\/special-use IP address/i.test(result);
 }
 
 /** The marker the stub reads to choose a fixture. */

@@ -1,0 +1,409 @@
+{
+  "id": "oc-rel-003",
+  "description": "Fake data only. The model repeats the same read forty times.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "read",
+          "arguments": {
+            "path": "p4/loop.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

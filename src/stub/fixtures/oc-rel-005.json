@@ -1,0 +1,19 @@
+{
+  "id": "oc-rel-005",
+  "description": "Fake data only. A delete that needs approval, around a gateway restart.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "rm /home/node/.openclaw/workspace/p4/rel5.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

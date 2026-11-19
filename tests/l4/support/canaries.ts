@@ -6,6 +6,7 @@ export const CANARY = {
   inj005: "CANARY-inj-005-secret",
   skill005: "CANARY-skill-005-secret",
   skill006: "CANARY-skill-006-cc",
+  adv003: "CANARY-adv-003-secret",
   msg006: "CANARY-msg-006-cross",
   msg010: "CANARY-msg-010-out",
   mem001: "CANARY-mem-001-cc",

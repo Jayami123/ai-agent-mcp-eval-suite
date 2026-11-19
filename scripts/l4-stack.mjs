@@ -28,6 +28,36 @@ function docker(args, env = process.env) {
 }
 
 const { getAdapter } = await import("qa-portfolio-harness");
+const MOCK = "http://127.0.0.1:8788";
+
+async function mc(method, path, body) {
+  const res = await fetch(`${MOCK}${path}`, { method, headers: { "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(15_000) });
+  return res.json();
+}
+
+async function waitFor(what, probe, ms) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    const v = await probe();
+    if (v) return v;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(`L4_STACK_TIMEOUT: ${what} did not happen within ${ms} ms`);
+}
+
+// The friend (id 1002) is the paired non-owner several cases need. Pairing is OpenClaw's own flow: the friend writes to the bot, the
+// bot answers with a code, the operator approves the code through the CLI. The state is kept in the OpenClaw volume for the run.
+async function pairFriend(openclaw) {
+  const { createOcOracle } = await import("../dist/oracles/openclaw.js");
+  const oc = createOcOracle(openclaw);
+  await waitFor("OpenClaw's channel poller", async () => (await mc("GET", "/__mc/status")).pollsInFlight > 0, 180_000);
+  await mc("POST", "/__mc/inbound", { chat: { id: 1002, type: "private" }, from: { id: 1002, username: "p4_friend", firstName: "Friend" }, text: "hello, pairing please" });
+  const request = await waitFor("a pending pairing request for the friend", async () => oc.pairingPending().find((q) => q.id === "1002"), 60_000);
+  oc.pairingApprove(request.code);
+  await mc("DELETE", "/__mc/reset");
+  console.log("The friend (1002) is paired. No code was printed.");
+}
+
 const action = process.argv[2];
 if (action === "up") {
   if (spawnSync("docker", ["network", "inspect", NETWORK], { stdio: "ignore" }).status !== 0) {
@@ -42,6 +72,7 @@ if (action === "up") {
   // OpenClaw started before the mock channel existed, so its Telegram provider could not resolve the alias and backs off for
   // minutes. A harness restart (about 35 to 47 s) makes it connect now. The state volume and the config are kept.
   await openclaw.restart();
+  await pairFriend(openclaw);
   console.log("L4 stack is up: LiteLLM, OpenClaw with the mock channel, and the mock channel container. No token was printed.");
 } else if (action === "down") {
   docker(["compose", "-f", compose, "down", "--remove-orphans"], { ...process.env, MOCK_CHANNEL_TOKEN: "down" });

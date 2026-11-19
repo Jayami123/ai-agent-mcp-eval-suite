@@ -24,3 +24,6 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
+
+# Private advisory replay files, if someone keeps them inside a checkout. They are never committed.
+private-fixtures/
