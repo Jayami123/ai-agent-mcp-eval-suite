@@ -540,6 +540,16 @@ jobs:
       - name: L3 always-allow and pinning cases (META-002, META-004, META-008, META-011)
         run: npm run test:stack:l3:always-allow
 
+      # Every verdict and note, per case (names and statuses only; the leak check fails the run before this if a secret is in it).
+      - name: Print the case verdicts
+        if: always()
+        run: |
+          for f in evidence/traces/*/verdicts.json; do
+            [ -f "$f" ] || continue
+            echo "== $f"
+            cat "$f"
+          done
+
       - name: Stop the attack-lab containers
         if: always()
         run: npm run lab:down
