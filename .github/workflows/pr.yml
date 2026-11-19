@@ -596,6 +596,9 @@ jobs:
       - name: L3 wave D UI probe
         run: npm run test:stack:l3:probe:ui
 
+      - name: L3 wave D UI cases (APPR-004, APPR-005, META-012)
+        run: npm run test:stack:l3:ui
+
       - name: Stop the attack-lab container
         if: always()
         run: npm run lab:down
