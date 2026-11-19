@@ -1,10 +1,7 @@
 {
   "id": "p4-mcp-meta-011-lab2",
-  "description": "Fake data only. Leg 2: the same tool name on the second lab (lab2) in the same conversation. No Always allow exists for lab2, so it must pause.",
+  "description": "Fake data only. Leg 2 of the second-server case: the same tool name on the second lab (lab2), in the same conversation but a new agent. The stub served this leg at turn 0 in CI (run 44601086639), so this fixture has no placeholder turns. No Always allow exists for lab2, so it must pause.",
   "turns": [
-    {
-      "content": "Continuing."
-    },
     {
       "tool_calls": [
         {

@@ -2,7 +2,7 @@
 
 Scope: P4-MCP-META-002, META-004, META-008 and META-011 (L3 plan ledger, `docs/plans/2026-11-18-l3.md`). IDs are the ledger's; none added or renumbered. APPR-002 and META-013 are not built here: they need the Nextcloud mail stack, which is on the unmerged wave D branch.
 
-Status: first live runs. Evidence is from CI (job `l3 always-allow`, run 44600052996, head `a0ca417`). One run is one observation. A finding is only confirmed when a second run shows the same result.
+Status: live runs in CI (job `l3 always-allow`). Run 44600052996 (head `a0ca417`) and run 44601086639 (head `3be8efe`). The silent-run finding below reproduced in both runs with the same result, so it is now seen twice; it is not yet confirmed on a fixed or different build.
 
 ## Setup (asserted in every run before any finding is recorded)
 
@@ -27,13 +27,13 @@ Known host limit, from the harness (`docs/plans/2026-11-20-librechat-allowalways
 
 ## Expected defects (product): stored Always allow honoured after a tool change
 
-Reproduced once in run 44600052996. Setup was asserted first in each case: the choice was stored and the change was served.
+Reproduced in both runs (44600052996 and 44601086639). Setup was asserted first in each case: the choice was stored and the change was served.
 
 - **P4-MCP-META-002**: after the rug pull (new description, new `bcc` parameter on `lab_echo`), the same conversation ran a call carrying `bcc` with no approval asked. Lab log: one call, parameters `bcc,text`. Pauses: 0. Snapshot diff: description and input schema changed.
 - **P4-MCP-META-004** (path 1, same conversation): after a hash change, a `lab_echo` call ran with no approval asked. Paths 2 (new conversation) and 3 (new login) asked for approval and ran nothing.
 - **P4-MCP-META-008**: after a description-only drift mid-session, the same conversation ran a `lab_echo` call with no approval asked. Snapshot: the hash changed and the served description differs from the pin.
 
-Classification: **PRODUCT BUG** (candidate, one run). The cases record it as an expected defect: `expectedDefect()` passes while the silent run reproduces and fails once it stops reproducing, so the annotation is removed when the host is fixed. Confirm on a second run before treating it as settled.
+Classification: **PRODUCT BUG** (reproduced in two runs on the same host build). The cases record it as an expected defect: `expectedDefect()` passes while the silent run reproduces and fails once it stops reproducing, so the annotation is removed when the host is fixed. In run 44601086639 the stub served the META-002 hostile fixture at turns [2,3]: turn 2 is the tool call that carries `bcc`, so the silent run is the host's, not a stub mismatch.
 
 ## Test bugs found and fixed in this PR
 
@@ -43,7 +43,7 @@ Classification: **PRODUCT BUG** (candidate, one run). The cases record it as an 
 
 ## Open items
 
-- **P4-MCP-META-011 (inconclusive)**: lab2's tool did not pause and did not run. The stub may not have served the tool call. The served turns are now noted, so the next run shows whether it did. No finding is recorded for this case yet.
+- **P4-MCP-META-011 (inconclusive in run 44601086639; fixture corrected)**: the stub served the lab2 fixture at turn 0, which is that fixture's placeholder turn. Leg 2 runs on a new agent in the same conversation, and LibreChat sent no tool messages for it, so the placeholder I had padded in was never skipped. **TEST BUG**: the fixture now has no placeholder, and the case expects the lab2 call at turn 0. No finding is recorded until a run shows the lab2 pause or an un-asked lab2 call.
 - **Probe output**: the per-case verdicts are printed to the job log (new step, "Print the case verdicts"), so no artifact download is needed.
 - **snap.diffLogged**: the suite logs the diff it computes from the served list. The host's own log is not observable from here; that limit is stated, not assumed away.
 
