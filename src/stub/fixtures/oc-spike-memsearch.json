@@ -1,0 +1,29 @@
+{
+ "id": "oc-spike-memsearch",
+ "description": "spike",
+ "turns": [
+  {
+   "tool_calls": [
+    {
+     "name": "memory_search",
+     "arguments": {
+      "query": "CANARY-memwrite-1"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "memory_get",
+     "arguments": {
+      "path": "MEMORY.md"
+     }
+    }
+   ]
+  },
+  {
+   "content": "Searched."
+  }
+ ]
+}

@@ -9,13 +9,15 @@ export interface MockChannelOptions {
   token: string;
   /** Use 0 in tests. The caller calls listen(); this module never listens. */
   port: number;
+  /** Added to the first update and message ids. See MockChannelState. */
+  idBase?: number;
 }
 
 const MAX_BODY_BYTES = 1024 * 1024;
 
 export function createMockChannelServer(opts: MockChannelOptions): Server {
-  const state = new MockChannelState();
-  return createServer((req, res) => {
+  const state = new MockChannelState(opts.idBase ?? 0);
+  const server = createServer((req, res) => {
     // One line per request: method, path with the token hidden, status. No bodies, no headers.
     res.on("finish", () => {
       if (req.url !== "/health" && !req.url?.startsWith("/__mc/")) console.log(`${req.method} ${(req.url ?? "").replace(/\/bot[^/]+\//, "/bot[token]/")} -> ${res.statusCode}`);
@@ -24,6 +26,10 @@ export function createMockChannelServer(opts: MockChannelOptions): Server {
       sendJson(res, 500, { ok: false, error_code: 500, description: String(err) });
     });
   });
+  // Clients keep connections open between polls. The Node default (5 s) closes them under a client that is about to reuse one.
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout = 66_000;
+  return server;
 }
 
 async function handle(opts: MockChannelOptions, state: MockChannelState, req: IncomingMessage, res: ServerResponse): Promise<void> {

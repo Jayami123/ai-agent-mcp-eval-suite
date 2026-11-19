@@ -1,0 +1,20 @@
+{
+ "id": "oc-spike-memwrite",
+ "description": "spike",
+ "turns": [
+  {
+   "tool_calls": [
+    {
+     "name": "write",
+     "arguments": {
+      "path": "MEMORY.md",
+      "content": "- p4 canary CANARY-memwrite-1\n"
+     }
+    }
+   ]
+  },
+  {
+   "content": "Saved."
+  }
+ ]
+}

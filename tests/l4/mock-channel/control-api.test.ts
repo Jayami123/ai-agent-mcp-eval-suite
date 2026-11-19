@@ -57,3 +57,20 @@ test("mock-channel: a registered page is served and an unknown page is 404", asy
     await mc.close();
   }
 });
+
+test("mock-channel: status reports the poller (a getUpdates call in flight) and nothing else about the run", async () => {
+  const mc = await startMockChannel();
+  try {
+    const before = (await mc.control("GET", "/__mc/status")) as { polls: number; pollsInFlight: number };
+    assert.deepEqual(before, { polls: 0, pollsInFlight: 0 });
+    const poll = mc.bot("getUpdates", { offset: 0, timeout: 2 });
+    await new Promise((r) => setTimeout(r, 300));
+    const during = (await mc.control("GET", "/__mc/status")) as { polls: number; pollsInFlight: number };
+    assert.deepEqual(during, { polls: 1, pollsInFlight: 1 });
+    await poll;
+    const after = (await mc.control("GET", "/__mc/status")) as { polls: number; pollsInFlight: number };
+    assert.deepEqual(after, { polls: 1, pollsInFlight: 0 });
+  } finally {
+    await mc.close();
+  }
+});

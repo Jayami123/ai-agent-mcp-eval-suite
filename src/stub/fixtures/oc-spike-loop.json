@@ -1,0 +1,309 @@
+{
+ "id": "oc-spike-loop",
+ "description": "spike",
+ "turns": [
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "echo loop"
+     }
+    }
+   ]
+  },
+  {
+   "content": "end"
+  }
+ ]
+}

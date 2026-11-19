@@ -17,7 +17,8 @@ if (token === undefined || token === "") {
   process.exit(1);
 }
 
-const server = createMockChannelServer({ token, port });
+// Seconds since the epoch: higher than the ids of any earlier run of this container, so OpenClaw's saved poll offset never hides updates.
+const server = createMockChannelServer({ token, port, idBase: Math.floor(Date.now() / 1000) });
 server.listen(port, host, () => {
   console.log(`mock channel listening on http://${host}:${port}`);
 });

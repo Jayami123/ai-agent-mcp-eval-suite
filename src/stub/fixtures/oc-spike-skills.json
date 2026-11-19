@@ -1,0 +1,19 @@
+{
+ "id": "oc-spike-skills",
+ "description": "spike",
+ "turns": [
+  {
+   "tool_calls": [
+    {
+     "name": "skills_search",
+     "arguments": {
+      "query": "p4"
+     }
+    }
+   ]
+  },
+  {
+   "content": "Searched skills."
+  }
+ ]
+}

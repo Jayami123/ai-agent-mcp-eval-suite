@@ -1,0 +1,20 @@
+{
+ "id": "oc-spike-sleep",
+ "description": "spike",
+ "turns": [
+  {
+   "tool_calls": [
+    {
+     "name": "exec",
+     "arguments": {
+      "command": "sleep 600",
+      "timeoutSeconds": 2
+     }
+    }
+   ]
+  },
+  {
+   "content": "Done."
+  }
+ ]
+}

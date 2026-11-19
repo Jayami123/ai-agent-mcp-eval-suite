@@ -48,8 +48,14 @@ export async function handleBotMethod(state: MockChannelState, method: string, p
     case "getWebhookInfo":
       return { ok: true, result: { url: "", has_custom_certificate: false, pending_update_count: 0 } };
     case "getUpdates": {
-      const timeout = Math.min(num(params["timeout"]) ?? 0, 25) * 1000;
-      return { ok: true, result: await state.takeUpdates(num(params["offset"]) ?? 0, timeout) };
+      state.polls += 1;
+      state.pollsInFlight += 1;
+      try {
+        const timeout = Math.min(num(params["timeout"]) ?? 0, 25) * 1000;
+        return { ok: true, result: await state.takeUpdates(num(params["offset"]) ?? 0, timeout) };
+      } finally {
+        state.pollsInFlight -= 1;
+      }
     }
     case "getChat":
       return { ok: true, result: chatOf(chatId ?? 0) };

@@ -21,8 +21,18 @@ export interface StoredFile {
 /** In-memory state of the mock channel. Nothing is persisted. */
 export class MockChannelState {
   private seq = 0;
-  private updateId = 1000;
-  private messageId = 5000;
+  private updateId: number;
+  private messageId: number;
+
+  /**
+   * `idBase` makes update and message ids start above anything an earlier process handed out. A client that keeps its poll
+   * offset (OpenClaw does, across restarts) would drop every update below it, so the container passes a time-based base.
+   * Tests keep the default so a fixed sequence gives a byte-identical log.
+   */
+  constructor(idBase = 0) {
+    this.updateId = 1000 + idBase;
+    this.messageId = 5000 + idBase;
+  }
   private queue: Update[] = [];
   private waiters: Array<() => void> = [];
   readonly log: LogEntry[] = [];
@@ -31,6 +41,11 @@ export class MockChannelState {
   readonly files = new Map<string, StoredFile>();
   /** value -> label. Held in memory only; never logged and never returned. */
   private watched = new Map<string, string>();
+
+  /** getUpdates calls seen since the process started, and when the last one arrived. Not cleared by reset: it describes the poller. */
+  polls = 0;
+  /** getUpdates calls in flight right now. A connected poller keeps this at 1 while it waits. */
+  pollsInFlight = 0;
 
   nextSeq(): number {
     return ++this.seq;
