@@ -28,6 +28,8 @@ export interface LcChatOutcome {
   /** Assistant text, for logging only. */
   text: string;
   httpStatus: number;
+  /** The saved assistant message, for usage extraction (see gemma-record.ts). undefined when no reply was saved. */
+  reply?: unknown;
 }
 
 const REQUEST_TIMEOUT_MS = 60_000;
@@ -204,6 +206,7 @@ export async function lcChat(
   let toolCalls: LcToolCall[] = [];
   let text = "";
   let savedStatus = 0;
+  let savedReply: unknown;
   for (let attempt = 0; attempt < 15; attempt++) {
     const res = await fetch(`${session.baseUrl}/api/messages/${conversationId}`, {
       headers: { authorization: session.authorizationHeader, "user-agent": BROWSER_USER_AGENT },
@@ -214,6 +217,7 @@ export async function lcChat(
       const messages = (await res.json()) as Array<{ isCreatedByUser?: boolean; content?: unknown; text?: string; error?: boolean }>;
       const reply = [...messages].reverse().find((m) => m.isCreatedByUser === false);
       if (reply) {
+        savedReply = reply;
         const parsed = partsToOutcome(reply.content);
         toolCalls = parsed.toolCalls;
         text = parsed.text || (typeof reply.text === "string" ? reply.text : "");
@@ -223,5 +227,5 @@ export async function lcChat(
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
-  return { conversationId, errorText: errorText.trim(), toolCalls, text, httpStatus: savedStatus };
+  return { conversationId, errorText: errorText.trim(), toolCalls, text, httpStatus: savedStatus, reply: savedReply };
 }
