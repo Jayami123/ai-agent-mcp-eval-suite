@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { configFromEnv, isLabMode } from "./modes.js";
 import { createLab, type ListenHost } from "./server.js";
+import { installShutdown } from "./shutdown.js";
 import { runStdio } from "./stdio.js";
 
 function port(name: string, fallback: number): number {
@@ -37,8 +38,10 @@ if (controlToken === undefined || controlToken === "") {
 
 const ports = { mcp: port("LAB_MCP_PORT", 9010), control: port("LAB_CONTROL_PORT", 9011), sink: port("LAB_SINK_PORT", 9012) };
 if (stdio) {
-  await runStdio(config, controlToken, host as ListenHost, ports);
+  const stdioLab = await runStdio(config, controlToken, host as ListenHost, ports);
+  installShutdown(() => stdioLab.close());
 } else {
   const lab = await createLab({ config, controlToken, host: host as ListenHost, ports });
+  installShutdown(() => lab.close());
   console.log(`attack-lab listening on ${lab.mcpUrl}`);
 }
