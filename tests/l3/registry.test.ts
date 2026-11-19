@@ -37,12 +37,14 @@ test("every case lands in exactly one PR from 1 to 11, except the one deferred c
 
 // Every case whose PR has landed must have a test that names it (a l3Case call with the ID). Append the PR number when it lands.
 const LANDED_PRS = [1, 2];
+// Cases built outside a whole PR (wave B, the approval gates on Nextcloud). Each is named here as it lands.
+const BUILT_IDS = ["P4-MCP-APPR-001", "P4-MCP-APPR-006"];
 
 test("every landed case has an l3Case test", async () => {
   const fs = await import("node:fs");
   const path = await import("node:path");
   const walk = (d: string): string[] => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith(".ts") ? [path.join(d, e.name)] : []));
   const text = walk(path.resolve(process.cwd(), "tests", "l3")).map((f) => fs.readFileSync(f, "utf8")).join("\n");
-  const missing = loadRegistry().filter((c) => LANDED_PRS.includes(c.pr) && !new RegExp(`l3Case\\(\\s*"${c.id}"`).test(text)).map((c) => c.id);
+  const missing = loadRegistry().filter((c) => (LANDED_PRS.includes(c.pr) || BUILT_IDS.includes(c.id)) && !new RegExp(`l3Case\\(\\s*"${c.id}"`).test(text)).map((c) => c.id);
   assert.deepEqual(missing, []);
 });
