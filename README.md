@@ -36,6 +36,15 @@ npm run stub:down
 
 The Gemma test (`npm run test:nightly`) goes LiteLLM, LibreChat, Twenty MCP and runs only in the nightly workflow. See `docs/plans/2026-11-18-suite-l1-gaps.md`.
 
+## Recorded deviations (L4, OpenClaw lane)
+
+Recorded in `docs/plans/2026-11-18-l4-openclaw.md`, section 1. Each names the standard alternative there.
+
+- **Telegram is the WhatsApp-style mock channel.** The master plan routes WhatsApp-style traffic through a mock channel with no real WhatsApp numbers. L4 models it as a Telegram Bot API-shaped server, because OpenClaw's own QA channel is not in the release image and its bundled Telegram channel accepts a custom API root. Approved by the reviewer.
+- L4 tests live in `tests/l4/`, not `tests/openclaw/`.
+- L4 stub fixtures live in `src/stub/fixtures/oc-*.json`.
+- The L4 stack is started once by a script, not by each test.
+
 ## Contact
 
 Maintained by the owner of this repository (Jayami Hettigoda).
