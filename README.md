@@ -34,6 +34,19 @@ P4_STACK_TESTS=1 npm run test:stack:openclaw
 npm run stub:down
 ```
 
+L4 (the OpenClaw cases) starts one stack for all 62 tests, with the fixture stub already up:
+
+```bash
+npm run build
+npm run stub:up
+npm run l4:up            # LiteLLM, OpenClaw with the mock Telegram channel, and the mock channel container (about 8 minutes the first time)
+npm run test:stack:l4    # serial; each case resets OpenClaw's state first
+npm run l4:down
+npm run stub:down
+```
+
+Cases that replay advisories need files kept outside the repo: set `P4_PRIVATE_FIXTURES_DIR` to a directory holding `p4-oc-adv-NNN.json`. Without it those cases skip with a named reason. Findings are in `docs/findings/l4-openclaw.md`.
+
 The Gemma test (`npm run test:nightly`) goes LiteLLM, LibreChat, Twenty MCP and runs only in the nightly workflow. See `docs/plans/2026-11-18-suite-l1-gaps.md`.
 
 ## Recorded deviations (L4, OpenClaw lane)

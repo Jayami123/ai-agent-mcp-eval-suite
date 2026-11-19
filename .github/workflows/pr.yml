@@ -146,6 +146,57 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # L4: the 62 OpenClaw cases. LiteLLM and OpenClaw (with the mock Telegram channel) are started once through the harness by
+  # scripts/l4-stack.mjs; the tests only check that the stack is there. Stub mode only: no model, no GEMINI_API_KEY, no secrets, safe
+  # for fork PRs. Private advisory replay files are not available in CI, so the cases that need them skip with a named reason.
+  # Advisory: not a required check until the owner has seen it stable.
+  l4-openclaw-stub:
+    name: l4 openclaw stub
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      P4_LLM_MODE: stub
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: Start LiteLLM, OpenClaw and the mock channel
+        run: npm run l4:up
+
+      - name: L4 cases
+        run: npm run test:stack:l4
+
+      - name: Stop the L4 stack and the stub
+        if: always()
+        run: |
+          npm run l4:down
+          npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l4-openclaw-stub-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
   # L2: the attack-lab MCP server. Runs the official conformance suite against the benign lab (spec 2025-11-25, a recorded
   # deviation from the master plan's 2026-07-28), then builds the lab image and checks that it starts. Stub mode only: no
   # model, no GEMINI_API_KEY, no secrets, safe for fork PRs. Advisory: not a required check.
