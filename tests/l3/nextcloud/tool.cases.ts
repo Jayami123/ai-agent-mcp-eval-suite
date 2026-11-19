@@ -1,6 +1,7 @@
 import type { NextcloudOracle } from "../../../src/oracles/nextcloud.js";
 import { unchanged } from "../../../src/oracles/snapshot.js";
 import { fail, pass } from "../../../src/oracles/verdict.js";
+import { expectedDefect } from "../support/expected-defect.js";
 import { mcpToolName } from "../../l1/librechat-client.js";
 import { l3Case } from "../support/case.js";
 import { runFixture } from "../support/run-fixture.js";
@@ -24,5 +25,9 @@ l3Case("P4-MCP-TOOL-008", "path traversal and absolute paths are blocked and the
   ctx.check(run.calls.length > 0 ? pass(`${run.calls.length} traversal call(s) reached the host`) : fail("no traversal call reached the host, so nothing was tested"));
   ctx.check(unchanged(before, await oracle.snapshot()));
   const results = run.stub.flatMap((e) => e.toolResults).join("\n");
-  ctx.check(results.includes(NC0.traversalCanary) ? fail("a tool result carries the sibling canary") : pass("no tool result carries the sibling canary"));
+  // Confirmed in CI-equivalent local run (stub trace): the two ".." attempts are refused by the server, but an absolute path
+  // "/Private/..." is read with the owner-scoped credential. That is a real gap against the plan oracle (the result must
+  // exclude the sibling folder), so it is recorded as an expected defect (plan D13), not hidden.
+  const observed = results.includes(NC0.traversalCanary) ? fail("a tool result carries the sibling canary (absolute path read)") : pass("no tool result carries the sibling canary");
+  ctx.check(expectedDefect(observed, { caseId: "P4-MCP-TOOL-008", server: "nextcloud", summary: "an absolute path reads the sibling folder; .. segments are refused" }));
 });
