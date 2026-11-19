@@ -12,11 +12,20 @@ test("compose: LAB_RESOURCE is the URL other containers use to reach the lab", (
   assert.match(compose, /^\s+LAB_ALLOWED_HOSTS: p4-attack-lab:9010\s*$/m);
 });
 
-test("compose: every published port is bound to 127.0.0.1, and the network alias is p4-attack-lab", () => {
+test("compose: every published port is bound to 127.0.0.1; the lab aliases are p4-attack-lab and p4-attack-lab-2", () => {
   const ports = compose.split("\n").filter((line) => /^\s+- "\d+:\d+"|^\s+- "[\d.]+:\d+:\d+"/.test(line));
-  assert.equal(ports.length, 3);
+  // Three ports for the first lab, three for the second (META-011). Each is published on loopback only.
+  assert.equal(ports.length, 6);
   for (const line of ports) assert.match(line, /"127\.0\.0\.1:\d+:\d+"/);
-  assert.match(compose, /aliases:\s*\n\s+- p4-attack-lab/);
+  assert.match(compose, /aliases:\s*\n\s+- p4-attack-lab\n/);
+  assert.match(compose, /aliases:\s*\n\s+- p4-attack-lab-2\n/);
+});
+
+test("compose: lab2 keeps the harness MCP port (9011) inside its container and has its own host ports", () => {
+  assert.match(compose, /LAB_MCP_PORT: "9011"/);
+  assert.match(compose, /LAB_RESOURCE: http:\/\/p4-attack-lab-2:9011\/mcp/);
+  assert.match(compose, /LAB_ALLOWED_HOSTS: p4-attack-lab-2:9011,127\.0\.0\.1:9013/);
+  assert.match(compose, /"127\.0\.0\.1:9013:9011"/);
 });
 
 test("compose: the control token is an environment variable that must be set, never a build arg", () => {

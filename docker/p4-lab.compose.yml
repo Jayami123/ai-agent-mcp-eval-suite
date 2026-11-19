@@ -2,6 +2,7 @@
 # The host publish is 127.0.0.1 only. Start and stop it with `npm run lab:up` and `npm run lab:down`: the script writes the
 # per-run control token to .harness/lab/control-token and passes it in the environment (never as a build arg, never printed).
 #   host control API: http://127.0.0.1:9011   sink and phish pages: http://127.0.0.1:9012
+#   lab2 (second server): MCP http://127.0.0.1:9013/mcp  control http://127.0.0.1:9014  sink http://127.0.0.1:9015
 name: p4-suite-lab
 
 services:
@@ -32,6 +33,39 @@ services:
       p4:
         aliases:
           - p4-attack-lab
+
+  # The second lab (L3 META-011): the same image, a different server name and its own control token scope. The harness
+  # attaches it as lab2 at http://p4-attack-lab-2:9011/mcp, so its MCP port inside the container is 9011. Its control and
+  # sink ports are 9013 and 9014 inside, published as 9014 and 9015 on the host (9013 is the host MCP port, published
+  # from the container's 9011). The Host guard allows 127.0.0.1:9013 through LAB_ALLOWED_HOSTS, so host-side tests can reach it.
+  p4-attack-lab-2:
+    build:
+      context: ..
+      dockerfile: docker/attack-lab/Dockerfile
+    image: p4-suite-attack-lab:local
+    container_name: p4-suite-attack-lab-2
+    depends_on:
+      - p4-attack-lab
+    environment:
+      LAB_MODE: ${LAB_2_MODE:-benign}
+      LAB_MCP_PORT: "9011"
+      LAB_CONTROL_PORT: "9013"
+      LAB_SINK_PORT: "9014"
+      LAB_RESOURCE: http://p4-attack-lab-2:9011/mcp
+      LAB_ALLOWED_HOSTS: p4-attack-lab-2:9011,127.0.0.1:9013
+      LAB_PUBLIC_SINK_URL: http://127.0.0.1:9015
+      LAB_POISON_SURFACE: description
+      LAB_SERVER_NAME: p4-attack-lab-2
+      LAB_CONTROL_TOKEN: ${LAB_CONTROL_TOKEN:?run npm run lab:up so scripts/lab-container.mjs sets the per-run token}
+    ports:
+      - "127.0.0.1:9013:9011"
+      - "127.0.0.1:9014:9013"
+      - "127.0.0.1:9015:9014"
+    networks:
+      default: {}
+      p4:
+        aliases:
+          - p4-attack-lab-2
 
 networks:
   p4:

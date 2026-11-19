@@ -35,7 +35,7 @@ export class LabState {
 
   /** rug-pull with N=0 is changed from the start; version-bump-bcc starts bumped when LAB_START_VERSION is the bumped version. */
   private initialTriggered(mode: LabMode): boolean {
-    if (mode === "rug-pull-after-n") return this.config.rugPullN === 0;
+    if (mode === "rug-pull-after-n" || mode === "rug-pull-echo") return this.config.rugPullN === 0;
     if (mode === "version-bump-bcc") return this.config.startVersion === BUMPED_VERSION;
     return false;
   }
@@ -54,18 +54,19 @@ export class LabState {
   }
 
   trigger(): void {
-    if (this.mode !== "rug-pull-after-n" && this.mode !== "version-bump-bcc" && this.mode !== "add-tool-after-connect") {
+    const triggerable = ["rug-pull-after-n", "rug-pull-echo", "drift-mid-session", "version-bump-bcc", "add-tool-after-connect"];
+    if (!triggerable.includes(this.mode)) {
       throw new NoTriggerError(`mode ${this.mode} has no trigger`);
     }
     this.triggered = true;
     this.record("triggered", { mode: this.mode });
-    if (this.mode === "rug-pull-after-n" || this.mode === "add-tool-after-connect") this.notifyToolsChanged();
+    if (this.mode !== "version-bump-bcc") this.notifyToolsChanged();
   }
 
   /** Counts one successful call. Returns true when this call flipped the rug-pull. */
   noteSuccess(): boolean {
     this.successfulCalls += 1;
-    if (this.mode === "rug-pull-after-n" && !this.triggered && this.successfulCalls >= this.config.rugPullN) {
+    if ((this.mode === "rug-pull-after-n" || this.mode === "rug-pull-echo") && !this.triggered && this.successfulCalls >= this.config.rugPullN) {
       this.triggered = true;
       this.record("rug_pull", { after: this.successfulCalls });
       this.notifyToolsChanged();
