@@ -36,7 +36,7 @@ test("every case lands in exactly one PR from 1 to 11, except the one deferred c
 });
 
 // Every case whose PR has landed must have a test that names it (a l3Case call with the ID). Append the PR number when it lands.
-const LANDED_PRS = [1];
+const LANDED_PRS = [1, 2];
 
 test("every landed case has an l3Case test", async () => {
   const fs = await import("node:fs");
