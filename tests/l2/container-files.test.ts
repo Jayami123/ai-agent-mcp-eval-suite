@@ -28,6 +28,11 @@ test("compose: lab2 keeps the harness MCP port (9011) inside its container and h
   assert.match(compose, /"127\.0\.0\.1:9013:9011"/);
 });
 
+test("compose: lab2 probes its own sink port (9014) for health, not the first lab's 9012", () => {
+  const block = compose.slice(compose.indexOf("  p4-attack-lab-2:"));
+  assert.match(block, /healthcheck:\n\s+test: \["CMD", "node", "-e", "fetch\('http:\/\/127\.0\.0\.1:9014\/health'\)/);
+});
+
 test("compose: the control token is an environment variable that must be set, never a build arg", () => {
   assert.match(compose, /LAB_CONTROL_TOKEN: \$\{LAB_CONTROL_TOKEN:\?/);
   assert.equal(/^\s+args:/m.test(compose), false, "no build args");

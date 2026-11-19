@@ -46,6 +46,12 @@ services:
     container_name: p4-suite-attack-lab-2
     depends_on:
       - p4-attack-lab
+    # The image's HEALTHCHECK probes the sink on 9012, which is the first lab's port. This lab's sink is on 9014.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9014/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
     environment:
       LAB_MODE: ${LAB_2_MODE:-benign}
       LAB_MCP_PORT: "9011"
