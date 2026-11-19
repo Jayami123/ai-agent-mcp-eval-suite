@@ -261,6 +261,7 @@ test("leak check: no session header and no lab control token appear in this run'
       }
     }
   };
-  walk(path.resolve(process.cwd(), "evidence", rt.dir));
+  // Every case writes under evidence/traces/<id>; the stack's container logs go under evidence/<run dir>. Walk all of it.
+  walk(path.resolve(process.cwd(), "evidence"));
   assert.deepEqual(hits, [], "a secret value was written to evidence (file names only)");
 });
