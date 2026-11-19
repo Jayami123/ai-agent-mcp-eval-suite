@@ -1,0 +1,19 @@
+{
+  "id": "oc-skill-007",
+  "description": "Fake data only. The model reads the real skill name.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "skills_read",
+          "arguments": {
+            "name": "weather"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "oc-rel-001",
+  "description": "Fake data only. A command that outlives its timeout and would write a file late.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "sleep 30 && touch /home/node/.openclaw/workspace/p4/rel1-late.txt",
+            "timeoutSeconds": 2
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

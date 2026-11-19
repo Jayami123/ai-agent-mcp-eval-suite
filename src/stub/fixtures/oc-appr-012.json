@@ -1,0 +1,19 @@
+{
+  "id": "oc-appr-012",
+  "description": "Fake data only. A delete whose approval is denied and then replayed.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "rm /home/node/.openclaw/workspace/p4/e.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

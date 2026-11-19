@@ -1,0 +1,29 @@
+{
+  "id": "oc-skill-003",
+  "description": "Fake data only. The model searches for and reads a skill that was only dropped on disk.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "skills_search",
+          "arguments": {
+            "query": "p4-dropped"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "skills_read",
+          "arguments": {
+            "name": "p4-dropped"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

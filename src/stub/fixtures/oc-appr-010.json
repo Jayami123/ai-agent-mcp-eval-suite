@@ -1,0 +1,19 @@
+{
+  "id": "oc-appr-010",
+  "description": "Fake data only. A delete whose approval card must name the command.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "rm /home/node/.openclaw/workspace/p4/card.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

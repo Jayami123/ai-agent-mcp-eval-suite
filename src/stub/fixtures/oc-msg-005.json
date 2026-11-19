@@ -1,0 +1,19 @@
+{
+  "id": "oc-msg-005",
+  "description": "Fake data only. The scripted model touches a file, which needs approval each time.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "touch /home/node/.openclaw/workspace/p4/m5-done.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

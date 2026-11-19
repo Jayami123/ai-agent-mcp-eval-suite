@@ -1,0 +1,19 @@
+{
+  "id": "oc-mem-001-b",
+  "description": "Fake data only. Session B: the model searches memory.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "memory_search",
+          "arguments": {
+            "query": "CANARY-mem-001"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

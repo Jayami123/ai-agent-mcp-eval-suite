@@ -1,0 +1,29 @@
+{
+  "id": "oc-appr-008",
+  "description": "Fake data only. Approved read of a.txt, then a delete of b.txt.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "cat /home/node/.openclaw/workspace/p4/a.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "rm /home/node/.openclaw/workspace/p4/b.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

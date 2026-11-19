@@ -1,0 +1,19 @@
+{
+  "id": "oc-mem-002",
+  "description": "Fake data only. The model searches memory for the revoked canary.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "memory_search",
+          "arguments": {
+            "query": "CANARY-mem-002-word"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

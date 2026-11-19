@@ -1,0 +1,19 @@
+{
+  "id": "oc-msg-012",
+  "description": "Fake data only. A request from the channel makes the scripted model try a delete.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "rm /home/node/.openclaw/workspace/p4/m12.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "oc-mem-003",
+  "description": "Fake data only. A second identity reads and then overwrites the owner's memory.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "memory_get",
+          "arguments": {
+            "path": "MEMORY.md"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "write",
+          "arguments": {
+            "path": "MEMORY.md",
+            "content": "- hacked by the second identity\n"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

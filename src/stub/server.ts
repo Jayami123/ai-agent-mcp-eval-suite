@@ -23,6 +23,10 @@ export interface TraceEntry {
   /** The tool calls returned for this request, with arguments as parsed JSON. Empty on a text turn. */
   toolCalls: Array<{ name: string; arguments: unknown }>;
   content: string | null;
+  /** The HTTP status the stub answered for an error turn, "closed" for a close turn, null on every other turn. */
+  error: number | "closed" | null;
+  /** Labels of the watched canary values found in any message of this request. Never the values. Empty when nothing is watched. */
+  promptHits: string[];
 }
 
 const MAX_TOOL_RESULT_CHARS = 20000;
@@ -39,18 +43,20 @@ export const FIXTURE_HEADER = "x-p4-fixture";
 
 export function createStubServer(opts: StubOptions): Server {
   const trace: TraceEntry[] = [];
+  /** value -> label. Memory only: the values are never printed, logged or returned. */
+  const watched = new Map<string, string>();
   return createServer((req, res) => {
     // One line per request: method, path, status. No bodies, no headers.
     res.on("finish", () => {
       if (req.url !== "/health") console.log(`${req.method} ${req.url} -> ${res.statusCode}`);
     });
-    handle(opts, trace, req, res).catch((err: unknown) => {
+    handle(opts, trace, watched, req, res).catch((err: unknown) => {
       sendJson(res, 500, { error: { message: String(err) } });
     });
   });
 }
 
-async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<string, string>, req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === "GET" && req.url === "/health") {
     sendJson(res, 200, { status: "ok" });
     return;
@@ -63,6 +69,23 @@ async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessa
   if (req.url === "/__trace" && req.method === "DELETE") {
     trace.length = 0;
     sendJson(res, 200, { entries: [] });
+    return;
+  }
+  // Canary watch. Tests register values; each recorded request then lists the labels whose value appeared in its messages.
+  if (req.url === "/__watch" && req.method === "DELETE") {
+    watched.clear();
+    sendJson(res, 200, { count: 0 });
+    return;
+  }
+  if (req.url === "/__watch" && req.method === "POST") {
+    const text = await readBody(req);
+    try {
+      const values = JSON.parse(text ?? "") as Record<string, unknown>;
+      for (const [label, value] of Object.entries(values)) if (typeof value === "string" && value.length >= 6) watched.set(value, label);
+      sendJson(res, 200, { count: watched.size });
+    } catch {
+      sendJson(res, 400, { error: { message: "body is not valid JSON" } });
+    }
     return;
   }
   if (req.method !== "POST" || req.url !== "/v1/chat/completions") {
@@ -94,14 +117,15 @@ async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessa
     // Fallback only when the header is absent (some proxies drop custom headers).
     const ids = new Set<string>();
     for (const message of messages) {
-      for (const match of messageText(message).matchAll(FIXTURE_MARKER)) ids.add(match[1] ?? "");
+      // A client may render the marker with markdown escapes (a quoted reply shows it as \[fixture:id\]). Drop trailing backslashes so the same id is one id.
+      for (const match of messageText(message).matchAll(FIXTURE_MARKER)) ids.add((match[1] ?? "").replace(/\\+$/, ""));
     }
     if (ids.size === 0) {
       sendJson(res, 400, { error: { message: "no fixture id in X-P4-Fixture header or [fixture:<id>] message marker" } });
       return;
     }
     if (ids.size > 1) {
-      sendJson(res, 400, { error: { message: "more than one fixture id in messages" } });
+      sendJson(res, 400, { error: { message: `more than one fixture id in messages: ${[...ids].sort().join(", ")}` } });
       return;
     }
     id = [...ids][0] ?? "";
@@ -134,6 +158,32 @@ async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessa
     return;
   }
 
+  const promptText = messages.map((m) => messageText(m)).join("\n");
+  const promptHits = [...watched].filter(([value]) => promptText.includes(value)).map(([, label]) => label);
+  const toolResults = messages.filter((m) => m["role"] === "tool").map((m) => messageText(m).slice(0, MAX_TOOL_RESULT_CHARS));
+  // Error and close turns do not advance the turn index (it counts tool messages), so a retry of the same request gets the
+  // same answer again. That keeps the stub deterministic.
+  if (turn.close === true || turn.error !== undefined) {
+    trace.push({
+      seq: trace.length + 1,
+      fixture: id,
+      turn: turnIndex,
+      toolsOffered: toolNames(body.tools),
+      stream: body.stream === true,
+      toolResults,
+      toolCalls: [],
+      content: null,
+      error: turn.close === true ? "closed" : (turn.error?.status ?? null),
+      promptHits,
+    });
+    if (turn.close === true) {
+      req.socket.destroy();
+      return;
+    }
+    sendJson(res, turn.error?.status ?? 500, { error: { message: turn.error?.message ?? "", type: "p4_stub_error" } });
+    return;
+  }
+
   const callList = (turn.tool_calls ?? []).map((call, i) => ({
     id: `call_${id}_${turnIndex}_${i}`,
     name: call.name,
@@ -145,9 +195,11 @@ async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessa
     turn: turnIndex,
     toolsOffered: toolNames(body.tools),
     stream: body.stream === true,
-    toolResults: messages.filter((m) => m["role"] === "tool").map((m) => messageText(m).slice(0, MAX_TOOL_RESULT_CHARS)),
+    toolResults,
     toolCalls: (turn.tool_calls ?? []).map((call) => ({ name: call.name, arguments: call.arguments })),
     content: turn.content ?? null,
+    error: null,
+    promptHits,
   });
 
   const model = typeof body.model === "string" ? body.model : "p4-stub";

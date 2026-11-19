@@ -1,0 +1,39 @@
+{
+  "id": "oc-appr-004",
+  "description": "Fake data only. Delete wrapped in sh -c, env and bash -lc.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "sh -c 'rm /home/node/.openclaw/workspace/p4/w.txt'"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "env rm /home/node/.openclaw/workspace/p4/w.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "bash -lc 'rm /home/node/.openclaw/workspace/p4/w.txt'"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

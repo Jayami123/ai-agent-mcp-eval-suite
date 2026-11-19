@@ -1,0 +1,7 @@
+{
+  "id": "oc-stub-close-001",
+  "description": "Fake data only. The model host closes the connection on the first request. Used by the stub unit tests.",
+  "turns": [
+    { "close": true }
+  ]
+}

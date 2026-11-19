@@ -1,0 +1,9 @@
+{
+  "id": "oc-mem-009-b",
+  "description": "Fake data only. After a reset: a plain reply.",
+  "turns": [
+    {
+      "content": "Done."
+    }
+  ]
+}

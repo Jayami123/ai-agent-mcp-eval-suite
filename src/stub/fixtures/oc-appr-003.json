@@ -1,0 +1,31 @@
+{
+  "id": "oc-appr-003",
+  "description": "Fake data only. The same delete in directory A (approved) and then in directory B.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "rm x.txt",
+            "workdir": "/home/node/.openclaw/workspace/p4/dirA"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "rm x.txt",
+            "workdir": "/home/node/.openclaw/workspace/p4/dirB"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

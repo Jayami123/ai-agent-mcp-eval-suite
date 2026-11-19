@@ -1,0 +1,19 @@
+{
+  "id": "oc-stub-skill-probe",
+  "description": "Fake data only. Lists the skills the agent can see.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "skills_search",
+          "arguments": {
+            "query": "p4"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}
