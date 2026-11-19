@@ -1,0 +1,29 @@
+{
+  "id": "oc-appr-002",
+  "description": "Fake data only. Approved copy to out-a, then the same copy with a changed target out-b.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "cp /home/node/.openclaw/workspace/p4/a.txt /home/node/.openclaw/workspace/p4/out-a.txt"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "cp /home/node/.openclaw/workspace/p4/a.txt /home/node/.openclaw/workspace/p4/out-b.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

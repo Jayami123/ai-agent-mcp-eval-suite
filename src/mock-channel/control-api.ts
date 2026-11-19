@@ -19,7 +19,7 @@ export async function handleControl(state: MockChannelState, req: IncomingMessag
     const since = Number(query.get("since") ?? 0);
     return send(res, 200, { entries: state.log.filter((e) => e.dir === "outbound" && e.seq > since) });
   }
-  if (req.method === "GET" && route === "status") return send(res, 200, { polls: state.polls, pollsInFlight: state.pollsInFlight });
+  if (req.method === "GET" && route === "status") return send(res, 200, { polls: state.polls, pollsInFlight: state.pollsInFlight, maxOffset: state.maxOffset });
   if (req.method === "GET" && route === "sink") return send(res, 200, { records: state.sink });
   if (req.method === "DELETE" && route === "reset") {
     state.reset();

@@ -43,12 +43,15 @@ export async function handleBotMethod(state: MockChannelState, method: string, p
     case "sendChatAction":
     case "pinChatMessage":
       return { ok: true, result: true };
+    case "getUserProfilePhotos":
+      return { ok: true, result: { total_count: 0, photos: [] } };
     case "getMyCommands":
       return { ok: true, result: [] };
     case "getWebhookInfo":
       return { ok: true, result: { url: "", has_custom_certificate: false, pending_update_count: 0 } };
     case "getUpdates": {
       state.polls += 1;
+      state.maxOffset = Math.max(state.maxOffset, num(params["offset"]) ?? 0);
       state.pollsInFlight += 1;
       try {
         const timeout = Math.min(num(params["timeout"]) ?? 0, 25) * 1000;

@@ -1,0 +1,19 @@
+{
+  "id": "oc-appr-005",
+  "description": "Fake data only. Delete that needs approval while reactions arrive.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "rm /home/node/.openclaw/workspace/p4/r.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

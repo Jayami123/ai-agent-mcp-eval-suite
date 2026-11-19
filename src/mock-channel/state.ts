@@ -44,6 +44,8 @@ export class MockChannelState {
 
   /** getUpdates calls seen since the process started, and when the last one arrived. Not cleared by reset: it describes the poller. */
   polls = 0;
+  /** The highest `offset` a client has sent. A client sends offset N to confirm it received every update below N. Not cleared by reset. */
+  maxOffset = 0;
   /** getUpdates calls in flight right now. A connected poller keeps this at 1 while it waits. */
   pollsInFlight = 0;
 

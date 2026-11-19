@@ -61,15 +61,27 @@ test("mock-channel: a registered page is served and an unknown page is 404", asy
 test("mock-channel: status reports the poller (a getUpdates call in flight) and nothing else about the run", async () => {
   const mc = await startMockChannel();
   try {
-    const before = (await mc.control("GET", "/__mc/status")) as { polls: number; pollsInFlight: number };
-    assert.deepEqual(before, { polls: 0, pollsInFlight: 0 });
+    const before = (await mc.control("GET", "/__mc/status")) as { polls: number; pollsInFlight: number; maxOffset: number };
+    assert.deepEqual(before, { polls: 0, pollsInFlight: 0, maxOffset: 0 });
     const poll = mc.bot("getUpdates", { offset: 0, timeout: 2 });
     await new Promise((r) => setTimeout(r, 300));
-    const during = (await mc.control("GET", "/__mc/status")) as { polls: number; pollsInFlight: number };
-    assert.deepEqual(during, { polls: 1, pollsInFlight: 1 });
+    const during = (await mc.control("GET", "/__mc/status")) as { polls: number; pollsInFlight: number; maxOffset: number };
+    assert.deepEqual(during, { polls: 1, pollsInFlight: 1, maxOffset: 0 });
     await poll;
-    const after = (await mc.control("GET", "/__mc/status")) as { polls: number; pollsInFlight: number };
-    assert.deepEqual(after, { polls: 1, pollsInFlight: 0 });
+    const after = (await mc.control("GET", "/__mc/status")) as { polls: number; pollsInFlight: number; maxOffset: number };
+    assert.deepEqual(after, { polls: 1, pollsInFlight: 0, maxOffset: 0 });
+  } finally {
+    await mc.close();
+  }
+});
+
+test("mock-channel: status reports the highest offset a client confirmed, which proves it consumed earlier updates", async () => {
+  const mc = await startMockChannel();
+  try {
+    const { updateId } = await mc.inbound({ chat: { id: OWNER.id, type: "private" }, from: OWNER, text: "x" });
+    assert.equal(((await mc.control("GET", "/__mc/status")) as { maxOffset: number }).maxOffset, 0);
+    await mc.bot("getUpdates", { offset: updateId + 1, timeout: 0 });
+    assert.equal(((await mc.control("GET", "/__mc/status")) as { maxOffset: number }).maxOffset, updateId + 1);
   } finally {
     await mc.close();
   }

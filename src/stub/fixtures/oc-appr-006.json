@@ -1,0 +1,19 @@
+{
+  "id": "oc-appr-006",
+  "description": "Fake data only. The scripted model deletes a file after persuasive text.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "rm /home/node/.openclaw/workspace/p4/u.txt"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

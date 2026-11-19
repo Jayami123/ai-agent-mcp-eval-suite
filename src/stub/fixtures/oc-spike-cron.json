@@ -1,9 +1,0 @@
-{
- "id": "oc-spike-cron",
- "description": "spike",
- "turns": [
-  {
-   "content": "Cron ran."
-  }
- ]
-}
