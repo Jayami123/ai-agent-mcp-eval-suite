@@ -9,16 +9,21 @@ import type { L3Stack } from "./stack.js";
 
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 type Decision = "approve" | "reject";
+/** A decision the helper can send: a plain approve or reject, or an edit that replaces the call's arguments. */
+export type Decision2 = Decision | { decision: "edit"; editedArguments: Record<string, unknown> };
+const decisionName = (d: Decision2): string => (typeof d === "string" ? d : d.decision);
 
 export interface PausedCall {
   name: string;
   toolCallId: string;
   allowed: string[];
+  /** The arguments the pause shows for this call (a parsed object, or the raw string when it is not JSON). */
+  args?: unknown;
 }
 
 export interface ApprovalRun {
   /** Every pause the run reached, in order, with the decision sent for each call. */
-  pauses: Array<{ calls: PausedCall[]; sent: Decision[] }>;
+  pauses: Array<{ calls: PausedCall[]; sent: string[] }>;
   /** True when the stream ended with a final event (the run finished, not stuck). */
   finished: boolean;
   /** LibreChat conversation id of this chat. */
@@ -27,12 +32,12 @@ export interface ApprovalRun {
 
 interface PauseEvent {
   actionId: string;
-  payload: { action_requests: Array<{ name: string; tool_call_id: string }>; review_configs?: Array<{ tool_call_id: string; allowed_decisions: string[] }> };
+  payload: { action_requests: Array<{ name: string; tool_call_id: string; arguments?: unknown }>; review_configs?: Array<{ tool_call_id: string; allowed_decisions: string[] }> };
 }
 
 export async function chatWithApproval(
   stack: L3Stack,
-  o: { fixture: string; prompt: string; tools: string[]; decide: (call: PausedCall) => Decision; maxPauses?: number; timeoutMs?: number },
+  o: { fixture: string; prompt: string; tools: string[]; decide: (call: PausedCall, pauseIndex: number) => Decision2; maxPauses?: number; timeoutMs?: number },
 ): Promise<ApprovalRun> {
   const s = stack.session;
   const H = { "content-type": "application/json", authorization: s.authorizationHeader, "user-agent": UA };
@@ -59,15 +64,21 @@ export async function chatWithApproval(
       name: a.name,
       toolCallId: a.tool_call_id,
       allowed: reviews.find((c) => c.tool_call_id === a.tool_call_id)?.allowed_decisions ?? [],
+      args: typeof a.arguments === "string" ? safeParse(a.arguments) : a.arguments,
     }));
-    const sent = calls.map((c) => o.decide(c));
-    run.pauses.push({ calls, sent: [...sent] });
+    const sent = calls.map((c) => o.decide(c, run.pauses.length));
+    run.pauses.push({ calls, sent: sent.map(decisionName) });
     const body = {
       conversationId: streamId,
       actionId: pause.actionId,
       agent_id: agentId,
       endpoint: "agents",
-      decisions: calls.map((c, i) => ({ tool_call_id: c.toolCallId, decision: sent[i], reason: "p4-l3 headless decision" })),
+      decisions: calls.map((c, i) => {
+        const d = sent[i] as Decision2;
+        return typeof d === "string"
+          ? { tool_call_id: c.toolCallId, decision: d, reason: "p4-l3 headless decision" }
+          : { tool_call_id: c.toolCallId, decision: d.decision, editedArguments: d.editedArguments, reason: "p4-l3 headless decision" };
+      }),
     };
     const res = await fetch(`${s.baseUrl}/api/agents/chat/resume`, { method: "POST", headers: H, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
     if (res.status !== 200) throw new Error(`APPROVAL_RESUME_HTTP_${res.status}: the resume route refused the decisions`);
@@ -75,6 +86,14 @@ export async function chatWithApproval(
   }
   run.finished = next === "final";
   return run;
+}
+
+function safeParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return raw;
+  }
 }
 
 /** Reads the stream until the next pause (returned), the final event ("final"), or the deadline (undefined). */

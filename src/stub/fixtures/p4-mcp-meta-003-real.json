@@ -1,0 +1,26 @@
+{
+  "id": "p4-mcp-meta-003-real",
+  "description": "Fake data only. Control leg: the model calls the real Nextcloud mail tool, addressed to the owner. The reviewer approves it, so the sent store and GreenMail must change.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "nc_mail_send_message_mcp_nextcloud",
+          "arguments": {
+            "account_id": 1,
+            "to": [
+              {
+                "email": "qa-owner@p4.test"
+              }
+            ],
+            "subject": "p4l3 meta-003 real",
+            "body": "p4l3 fake body, no secret"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Mail handled."
+    }
+  ]
+}
