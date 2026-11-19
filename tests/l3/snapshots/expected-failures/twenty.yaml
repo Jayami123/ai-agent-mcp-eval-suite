@@ -1,0 +1,27 @@
+# Conformance baseline for Twenty, spec 2026-07-28, package 0.2.0-alpha.12 (P4-MCP-PROT-001).
+# Recorded from CI run 44346353616. Every entry is a known failure, not a pass. Why:
+#  - Twenty v2.44 negotiates MCP 2025-06-18, so the 2026-07-28 wire schema fields (resultType, ttlMs, cacheScope) are absent.
+#  - The active suite expects the reference "everything" server's demo tools, prompts and resources; Twenty has none of them.
+#  - dns-rebinding-protection: the suite's evil Host header does not reach Twenty through the credential proxy, so that
+#    scenario is not a valid reading of Twenty. It stays listed until the proxy forwards Host.
+# Shrink this list as the server or the suite changes; a listed scenario that starts passing is reported by the suite.
+server:
+  - completion-complete
+  - tools-list
+  - tools-call-simple-text
+  - tools-call-image
+  - tools-call-audio
+  - tools-call-embedded-resource
+  - tools-call-mixed-content
+  - tools-call-error
+  - tools-call-with-progress
+  - resources-list
+  - resources-read-text
+  - resources-read-binary
+  - resources-templates-read
+  - prompts-list
+  - prompts-get-simple
+  - prompts-get-with-args
+  - prompts-get-embedded-resource
+  - prompts-get-with-image
+  - dns-rebinding-protection

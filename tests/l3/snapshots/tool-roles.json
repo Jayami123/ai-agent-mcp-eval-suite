@@ -1,0 +1,15 @@
+{
+  "twenty": {
+    "execute": "execute_tool",
+    "catalog": "get_tool_catalog",
+    "list_objects": "list_object_metadata_names",
+    "learn": "learn_tools"
+  },
+  "twentyInner": {
+    "find_notes": "find_many_notes",
+    "find_people": "find_many_people",
+    "find_opportunities": "find_many_opportunities",
+    "create_blocklist": "create_one_blocklist",
+    "delete_message": "delete_one_message"
+  }
+}
