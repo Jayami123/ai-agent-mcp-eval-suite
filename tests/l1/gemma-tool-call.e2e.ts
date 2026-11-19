@@ -4,6 +4,7 @@ import { getAdapter, type AuthSession } from "qa-portfolio-harness";
 import { collectContainerLogs, redact, runId, writeEvidence } from "./evidence.js";
 import { lcChat, lcCreateAgent, mcpToolName, type LcChatOutcome } from "./librechat-client.js";
 import { classifyGemmaOutcome, isRateLimited, type GemmaStatus } from "./gemma-classify.js";
+import { servedModelFromModelInfo, sumUsage, usageFromMessage, type ServedModel, type UsageFields } from "./gemma-record.js";
 
 // L1 smoke: a real model (Gemma, LiteLLM alias p4-nightly) calls one real Twenty MCP tool THROUGH LibreChat.
 // Chain: LibreChat agent -> LiteLLM (p4-nightly -> Gemma) -> back through LibreChat to the Twenty MCP server.
@@ -36,6 +37,12 @@ interface E2eRecord {
   errorExcerpt: string | null;
   stateCheck: string;
   reason: string;
+  /** The upstream model LiteLLM routes p4-nightly to, or null when /model/info could not say. Read by the L5 trace schema. */
+  servedModel: ServedModel | null;
+  /** Token usage from the saved LibreChat reply, summed over attempts. null parts mean the source did not carry them. */
+  usage: UsageFields;
+  /** Wall-clock over all chat attempts, in milliseconds. */
+  latencyMs: number;
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -60,6 +67,9 @@ test(
       errorExcerpt: null,
       stateCheck: "not run",
       reason: DID_NOT_COMPLETE,
+      servedModel: null,
+      usage: { promptTokens: null, completionTokens: null, source: "none" },
+      latencyMs: 0,
     };
     const writeRecord = (): void => writeEvidence(dir, "record.json", `${JSON.stringify(rec, null, 2)}\n`);
 
@@ -85,6 +95,16 @@ test(
       await librechat.up(); // P4_LLM_MODE=nightly makes LibreChat list p4-stub and p4-nightly
       session = await librechat.authenticate();
 
+      // The model id LiteLLM routes the alias to. Read-only call, no model is invoked. A failure is recorded as null, not thrown:
+      // the record then says "unknown" and the L5 schema check fails it loudly later.
+      try {
+        const lite = await litellm.authenticate();
+        const info = await fetch(`${lite.baseUrl}/model/info`, { headers: { authorization: lite.authorizationHeader }, signal: AbortSignal.timeout(15_000) });
+        if (info.ok) rec.servedModel = servedModelFromModelInfo(await info.json(), MODEL_ALIAS);
+      } catch {
+        rec.servedModel = null;
+      }
+
       const toolName = mcpToolName(TWENTY_LIST_TOOL_NAME, SERVER);
       const agentId = await lcCreateAgent(session, {
         name: "p4-l1-nightly-agent",
@@ -94,6 +114,8 @@ test(
       });
 
       let outcome: LcChatOutcome | undefined;
+      const usageParts: UsageFields[] = [];
+      const startedAt = Date.now();
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         rec.attempts = attempt + 1;
         outcome = await lcChat(session, {
@@ -101,12 +123,15 @@ test(
           text: `Call the tool ${TWENTY_LIST_TOOL_NAME} once, then stop.`,
           timeoutMs: CHAT_TIMEOUT_MS,
         });
+        usageParts.push(usageFromMessage(outcome.reply));
         if (outcome.errorText === "" || !isRateLimited(outcome.errorText)) break;
         const delay = RETRY_DELAYS_MS[attempt];
         if (delay === undefined) break;
         await sleep(delay);
       }
       if (!outcome) throw new Error("no chat outcome");
+      rec.latencyMs = Date.now() - startedAt;
+      rec.usage = sumUsage(usageParts);
 
       rec.trajectory = outcome.toolCalls.map((c) => ({ name: c.name, arguments: c.arguments }));
       writeEvidence(dir, "librechat-outcome.json", `${redact(JSON.stringify(outcome, null, 2), secrets())}\n`);
