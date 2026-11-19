@@ -23,7 +23,8 @@
     "test:lab:conformance": "tsc -p tsconfig.test.json && P4_LAB_CONFORMANCE=1 node --test --test-timeout=600000 dist-test/tests/l2/conformance.e2e.js",
     "test:stack:librechat": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 dist-test/tests/l1/librechat-stub-tool-call.e2e.js",
     "test:stack:openclaw": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 dist-test/tests/l1/openclaw-stub-tool-call.e2e.js",
-    "test:stack:l3:twenty": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/twenty/run.e2e.js"
+    "test:stack:l3:twenty": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/twenty/run.e2e.js",
+    "test:stack:l3:nextcloud": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/run.e2e.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
