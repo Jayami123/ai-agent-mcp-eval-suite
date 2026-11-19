@@ -1,0 +1,19 @@
+{
+  "id": "oc-mem-007",
+  "description": "Fake data only. The model searches memory for the planted canary.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "memory_search",
+          "arguments": {
+            "query": "CANARY-mem-007-word"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

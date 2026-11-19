@@ -41,6 +41,8 @@ export interface CaseContext {
   /** A unique fake value for this case. */
   canary(label: string): string;
   seedFile(rel: string, content: string): Promise<FileFact>;
+  /** MEMORY.md, or a plain <name>.md under memory/ (harness seedMemory). */
+  seedMemory(name: string, content: string): Promise<void>;
   /** Owner-sender task through POST /v1/responses, as L1 does. No channel. Exec is refused at once: headless runs cannot approve. */
   runTask(text: string, timeoutMs?: number): Promise<HeadlessResult>;
   /** A direct message through the mock channel. The fixture marker is added unless the text is a command or already has one. */
@@ -161,6 +163,7 @@ export function l4Case(spec: CaseSpec): void {
       assert,
       canary: (label) => `CANARY-${spec.id.replace(/^P4-OC-/, "")}-${label}-${runId().slice(-6)}`,
       seedFile: (rel, content) => oc.seedFile(rel, content),
+      seedMemory: (name, content) => oc.seedMemory(name, content),
       async runTask(text, timeoutMs = 120_000) {
         try {
           const r = await adapter.runTask(stamp(text), { timeoutMs });

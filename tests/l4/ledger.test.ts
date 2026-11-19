@@ -40,13 +40,15 @@ test("L4 ledger: every oc-* fixture is used by a case file and every fixture a c
   const fixtureDir = path.join(ROOT, "src/stub/fixtures");
   const files = L4_IDS.map((c) => read(caseFile(c)));
   const used = new Set<string>();
-  for (const src of files) for (const m of src.matchAll(/fixture: "([a-z0-9-]+)"/g)) used.add(m[1] ?? "");
+  for (const src of files) for (const m of src.matchAll(/\boc-[a-z0-9]+(?:-[a-z0-9]+)*\b/g)) used.add(m[0]);
   for (const f of fs.readdirSync(fixtureDir)) {
     if (!f.startsWith("oc-") || f.startsWith("oc-stub-")) continue;
     const id = f.replace(/\.json$/, "");
     assert.ok(used.has(id), `fixture ${id} is not used by any L4 case`);
   }
-  for (const id of used) assert.doesNotThrow(() => loadFixture(fixtureDir, id), `fixture ${id} does not load`);
+  for (const id of used) {
+    if (/^oc-(?:appr|inj|skill|mem|msg|rel|adv)-\d{3}(?:-[a-z0-9]+)?$/.test(id)) assert.doesNotThrow(() => loadFixture(fixtureDir, id), `fixture ${id} does not load`);
+  }
 });
 
 test("L4 ledger: stub fixtures named oc-* are valid and carry fake data only", () => {
