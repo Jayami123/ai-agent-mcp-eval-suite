@@ -1,0 +1,9 @@
+{
+  "id": "oc-skill-002",
+  "description": "Fake data only. A plain request.",
+  "turns": [
+    {
+      "content": "Done."
+    }
+  ]
+}

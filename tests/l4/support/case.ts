@@ -7,7 +7,7 @@ import { redact, runId, writeEvidence } from "../../l1/evidence.js";
 import { skipReason, type Need } from "./env.js";
 import { MockChannelClient, MOCK_CHANNEL_URL } from "./mock-channel-client.js";
 import { isDenied, marker } from "./tool-names.js";
-import { requireStubContainer, resetStubTrace, traceAll, type L4TraceEntry } from "./stub-trace.js";
+import { clearWatch, requireStubContainer, resetStubTrace, traceAll, watchPrompt, type L4TraceEntry } from "./stub-trace.js";
 
 // The L4 case harness. A case is a function over a CaseContext. Every case starts from a reset state, checks real OpenClaw state
 // through the oracles, and writes evidence (stub trace, mock channel log, pending approvals) even when it fails.
@@ -68,6 +68,10 @@ export interface CaseContext {
   ownerDeny(id: string): Promise<void>;
   /** The approval cards OpenClaw sent to chat (outbound messages that carry `/approve`). */
   approvalCards(): Promise<string[]>;
+  /** Registers canary values with the stub recorder and the mock channel. Later trace entries list which ones a prompt carried (promptHits). */
+  watch(values: Record<string, string>): Promise<void>;
+  /** The labels of watched canaries that appeared in any model request so far. */
+  promptHits(): Promise<string[]>;
   /** Empties the stub trace and the mock channel log, so the next step is read on its own. */
   resetRecorders(): Promise<void>;
   /** Runs a check that is expected to fail because of a confirmed product behaviour. Passes while it fails, fails when it stops failing. */
@@ -111,6 +115,7 @@ export async function resetCaseState(oc: OcOracle, mc: MockChannelClient): Promi
   await quiet(mc, 2500, 30_000);
   oc.exec(["sh", "-c", `cd ${OC_WORKSPACE} && rm -rf p4 MEMORY.md memory skills/p4-* skills/oc-*`]);
   await resetStubTrace();
+  await clearWatch();
   await mc.reset();
   const left = await oc.pending();
   assert.equal(left.length, 0, "reset left a pending approval");
@@ -203,6 +208,11 @@ export function l4Case(spec: CaseSpec): void {
       ownerApprove: async (id) => void (await mc.dm(OWNER, `/approve ${id} allow-once`)),
       ownerDeny: async (id) => void (await mc.dm(OWNER, `/approve ${id} deny`)),
       approvalCards: async () => (await mc.outbound()).filter((e) => (e.text ?? "").includes("/approve ")).map((e) => e.text ?? ""),
+      watch: async (values) => {
+        await watchPrompt(values);
+        await mc.watch(values);
+      },
+      promptHits: async () => [...new Set((await traceAll()).flatMap((t) => t.promptHits ?? []))],
       resetRecorders: async () => {
         await resetStubTrace();
         await mc.reset();
