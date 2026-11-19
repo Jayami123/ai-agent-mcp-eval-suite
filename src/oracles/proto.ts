@@ -1,4 +1,4 @@
-import { fail, pass, type Verdict } from "./verdict.js";
+import { fail, pass, unverified, type Verdict } from "./verdict.js";
 
 /** True when the JSON-RPC reply carries an error object (any code, or one of `codes`). The message text is not read. */
 export function isJsonRpcError(body: unknown, codes?: number[]): Verdict {
@@ -124,4 +124,21 @@ export function headerMismatchRefused(res: { status: number; body: unknown }, ne
     return pass(`deployment finding: server negotiated ${negotiated}, which predates the Mcp-Method rule of ${HEADER_RULE_SPEC}; mismatch accepted (HTTP ${res.status})`);
   }
   return fail(`server negotiated ${negotiated} but accepted a mismatched Mcp-Method header (HTTP ${res.status})`);
+}
+
+/**
+ * P4-MCP-PROT-011. The tasks extension is either negotiated (the server advertises the `tasks` capability at initialize) or
+ * cleanly absent (the server does not advertise it, and tasks/get is refused with a JSON-RPC error and no result). An absent
+ * capability with a tasks/get result is a failure. An advertised capability needs the create-and-read leg, which this PR does
+ * not build, so it is unverified rather than passed.
+ */
+export function tasksCapabilityConsistent(init: { body: unknown }, tasksGet: { status: number; body: unknown }): Verdict {
+  if (tasksGet.status >= 500) return fail(`tasks/get answered HTTP ${tasksGet.status}`);
+  const caps = (init.body as { result?: { capabilities?: unknown } } | null)?.result?.capabilities as Record<string, unknown> | undefined;
+  const advertised = typeof caps === "object" && caps !== null && "tasks" in caps;
+  const b = tasksGet.body as { result?: unknown; error?: { code?: unknown } } | null;
+  if (advertised) return unverified("tasks capability advertised; the create-and-read leg is not built in this PR");
+  if (b?.result !== undefined) return fail("tasks/get returned a result although the server did not advertise the tasks capability");
+  if (typeof b?.error?.code === "number") return pass(`tasks not advertised; tasks/get refused with JSON-RPC ${b.error.code}`);
+  return fail(`tasks not advertised and tasks/get gave neither a result nor a JSON-RPC error (HTTP ${tasksGet.status})`);
 }

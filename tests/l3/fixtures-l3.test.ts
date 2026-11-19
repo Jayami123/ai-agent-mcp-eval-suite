@@ -10,7 +10,7 @@ import { twentyInnerNames } from "./support/tool-map.js";
 // L3 fixture may exist that the registry does not name (an orphan is a case ID nobody approved).
 const DIR = path.resolve(process.cwd(), "src/stub/fixtures");
 // PRs whose fixtures must exist so far. Each L3 PR appends its number (a case in a later PR has no fixture yet).
-const LANDED_PRS: number[] = [1];
+const LANDED_PRS: number[] = [1, 2];
 const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr));
 
 test("every L3 fixture named in the registry exists, validates and has a legal id", () => {
