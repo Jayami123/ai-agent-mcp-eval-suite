@@ -291,6 +291,12 @@ jobs:
       - name: L3 nextcloud stack tests
         run: npm run test:stack:l3:nextcloud
 
+      - name: L3 nextcloud approval deny (APPR-001)
+        run: npm run test:stack:l3:nextcloud:appr-deny
+
+      - name: L3 nextcloud approval ask (APPR-006)
+        run: npm run test:stack:l3:nextcloud:appr-ask
+
       - name: Stop the stub container
         if: always()
         run: npm run stub:down
