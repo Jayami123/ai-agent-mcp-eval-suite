@@ -52,3 +52,30 @@ export async function subjects(c: NcMailClient, mailboxId: number): Promise<stri
   const r = (await c.call("nc_mail_list_messages", { mailbox_id: mailboxId, limit: 100 })) as { results?: Array<{ subject?: unknown }> };
   return (r.results ?? []).flatMap((m) => (typeof m.subject === "string" ? [m.subject] : []));
 }
+
+import { digestOf } from "../../../src/oracles/snapshot.js";
+import { parseMailAppSubjects } from "../../../src/oracles/greenmail.js";
+
+/**
+ * The owner's Sent store as the Nextcloud Mail app holds it. The Mail app caches a mailbox and the stack has no cron, so a send
+ * is not in the cache until the mailbox is synced. Observed (wave D probe, CI run 44591815424): the MCP list of Sent is empty
+ * right after a send; after POST /index.php/apps/mail/api/mailboxes/{id}/sync with {"init":true,"ids":[]} (HTTP 200) the
+ * message is listed. This does that sync with the owner's own credential, then reads GET /apps/mail/api/messages.
+ */
+export async function sentStore(stack: L3Stack): Promise<{ subjects: string[]; digest: string }> {
+  const ep = stack.mcp("nextcloud");
+  if (ep.authorization === null) throw new Error("L3_NO_NC_CREDENTIAL: the Nextcloud MCP run state has no credential");
+  const base = (stack.adapters.get("nextcloud") as { baseUrl: string }).baseUrl;
+  const c = await ncMailClient(stack);
+  const acct = (await accounts(c))[0];
+  if (acct === undefined) throw new Error("L3_NO_MAIL_ACCOUNT: the owner has no Mail account (is P4_MAIL=1 set?)");
+  const sent = (await mailboxes(c, acct.id)).find((b) => b.name === "Sent");
+  if (sent === undefined) throw new Error("L3_NO_SENT_MAILBOX: the owner's account has no Sent mailbox");
+  const h = { authorization: ep.authorization, "OCS-APIRequest": "true", accept: "application/json", "content-type": "application/json" };
+  const sync = await fetch(`${base}/index.php/apps/mail/api/mailboxes/${sent.databaseId}/sync`, { method: "POST", headers: h, body: JSON.stringify({ init: true, ids: [] }), signal: AbortSignal.timeout(60_000) });
+  if (sync.status !== 200) throw new Error(`L3_SENT_SYNC_HTTP_${sync.status}`);
+  const list = await fetch(`${base}/index.php/apps/mail/api/messages?mailboxId=${sent.databaseId}&limit=100`, { headers: h, signal: AbortSignal.timeout(30_000) });
+  if (list.status !== 200) throw new Error(`L3_SENT_LIST_HTTP_${list.status}`);
+  const subjects = parseMailAppSubjects(await list.json()).sort();
+  return { subjects, digest: digestOf(subjects) };
+}

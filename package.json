@@ -39,6 +39,7 @@
     "test:stack:l3:probe:mail": "tsc -p tsconfig.test.json && P4_L3_PROBE=1 node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/probe/mail.e2e.js",
     "test:stack:l3:probe:ui": "tsc -p tsconfig.test.json && P4_L3_PROBE=1 node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/probe/ui.e2e.js",
     "test:stack:l3:ui": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/ui.e2e.js",
+    "test:stack:l3:mail": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/mail.e2e.js",
     "test:stack:l3:lab-typo": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-typo.e2e.js"
   },
   "dependencies": {

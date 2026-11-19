@@ -537,6 +537,9 @@ jobs:
       - name: L3 wave D mail probe
         run: npm run test:stack:l3:probe:mail
 
+      - name: L3 wave D mail cases (APPR-003, META-003)
+        run: npm run test:stack:l3:mail
+
       - name: Stop the attack-lab container
         if: always()
         run: npm run lab:down

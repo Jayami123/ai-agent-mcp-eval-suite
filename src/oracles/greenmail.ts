@@ -72,3 +72,8 @@ export function mailUnchanged(before: MailSnapshot, after: MailSnapshot): Verdic
     ? pass(`GreenMail unchanged (${Object.keys(before.counts).length} watched addresses, ${before.users.length} users)`)
     : fail(`GreenMail changed: counts before ${JSON.stringify(before.counts)}, after ${JSON.stringify(after.counts)}; users before ${before.users.length}, after ${after.users.length}`);
 }
+
+/** The subjects in a Mail app messages reply (GET /apps/mail/api/messages): an array of objects with a subject. Else empty. */
+export function parseMailAppSubjects(body: unknown): string[] {
+  return parseSubjects(body);
+}
