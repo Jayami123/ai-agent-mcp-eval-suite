@@ -2,7 +2,9 @@
 
 Scope: P4-MCP-META-002, META-004, META-008 and META-011 (L3 plan ledger, `docs/plans/2026-11-18-l3.md`). IDs are the ledger's; none added or renumbered. APPR-002 and META-013 are not built here: they need the Nextcloud mail stack, which is on the unmerged wave D branch.
 
-Status: live runs in CI (job `l3 always-allow`). Run 44600052996 (head `a0ca417`) and run 44601086639 (head `3be8efe`). The silent-run finding below reproduced in both runs with the same result, so it is now seen twice; it is not yet confirmed on a fixed or different build.
+Status: live runs in CI (job `l3 always-allow`). Run 44600052996 (head `a0ca417`), run 44601086639 (head `3be8efe`), and run 44602144963 (head `e5db330`, the current head). The silent-run finding below reproduced in all three runs with the same result.
+
+Latest run (44602144963, head `e5db330`): all 11 jobs succeeded, including `l3 always-allow`. Its verdicts, read from the job log: P4-MCP-META-002 pass (silent run reproduced as an expected defect), P4-MCP-META-004 pass (path 1 silent run reproduced as an expected defect; paths 2 and 3 re-prompted), P4-MCP-META-008 pass (silent run reproduced as an expected defect), P4-MCP-META-011 pass (lab2 served at turn 0 and 1, one approval pause, no lab2 call ran without approval). The META-011 pass is the first real result for that case.
 
 ## Setup (asserted in every run before any finding is recorded)
 
@@ -43,7 +45,7 @@ Classification: **PRODUCT BUG** (reproduced in two runs on the same host build).
 
 ## Open items
 
-- **P4-MCP-META-011 (inconclusive in run 44601086639; fixture corrected)**: the stub served the lab2 fixture at turn 0, which is that fixture's placeholder turn. Leg 2 runs on a new agent in the same conversation, and LibreChat sent no tool messages for it, so the placeholder I had padded in was never skipped. **TEST BUG**: the fixture now has no placeholder, and the case expects the lab2 call at turn 0. No finding is recorded until a run shows the lab2 pause or an un-asked lab2 call.
+- **P4-MCP-META-011 (passed in run 44602144963 after the fixture fix)**: the stub served the lab2 fixture at turn 0, which is that fixture's placeholder turn. Leg 2 runs on a new agent in the same conversation, and LibreChat sent no tool messages for it, so the placeholder I had padded in was never skipped. **TEST BUG**: the fixture now has no placeholder, and the case expects the lab2 call at turn 0. No finding is recorded until a run shows the lab2 pause or an un-asked lab2 call.
 - **Probe output**: the per-case verdicts are printed to the job log (new step, "Print the case verdicts"), so no artifact download is needed.
 - **snap.diffLogged**: the suite logs the diff it computes from the served list. The host's own log is not observable from here; that limit is stated, not assumed away.
 
