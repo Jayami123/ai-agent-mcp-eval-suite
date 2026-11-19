@@ -442,8 +442,18 @@ jobs:
       - name: Build and start the attack-lab container
         run: npm run lab:up
 
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
       - name: L3 lab host cases (PROT-005, PROT-006, META-009, SUPP-002)
         run: npm run test:stack:l3:host
+
+      - name: L3 lab gate cases through LibreChat (REL-001, REL-005, META-001, SUPP-003)
+        run: npm run test:stack:l3:lab-gates
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
 
       - name: Stop the attack-lab container
         if: always()
