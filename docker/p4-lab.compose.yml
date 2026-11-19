@@ -1,0 +1,36 @@
+# The attack-lab MCP server as a container, so LibreChat reaches it at http://p4-attack-lab:9010/mcp on qa-harness-p4.
+# The host publish is 127.0.0.1 only. Start and stop it with `npm run lab:up` and `npm run lab:down`: the script writes the
+# per-run control token to .harness/lab/control-token and passes it in the environment (never as a build arg, never printed).
+#   host control API: http://127.0.0.1:9011   sink and phish pages: http://127.0.0.1:9012
+name: p4-suite-lab
+
+services:
+  p4-attack-lab:
+    build:
+      context: ..
+      dockerfile: docker/attack-lab/Dockerfile
+    image: p4-suite-attack-lab:local
+    container_name: p4-suite-attack-lab
+    environment:
+      LAB_MODE: ${LAB_MODE:-benign}
+      # The audience a strict token must carry: the URL other containers use to reach this server.
+      LAB_RESOURCE: http://p4-attack-lab:9010/mcp
+      # The MCP port accepts only these Host values (DNS-rebinding guard).
+      LAB_ALLOWED_HOSTS: p4-attack-lab:9010
+      # The phish URL is opened by a browser on the host, so it names the host-published sink port.
+      LAB_PUBLIC_SINK_URL: http://127.0.0.1:9012
+      LAB_CONTROL_TOKEN: ${LAB_CONTROL_TOKEN:?run npm run lab:up so scripts/lab-container.mjs sets the per-run token}
+    ports:
+      - "127.0.0.1:9010:9010"
+      - "127.0.0.1:9011:9011"
+      - "127.0.0.1:9012:9012"
+    networks:
+      default: {}
+      p4:
+        aliases:
+          - p4-attack-lab
+
+networks:
+  p4:
+    external: true
+    name: qa-harness-p4
