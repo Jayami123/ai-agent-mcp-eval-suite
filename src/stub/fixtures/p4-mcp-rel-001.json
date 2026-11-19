@@ -1,0 +1,20 @@
+{
+  "id": "p4-mcp-rel-001",
+  "description": "Fake data only. A model asks the lab to add two numbers. The lab is in timeout mode and never answers in time: the host must report a timeout and never invent a result.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_add_mcp_lab",
+          "arguments": {
+            "a": 1,
+            "b": 2
+          }
+        }
+      ]
+    },
+    {
+      "content": "The addition did not finish."
+    }
+  ]
+}

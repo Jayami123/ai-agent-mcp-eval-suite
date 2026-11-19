@@ -4,7 +4,7 @@ import type { ProductAdapter } from "qa-portfolio-harness";
 import { oracleFor, type ServerOracle } from "../../../src/oracles/index.js";
 import { runId } from "../../l1/evidence.js";
 import { requireStubContainer } from "../../l1/stub-recorder.js";
-import { startStack, type BusinessServer, type L3Stack } from "./stack.js";
+import { startStack, type BusinessServer, type L3Stack, type StackServer } from "./stack.js";
 
 // One stack per entry file (tests/l3/<group>/run.e2e.ts), shared by every case module that file imports. Bringing a
 // product up is the slow part (minutes), so cases share it. The harness owns start and stop; this only calls it.
@@ -25,16 +25,17 @@ export function runtime(): Runtime {
 }
 
 /** Registers the before and after hooks. Does nothing unless P4_STACK_TESTS=1, so `npm test` needs no Docker. */
-export function bootRuntime(servers: BusinessServer[], label: string): void {
+export function bootRuntime(servers: StackServer[], label: string): void {
   if (process.env["P4_STACK_TESTS"] !== "1") return;
   const dir = path.join("l3", `${label}-${runId()}`);
   const oracles = new Map<BusinessServer, ServerOracle>();
+  const businessServers = servers.filter((s): s is BusinessServer => s !== "lab");
   before(
     async () => {
       await requireStubContainer();
       const stack = await startStack(servers, dir);
-      for (const s of servers) oracles.set(s, oracleFor(s, stack.adapters.get(s) as ProductAdapter));
-      current = { stack, servers, dir, oracle: (s) => oracles.get(s) as ServerOracle };
+      for (const s of businessServers) oracles.set(s, oracleFor(s, stack.adapters.get(s) as ProductAdapter));
+      current = { stack, servers: businessServers, dir, oracle: (s) => oracles.get(s) as ServerOracle };
     },
     { timeout: 40 * 60_000 },
   );

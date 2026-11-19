@@ -38,7 +38,7 @@ test("every case lands in exactly one PR from 1 to 11, except the one deferred c
 // Every case whose PR has landed must have a test that names it (a l3Case call with the ID). Append the PR number when it lands.
 const LANDED_PRS = [1, 2];
 // Cases built outside a whole PR (wave B, the approval gates on Nextcloud). Each is named here as it lands.
-const BUILT_IDS = ["P4-MCP-APPR-001", "P4-MCP-APPR-006"];
+const BUILT_IDS = ["P4-MCP-APPR-001", "P4-MCP-APPR-006", "P4-MCP-REL-001", "P4-MCP-REL-005", "P4-MCP-META-001", "P4-MCP-SUPP-003"];
 
 test("every landed case has an l3Case test", async () => {
   const fs = await import("node:fs");
