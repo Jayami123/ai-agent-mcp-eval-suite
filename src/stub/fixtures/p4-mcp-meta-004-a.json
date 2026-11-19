@@ -1,0 +1,19 @@
+{
+  "id": "p4-mcp-meta-004-a",
+  "description": "Fake data only. Re-approval after a hash change, leg a: lab_echo approved with Always allow in a new conversation.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_echo_mcp_lab",
+          "arguments": {
+            "text": "p4l3 meta-004 leg a"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Echoed."
+    }
+  ]
+}

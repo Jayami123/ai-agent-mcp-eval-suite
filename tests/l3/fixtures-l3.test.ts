@@ -15,6 +15,7 @@ const LANDED_PRS: number[] = [1, 2];
 const BUILT_IDS = [
   "P4-MCP-APPR-001", "P4-MCP-APPR-006", "P4-MCP-REL-001", "P4-MCP-REL-005", "P4-MCP-META-001", "P4-MCP-SUPP-003",
   "P4-MCP-APPR-007", "P4-MCP-META-010", "P4-MCP-META-006", "P4-MCP-SUPP-004", "P4-MCP-META-005", "P4-MCP-META-007", "P4-MCP-SUPP-007", "P4-MCP-REL-009",
+  "P4-MCP-META-002", "P4-MCP-META-004", "P4-MCP-META-008", "P4-MCP-META-011",
 ];
 // Tools that exist only in a lab mode (after a trigger), so the benign snapshot cannot name them. Each is listed with its mode.
 const MODE_ONLY_TOOLS = new Set(["lab_new_tool"]); // add-tool-after-connect, after the trigger
@@ -70,9 +71,11 @@ test("every tool a landed fixture calls exists in the committed snapshot of its 
     for (const id of def.fixtures) {
       for (const turn of loadFixture(DIR, id).turns) {
         for (const call of turn.tool_calls ?? []) {
-          const m = /^(.+)_mcp_(twenty|outline|nextcloud|penpot|mattermost|lab)$/.exec(call.name);
+          const m = /^(.+)_mcp_(twenty|outline|nextcloud|penpot|mattermost|lab2?)$/.exec(call.name);
           assert.ok(m, `${id}: ${call.name} does not end in _mcp_<server>`);
-          const snap = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "tests/l3/snapshots", `${m[2]}.tools.json`), "utf8")) as { tools: Array<{ name: string }> };
+          // lab2 is a second container of the same image, so it serves the lab's committed tool snapshot.
+          const snapFile = m[2] === "lab2" ? "lab" : m[2];
+          const snap = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "tests/l3/snapshots", `${snapFile}.tools.json`), "utf8")) as { tools: Array<{ name: string }> };
           assert.ok(MODE_ONLY_TOOLS.has(m[1] ?? "") || snap.tools.some((t) => t.name === m[1]), `${id}: ${m[1] ?? ""} is not in ${m[2]}.tools.json`);
         }
       }

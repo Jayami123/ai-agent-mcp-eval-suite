@@ -29,7 +29,7 @@ export function bootRuntime(servers: StackServer[], label: string): void {
   if (process.env["P4_STACK_TESTS"] !== "1") return;
   const dir = path.join("l3", `${label}-${runId()}`);
   const oracles = new Map<BusinessServer, ServerOracle>();
-  const businessServers = servers.filter((s): s is BusinessServer => s !== "lab");
+  const businessServers = servers.filter((s): s is BusinessServer => s !== "lab" && s !== "lab2");
   before(
     async () => {
       await requireStubContainer();
