@@ -105,11 +105,23 @@ export function versionRejectedOrDowngraded(res: { status: number; body: unknown
   return fail("server accepted an unsupported protocol version unchanged");
 }
 
-/** 2026-07-28: a header that disagrees with the body must be refused (JSON-RPC -32020 HeaderMismatch, or HTTP 4xx). */
-export function headerMismatchRefused(res: { status: number; body: unknown }): Verdict {
+/** The first spec revision that defines the Mcp-Method header rule. Dates compare as plain ISO strings. */
+export const HEADER_RULE_SPEC = "2026-07-28";
+
+/**
+ * P4-MCP-PROT-003. A header that disagrees with the body must be refused (JSON-RPC -32020 HeaderMismatch, or HTTP 4xx) by a
+ * server that negotiated spec 2026-07-28 or later. A server that negotiated an earlier revision is not bound by a rule that
+ * does not exist in it: acceptance there is a spec-version gap, reported as a deployment finding, and the verdict passes.
+ * An unknown negotiated version cannot be classified and fails.
+ */
+export function headerMismatchRefused(res: { status: number; body: unknown }, negotiated?: string): Verdict {
   const code = (res.body as { error?: { code?: unknown } } | null)?.error?.code;
   if (code === -32020) return pass("JSON-RPC -32020 HeaderMismatch");
   if (res.status >= 400 && res.status < 500) return pass(`HTTP ${res.status}`);
   if (typeof code === "number") return pass(`JSON-RPC error ${code}`);
-  return fail(`mismatched Mcp-Method header was accepted (HTTP ${res.status})`);
+  if (negotiated === undefined) return fail(`mismatched Mcp-Method header was accepted (HTTP ${res.status}) and no negotiated version is known`);
+  if (negotiated < HEADER_RULE_SPEC) {
+    return pass(`deployment finding: server negotiated ${negotiated}, which predates the Mcp-Method rule of ${HEADER_RULE_SPEC}; mismatch accepted (HTTP ${res.status})`);
+  }
+  return fail(`server negotiated ${negotiated} but accepted a mismatched Mcp-Method header (HTTP ${res.status})`);
 }

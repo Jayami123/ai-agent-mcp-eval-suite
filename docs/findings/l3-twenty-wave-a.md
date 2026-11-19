@@ -31,12 +31,13 @@ Source: CI run 44346353616, job `l3 twenty`, commit `175f53dff22b8b757d5f119acea
 ## S4: protocol and conformance
 
 - Twenty implements MCP `2025-06-18`. The 2026-07-28 rules in the plan are stricter than what it negotiates.
-- **`P4-MCP-PROT-003` (expected defect):** a request whose `Mcp-Method` header disagrees with the body is answered HTTP 200.
-- **`P4-MCP-PROT-009` (expected defect):** a request with no `jsonrpc` member is answered HTTP 200. An object `id` and a
-  non-JSON body are rejected.
-- Both are recorded with `expectedDefect()` (plan D13): the tests stay, keep failing on the real behaviour, and fail the day
-  Twenty starts rejecting, to prompt removal of the annotation. The reviewer should confirm they count as defects against the
-  ledger oracle rather than as spec-version gaps.
+- **`P4-MCP-PROT-003` (spec-version gap, deployment finding):** a request whose `Mcp-Method` header disagrees with the body is
+  answered HTTP 200. The `Mcp-Method` rule is from spec 2026-07-28 and Twenty negotiates 2025-06-18, so it is not bound by it.
+  The case records a deployment finding and passes. The oracle is strict again for any server that negotiates 2026-07-28 or
+  later (it fails if such a server accepts the mismatch), and fails if the negotiated version is unknown.
+- **`P4-MCP-PROT-009` (expected defect):** a request with no `jsonrpc` member is answered HTTP 200, but JSON-RPC 2.0 requires
+  the member. An object `id` and a non-JSON body are rejected. Recorded with `expectedDefect()` (plan D13): the test stays,
+  keeps failing on the real behaviour, and fails the day Twenty starts rejecting, to prompt removal of the annotation.
 - **Conformance (`P4-MCP-PROT-001`), package `0.2.0-alpha.12`, spec 2026-07-28:** 1 of 20 active scenarios passes
   (`server-sse-multiple-streams`). The other 19 are baselined in `tests/l3/snapshots/expected-failures/twenty.yaml`: the
   tools-list wire schema lacks `resultType`, `ttlMs`, `cacheScope`; the suite expects the reference server's demo tools,
@@ -48,3 +49,11 @@ Source: CI run 44346353616, job `l3 twenty`, commit `175f53dff22b8b757d5f119acea
 Four images are not digest-pinned: Twenty server and worker (`twentycrm/twenty:${TAG:-v2.44.0}`), Twenty's Mailpit
 (`axllent/mailpit:v1.22.3`), the locally built Mattermost MCP image (pinned by git commit), and this repo's local stub image
 (built from a digest-pinned base). They are listed in the test as findings; any new unpinned image fails it.
+
+## Follow-ups
+
+- **Move the conformance package to stable.** `@modelcontextprotocol/conformance` is pinned to `0.2.0-alpha.12` because only
+  the 0.2 line supports the 2026-07-28 requirement set. When a stable 0.2 (or later) release is published and at least two
+  weeks old, bump the exact pin in `package.json` and the lockfile, re-run the `l3 twenty` job, and re-record
+  `tests/l3/snapshots/expected-failures/twenty.yaml` from the new run. Not done in this PR: no stable release exists yet.
+- **Re-check `P4-MCP-PROT-003` on a Twenty upgrade.** If Twenty starts negotiating 2026-07-28, the case becomes a hard check.

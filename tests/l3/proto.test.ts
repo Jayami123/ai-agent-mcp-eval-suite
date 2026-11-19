@@ -22,10 +22,19 @@ test("tools/list shape", () => {
   assert.equal(toolsListViolations({}).length, 1);
 });
 
-test("PROT-003 header mismatch", () => {
-  assert.equal(headerMismatchRefused({ status: 200, body: { error: { code: -32020 } } }).outcome, "pass");
-  assert.equal(headerMismatchRefused({ status: 400, body: {} }).outcome, "pass");
-  assert.equal(headerMismatchRefused({ status: 200, body: { result: { tools: [] } } }).outcome, "fail");
+test("PROT-003 header mismatch is spec-version aware", () => {
+  const accepted = { status: 200, body: { result: { tools: [] } } };
+  assert.equal(headerMismatchRefused({ status: 200, body: { error: { code: -32020 } } }, "2026-07-28").outcome, "pass");
+  assert.equal(headerMismatchRefused({ status: 400, body: {} }, "2026-07-28").outcome, "pass");
+  // Accepted by a server on 2025-06-18: a spec-version gap, reported as a deployment finding, passes.
+  const gap = headerMismatchRefused(accepted, "2025-06-18");
+  assert.equal(gap.outcome, "pass");
+  assert.match(gap.detail, /^deployment finding/);
+  // Accepted by a server that negotiated the newer spec: a failure.
+  assert.equal(headerMismatchRefused(accepted, "2026-07-28").outcome, "fail");
+  assert.equal(headerMismatchRefused(accepted, "2027-01-01").outcome, "fail");
+  // Unknown negotiated version cannot be classified: a failure, never a silent pass.
+  assert.equal(headerMismatchRefused(accepted).outcome, "fail");
 });
 
 test("PROT-004 stateless claim", () => {

@@ -27,10 +27,11 @@ async function eachServer(fn: (t: Target) => Promise<void>): Promise<void> {
   }
 }
 
-// Expected defects (plan D13), confirmed in CI run 44346353616 against Twenty v2.44, which negotiates MCP 2025-06-18.
-// The ledger oracle asks for the rejection, Twenty does not do it, so the case keeps failing on the real behaviour and is
-// annotated, not deleted or skipped. expectedDefect() fails the case the day Twenty starts rejecting, to prompt removal.
-const HEADER_MISMATCH_DEFECT: Partial<Record<BusinessServer, string>> = { twenty: "accepts a body/Mcp-Method header mismatch (HTTP 200)" };
+// Expected defect (plan D13), confirmed in CI run 44346353616: Twenty v2.44 answers a request with no jsonrpc member with
+// HTTP 200, but JSON-RPC 2.0 requires the member, so the case keeps failing on the real behaviour and is annotated, not
+// deleted or skipped. expectedDefect() fails the case the day Twenty starts rejecting, to prompt removal.
+// P4-MCP-PROT-003 is NOT a defect: Mcp-Method is from spec 2026-07-28 and Twenty negotiates 2025-06-18 (a spec-version gap,
+// see headerMismatchRefused in src/oracles/proto.ts). It is strict again for any server that negotiates 2026-07-28 or later.
 const MISSING_JSONRPC_DEFECT: Partial<Record<BusinessServer, string>> = { twenty: "accepts a request with no jsonrpc member (HTTP 200)" };
 
 const tagged = (ctx: CaseCtx, server: string, v: { outcome: "pass" | "fail" | "unverified"; detail: string }): void =>
@@ -51,13 +52,14 @@ l3Case("P4-MCP-PROT-002", "every JSON-RPC message on the wire matches the schema
 l3Case("P4-MCP-PROT-003", "a header that disagrees with the body is rejected", async (ctx) => {
   await eachServer(async ({ server, oracle, client }) => {
     const c = client();
-    await c.initialize();
+    const init = await c.initialize();
+    const negotiated = (init.body as { result?: { protocolVersion?: unknown } }).result?.protocolVersion;
     const before = await oracle.snapshot();
     // Body says tools/list; the header says tools/call. Spec 2026-07-28: the server MUST refuse (-32020 HeaderMismatch).
     const res = await c.post({ jsonrpc: "2.0", id: 7, method: "tools/list", params: {} }, { "mcp-method": "tools/call" });
-    const observed = headerMismatchRefused(res);
-    const known = HEADER_MISMATCH_DEFECT[server];
-    tagged(ctx, server, known === undefined ? observed : expectedDefect(observed, { caseId: "P4-MCP-PROT-003", server, summary: known }));
+    const v = headerMismatchRefused(res, typeof negotiated === "string" ? negotiated : undefined);
+    if (v.detail.startsWith("deployment finding")) ctx.note(`${server}: ${v.detail}`);
+    tagged(ctx, server, v);
     ctx.check(unchanged(before, await oracle.snapshot()));
   });
 });
