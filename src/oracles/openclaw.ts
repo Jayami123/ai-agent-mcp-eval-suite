@@ -198,7 +198,9 @@ export function createOcOracle(adapter: OpenClawAdapterLike, exec: Exec = docker
       const config = exec(["cat", "/home/node/.openclaw/openclaw.json"]);
       return {
         files: parseSha256sum(listing.stdout),
-        approvalsSha256: sha256(JSON.stringify(approvals)),
+        // Only the policy content. `exists`, `path` and `hash` change the first time OpenClaw writes the document (the first exec of a
+        // fresh stack), which is not a change of what is approved.
+        approvalsSha256: sha256(JSON.stringify({ file: approvals["file"], resolvedDefaults: approvals["resolvedDefaults"], effectivePolicy: approvals["effectivePolicy"] })),
         configSha256: sha256(config.stdout),
         pendingIds: (await adapter.readPendingApprovals()).map((p) => String(p["id"] ?? "")),
       };

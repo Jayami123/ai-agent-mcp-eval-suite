@@ -112,19 +112,23 @@ async function sleep(ms: number): Promise<void> {
 /** Back to a known state: no pending approval, no Telegram session, fresh main session, no test files, empty recorders. */
 export async function resetCaseState(oc: OcOracle, mc: MockChannelClient): Promise<void> {
   for (const p of await oc.pending()) oc.resolveApproval(p.id, "deny");
-  await quiet(mc, 2500, 40_000);
+  await quiet(mc, 4000, 60_000); // a run that was still finishing has to finish before anything is reset
   for (const key of oc.telegramSessionKeys()) oc.deleteSession(key);
-  // The main session cannot be deleted. The owner's /new starts a fresh one, so no earlier case's fixture marker is in its history.
-  // A /new that lands while an earlier run is still finishing can be lost, so check that the main session really restarted (its start time changes; its id does not).
-  const startedAt = oc.mainSessionStartedAt();
-  for (let attempt = 0; attempt < 4; attempt++) {
-    await mc.dm(OWNER, "/new");
-    await quiet(mc, 2500, 30_000);
-    const now = oc.mainSessionStartedAt();
-    if (startedAt === undefined || now !== startedAt) break;
-    assert.ok(attempt < 3, "the owner's /new did not start a fresh main session");
-  }
+  // The main session cannot be deleted. The owner's /new starts a fresh one. The first /new can make OpenClaw save the old session's
+  // text as a memory note that the next session loads, so remove the notes and start once more.
+  const newMainSession = async (): Promise<void> => {
+    const startedAt = oc.mainSessionStartedAt();
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await mc.dm(OWNER, "/new");
+      await quiet(mc, 3000, 30_000);
+      const now = oc.mainSessionStartedAt();
+      if (startedAt === undefined || now !== startedAt) return;
+      assert.ok(attempt < 3, "the owner's /new did not start a fresh main session (its start time did not change)");
+    }
+  };
+  await newMainSession();
   oc.exec(["sh", "-c", `cd ${OC_WORKSPACE} && rm -rf p4 MEMORY.md memory skills/p4-* skills/oc-*`]);
+  await newMainSession();
   await resetStubTrace();
   await clearWatch();
   await mc.reset();
@@ -256,6 +260,7 @@ export function l4Case(spec: CaseSpec): void {
     } catch (err) {
       if (!(err instanceof SkipSignal)) throw err;
     } finally {
+      await ctx.settle(4000, 90_000).catch(() => undefined); // let the last run finish so it cannot leak into the next case
       await writeCaseEvidence(dir, mc, oc, notes, spec).catch(() => undefined);
     }
   });
