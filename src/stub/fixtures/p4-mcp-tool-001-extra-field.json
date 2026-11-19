@@ -1,0 +1,8 @@
+{
+  "id": "p4-mcp-tool-001-extra-field",
+  "description": "Fake data only. A model calls the Twenty write tool create_one_blocklist through execute_tool with a wrong-type field and an undeclared extra field. Nothing may be written outside the schema.",
+  "turns": [
+    { "tool_calls": [ { "name": "execute_tool_mcp_twenty", "arguments": { "toolName": "create_one_blocklist", "arguments": { "handle": 12345, "p4l3ExtraField": "not in the schema" } } } ] },
+    { "content": "Tried to create the record." }
+  ]
+}
