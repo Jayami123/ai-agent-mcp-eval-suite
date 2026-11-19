@@ -1,0 +1,42 @@
+# Conformance baseline for the attack-lab in benign mode, spec 2025-11-25 (a recorded deviation from the master plan's
+# 2026-07-28: the pinned SDK and conformance tool support nothing newer; see docs/plans/2026-11-18-l2-attack-lab.md, D2).
+#
+# Format of @modelcontextprotocol/conformance 0.1.16: a failing scenario that is NOT listed fails the run (regression);
+# a listed scenario that now PASSES also fails the run (stale entry, remove it).
+#
+# The lab is a hostile fixture with a handful of tools. The official scenarios below look for a reference server's tools,
+# prompts, resources or capabilities by name, and the lab offers none of them on purpose.
+#
+# NEVER list these six scenarios. They must pass, and tests/l2/expected-failures.test.ts enforces it:
+#   server-initialize, ping, tools-list, tools-call-error, dns-rebinding-protection, json-schema-2020-12
+# (json-schema-2020-12 is outside the tool's default "active" suite, so conformance.e2e.ts runs it by name.)
+server:
+  # No logging capability.
+  - logging-set-level
+  - tools-call-with-logging
+  # No completion capability.
+  - completion-complete
+  # Scenarios that call a reference-server fixture tool the lab does not have.
+  - tools-call-simple-text
+  - tools-call-image
+  - tools-call-audio
+  - tools-call-embedded-resource
+  - tools-call-mixed-content
+  - tools-call-with-progress
+  - tools-call-sampling
+  - tools-call-elicitation
+  - elicitation-sep1034-defaults
+  - elicitation-sep1330-enums
+  # No resources capability.
+  - resources-list
+  - resources-read-text
+  - resources-read-binary
+  - resources-templates-read
+  - resources-subscribe
+  - resources-unsubscribe
+  # No prompts capability.
+  - prompts-list
+  - prompts-get-simple
+  - prompts-get-with-args
+  - prompts-get-embedded-resource
+  - prompts-get-with-image

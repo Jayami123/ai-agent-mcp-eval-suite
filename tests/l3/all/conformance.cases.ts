@@ -9,7 +9,9 @@ import { runtime } from "../support/runtime.js";
 
 // The official conformance suite, pinned in package.json (exact version). A failure that is not in the committed baseline
 // is a regression (exit 1). Baselined failures are recorded in tests/l3/snapshots/expected-failures/<server>.yaml.
-const BIN = path.resolve(process.cwd(), "node_modules", ".bin", "conformance");
+// L2 pins the stable 0.1.x package as @modelcontextprotocol/conformance. L3 needs the 0.2 line (spec 2026-07-28), installed under
+// the alias p4-conformance-2026 so both can exist; its entry file is run with node, not through .bin.
+const ENTRY = path.resolve(process.cwd(), "node_modules", "p4-conformance-2026", "dist", "index.js");
 const SPEC_VERSION = "2026-07-28";
 
 l3Case("P4-MCP-PROT-001", "the conformance suite exits 0 against the committed expected-failures baseline", async (ctx) => {
@@ -23,7 +25,7 @@ l3Case("P4-MCP-PROT-001", "the conformance suite exits 0 against the committed e
     const args = ["server", "--url", proxy.url, "--spec-version", SPEC_VERSION, "--output-dir", out];
     if (fs.existsSync(baseline)) args.push("--expected-failures", baseline);
     // spawnSync would block the event loop and starve the proxy, so the CLI runs through an async spawn.
-    const res = await run(BIN, args);
+    const res = await run(process.execPath, [ENTRY, ...args]);
     await proxy.close();
     const text = redact(`${res.stdout}${res.stderr}`, authorization ? [authorization] : []);
     writeEvidence(rt.dir, `conformance-${server}.txt`, text);

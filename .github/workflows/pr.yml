@@ -146,6 +146,47 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # L2: the attack-lab MCP server. Runs the official conformance suite against the benign lab (spec 2025-11-25, a recorded
+  # deviation from the master plan's 2026-07-28), then builds the lab image and checks that it starts. Stub mode only: no
+  # model, no GEMINI_API_KEY, no secrets, safe for fork PRs. Advisory: not a required check.
+  l2-attack-lab:
+    name: l2 attack-lab
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      P4_LLM_MODE: stub
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Conformance suite against the benign lab
+        run: npm run test:lab:conformance
+
+      - name: Build and start the lab container
+        run: npm run lab:up
+
+      - name: Check the container (state, resource URL, no harness in the image)
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer $(cat .harness/lab/control-token)" http://127.0.0.1:9011/control/state | grep -q '"mode":"benign"'
+          curl -fsS http://127.0.0.1:9010/.well-known/oauth-protected-resource/mcp | grep -q '"resource":"http://p4-attack-lab:9010/mcp"'
+          docker run --rm --entrypoint sh p4-suite-attack-lab:local -c 'test ! -e node_modules/qa-portfolio-harness && test -f dist/attack-lab/main.js'
+
+      - name: Stop the lab container
+        if: always()
+        run: npm run lab:down
+
   # L3 stack job for Twenty: the L3 cases through LibreChat against the real Twenty MCP, stub mode only (no secrets, safe for
   # fork PRs). It also runs the S2 capture (P4_L3_CAPTURE=1), which records the real tools/list and database tables to
   # evidence/ so a human can review them and commit the snapshots. Advisory until stable (docs/branch-protection.md).

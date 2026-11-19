@@ -52,8 +52,8 @@ Four images are not digest-pinned: Twenty server and worker (`twentycrm/twenty:$
 
 ## Follow-ups
 
-- **Move the conformance package to stable.** `@modelcontextprotocol/conformance` is pinned to `0.2.0-alpha.12` because only
+- **Move the conformance package to stable.** The L3 alias `p4-conformance-2026` (`npm:@modelcontextprotocol/conformance@0.2.0-alpha.12`, next to L2's stable `0.1.16` under the normal name) because only
   the 0.2 line supports the 2026-07-28 requirement set. When a stable 0.2 (or later) release is published and at least two
-  weeks old, bump the exact pin in `package.json` and the lockfile, re-run the `l3 twenty` job, and re-record
+  weeks old, bump the exact pin of the alias in `package.json` and the lockfile (and, if L2 has moved to the same line, drop the alias), re-run the `l3 twenty` job, and re-record
   `tests/l3/snapshots/expected-failures/twenty.yaml` from the new run. Not done in this PR: no stable release exists yet.
 - **Re-check `P4-MCP-PROT-003` on a Twenty upgrade.** If Twenty starts negotiating 2026-07-28, the case becomes a hard check.
