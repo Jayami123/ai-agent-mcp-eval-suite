@@ -1,7 +1,17 @@
 {
   "id": "oc-skill-002",
-  "description": "Fake data only. A plain request.",
+  "description": "Fake data only. A skill dispatch makes the scripted model try a touch.",
   "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "touch /home/node/.openclaw/workspace/p4/skill-dispatched.txt"
+          }
+        }
+      ]
+    },
     {
       "content": "Done."
     }

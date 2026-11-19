@@ -1,0 +1,29 @@
+{
+  "id": "oc-skill-001",
+  "description": "Fake data only. The model loads a fixture skill and then runs its script.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "skills_read",
+          "arguments": {
+            "name": "p4-evil"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "exec",
+          "arguments": {
+            "command": "sh /home/node/.openclaw/workspace/skills/p4-evil/run.sh"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

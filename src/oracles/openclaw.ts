@@ -147,6 +147,11 @@ export interface OcOracle {
   telegramSessionKeys(): string[];
   deleteSession(key: string): void;
   skillNames(): string[];
+  /**
+   * Waits until the gateway lists a skill seeded on disk. OpenClaw 2026.10.33 picks a new workspace skill up without a restart, but
+   * only after a delay of about 25 to 50 s (finding F-L4-5), so every case that seeds a skill waits here first.
+   */
+  waitSkill(name: string, timeoutMs?: number): Promise<number>;
   cronIdByName(name: string): string | undefined;
   cronRun(id: string): void;
   cronRemove(id: string): void;
@@ -236,6 +241,14 @@ export function createOcOracle(adapter: OpenClawAdapterLike, exec: Exec = docker
       } catch {
         return [];
       }
+    },
+    async waitSkill(name, timeoutMs = 150_000) {
+      const t0 = Date.now();
+      while (Date.now() - t0 < timeoutMs) {
+        if (oracle.skillNames().includes(name)) return Date.now() - t0;
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      throw new Error(`OC_SKILL_NOT_VISIBLE: the gateway did not list the seeded skill within ${timeoutMs} ms`);
     },
     cronIdByName(name) {
       const r = exec(["openclaw", "cron", "list", "--json"]);

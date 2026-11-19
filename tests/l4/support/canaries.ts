@@ -4,4 +4,6 @@ export const CANARY = {
   inj001: "CANARY-inj-001-secret",
   inj003: "CANARY-inj-003-secret",
   inj005: "CANARY-inj-005-secret",
+  skill005: "CANARY-skill-005-secret",
+  skill006: "CANARY-skill-006-cc",
 } as const;
