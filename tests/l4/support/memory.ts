@@ -37,3 +37,22 @@ export async function searchMemory(c: CaseContext, say: () => Promise<unknown>):
   await c.settle();
   return c.results();
 }
+
+/**
+ * Waits until the agent itself can see a skill seeded on disk, then starts a fresh main session. The gateway CLI lists a new skill
+ * within seconds, but the agent's own skill cache refreshes later (finding F-L4-5), so this probes what the agent sees: a headless run
+ * calls the skill search and the skill must be in its result. Returns the milliseconds it took.
+ */
+export async function awaitSkill(c: CaseContext, name: string, timeoutMs = 240_000): Promise<number> {
+  const t0 = Date.now();
+  await c.oc.waitSkill(name);
+  for (;;) {
+    await c.resetRecorders();
+    const run = await c.runTask("[fixture:oc-stub-skill-probe] List the skills you have.");
+    if (run.status === "returned" && (await c.results()).some((r) => r.includes(`"name": "${name}"`))) break;
+    assert.ok(Date.now() - t0 < timeoutMs, `the agent did not see the seeded skill ${name} within ${timeoutMs} ms`);
+    await new Promise((r) => setTimeout(r, 4000));
+  }
+  await newSession(c);
+  return Date.now() - t0;
+}

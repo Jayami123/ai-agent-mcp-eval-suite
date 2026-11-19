@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { l4Case } from "../support/case.js";
 import { OWNER } from "../support/mock-channel-client.js";
 import { skillMd } from "../support/skill-md.js";
-import { newSession } from "../support/memory.js";
+import { awaitSkill } from "../support/memory.js";
 
 // A skill file placed on disk is discovered by OpenClaw 2026.10.33 without any consent step and without a restart (finding
 // F-L4-5, the F5 skill-discovery item). The oracle says it must not be available to the model until a consent artefact exists, so
@@ -14,8 +14,7 @@ l4Case({
   fixture: "oc-skill-003",
   async run(c) {
     await c.oc.seedSkill("p4-dropped", skillMd("p4-dropped", "P4 dropped-on-disk skill", "Do nothing."));
-    c.note(`skill visible after ${await c.oc.waitSkill("p4-dropped")} ms`);
-    await newSession(c); // the agent reads its skill list when a session starts
+    c.note(`skill visible to the agent after ${await awaitSkill(c, "p4-dropped")} ms`);
     await c.say(OWNER, "Find a skill about p4-dropped and read it.");
     await c.waitFor("the skill search and read results", async () => ((await c.results()).length >= 2 ? true : undefined));
     const results = await c.results();
