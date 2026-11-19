@@ -32,8 +32,8 @@ export interface UiPage {
 
 export type ApprovalDecision = "approve" | "reject";
 
-/** Names LibreChat v0.8.9 gives the approval controls (client/src/locales/en/translation.json: com_ui_approve, com_ui_reject). */
-export const APPROVAL_NAMES = { approve: "Approve", reject: "Reject", submit: /^Submit/ } as const;
+/** Names LibreChat v0.8.9 gives the approval controls (client/src/locales/en/translation.json: com_ui_approve, com_ui_reject). The submit button is named "Continue" in the live UI (observed in the wave D probe, run 44589285958); it is disabled until a decision is selected. */
+export const APPROVAL_NAMES = { approve: "Approve", reject: "Reject", submit: "Continue" } as const;
 
 /** The composer test id (client/src/components/Chat/Input/ChatForm.tsx). */
 export const COMPOSER_TEST_ID = "text-input";
@@ -77,7 +77,7 @@ export async function waitForApproval(page: UiPage, timeoutMs = 120_000): Promis
 /** Clicks one decision, then the submit button. */
 export async function decide(page: UiPage, decision: ApprovalDecision, timeoutMs = 30_000): Promise<void> {
   await page.getByRole("button", { name: APPROVAL_NAMES[decision], exact: true }).first().click({ timeout: timeoutMs });
-  await page.getByRole("button", { name: APPROVAL_NAMES.submit }).first().click({ timeout: timeoutMs });
+  await page.getByRole("button", { name: APPROVAL_NAMES.submit, exact: true }).first().click({ timeout: timeoutMs });
 }
 
 /** The accessibility tree of the whole page as text (role, name, level), the same text for the same DOM. */
