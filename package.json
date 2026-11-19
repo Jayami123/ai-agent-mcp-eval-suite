@@ -26,13 +26,16 @@
     "test:stack:l3:twenty": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/twenty/run.e2e.js",
     "test:stack:l3:nextcloud": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/run.e2e.js",
     "test:stack:l3:penpot": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/penpot/run.e2e.js",
+    "test:stack:l3:nextcloud:appr-deny": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/appr-deny.e2e.js",
+    "test:stack:l3:nextcloud:appr-ask": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/appr-ask.e2e.js",
     "l4:up": "node scripts/l4-stack.mjs up",
     "l4:down": "node scripts/l4-stack.mjs down",
-    "test:stack:l4": "tsc -p tsconfig.test.json && P4_STACK_TESTS=1 P4_L4_STACK=1 P4_L4_CHANNEL=1 P4_L4_PRIVATE_FETCH=1 node --test --test-concurrency=1 --test-timeout=1200000 \"dist-test/tests/l4/**/*.e2e.js\""
+    "test:stack:l4": "tsc -p tsconfig.test.json && P4_STACK_TESTS=1 P4_L4_STACK=1 P4_L4_CHANNEL=1 P4_L4_PRIVATE_FETCH=1 node --test --test-concurrency=1 --test-timeout=1200000 \"dist-test/tests/l4/**/*.e2e.js\"",
+    "test:stack:l3:host": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/run.e2e.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
-    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.4",
+    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.5",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -43,6 +46,6 @@
     "typescript": "^5.8.2"
   },
   "allowScripts": {
-    "github:Jayami123/qa-portfolio-harness#v0.6.4": true
+    "github:Jayami123/qa-portfolio-harness#v0.6.5": true
   }
 }

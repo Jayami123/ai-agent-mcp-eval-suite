@@ -342,6 +342,12 @@ jobs:
       - name: L3 nextcloud stack tests
         run: npm run test:stack:l3:nextcloud
 
+      - name: L3 nextcloud approval deny (APPR-001)
+        run: npm run test:stack:l3:nextcloud:appr-deny
+
+      - name: L3 nextcloud approval ask (APPR-006)
+        run: npm run test:stack:l3:nextcloud:appr-ask
+
       - name: Stop the stub container
         if: always()
         run: npm run stub:down
@@ -406,3 +412,39 @@ jobs:
           path: evidence/
           if-no-files-found: warn
           retention-days: 7
+
+  # L3 lab-only cases: the attack-lab as a container on qa-harness-p4 (the same bring-up as the L2 job), then the host cases
+  # that read its published loopback ports. No model, no secrets, stub mode only. Advisory until stable (docs/branch-protection.md).
+  l3-lab:
+    name: l3 lab
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build and start the attack-lab container
+        run: npm run lab:up
+
+      - name: L3 lab host cases (PROT-005, PROT-006, META-009, SUPP-002)
+        run: npm run test:stack:l3:host
+
+      - name: Stop the attack-lab container
+        if: always()
+        run: npm run lab:down

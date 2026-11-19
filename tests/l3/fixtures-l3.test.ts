@@ -11,7 +11,9 @@ import { twentyInnerNames } from "./support/tool-map.js";
 const DIR = path.resolve(process.cwd(), "src/stub/fixtures");
 // PRs whose fixtures must exist so far. Each L3 PR appends its number (a case in a later PR has no fixture yet).
 const LANDED_PRS: number[] = [1, 2];
-const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr));
+// Cases built outside a whole PR (wave B, the approval gates on Nextcloud). Each is named here as it lands.
+const BUILT_IDS = ["P4-MCP-APPR-001", "P4-MCP-APPR-006"];
+const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr) || BUILT_IDS.includes(c.id));
 
 test("every L3 fixture named in the registry exists, validates and has a legal id", () => {
   for (const def of landed()) {
