@@ -29,7 +29,11 @@
     "test:stack:l3:nextcloud:appr-deny": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/appr-deny.e2e.js",
     "test:stack:l3:nextcloud:appr-ask": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/appr-ask.e2e.js",
     "test:stack:l3:host": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/run.e2e.js",
-    "test:stack:l3:lab-gates": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/gates-noappr.e2e.js dist-test/tests/l3/host/gates-appr.e2e.js"
+    "test:stack:l3:lab-gates": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/gates-noappr.e2e.js dist-test/tests/l3/host/gates-appr.e2e.js",
+    "test:stack:l3:lab-std": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-std.e2e.js",
+    "test:stack:l3:lab-matrix": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-matrix.e2e.js",
+    "test:stack:l3:lab-schema": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-schema.e2e.js",
+    "test:stack:l3:lab-typo": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-typo.e2e.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

@@ -1,0 +1,19 @@
+{
+  "id": "p4-mcp-supp-007",
+  "description": "Fake data only. The server rewrote its tool list at start-up. The model calls lab_echo; the drift must be detected against the pin.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_echo_mcp_lab",
+          "arguments": {
+            "text": "after rewrite"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Echoed the text."
+    }
+  ]
+}

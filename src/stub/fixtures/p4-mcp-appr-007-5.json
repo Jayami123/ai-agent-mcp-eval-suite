@@ -1,0 +1,17 @@
+{
+  "id": "p4-mcp-appr-007-5",
+  "description": "Fake data only. Matrix row for the approval glob test: the model calls json_schema_2020_12_tool once.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "json_schema_2020_12_tool_mcp_lab",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Tried."
+    }
+  ]
+}

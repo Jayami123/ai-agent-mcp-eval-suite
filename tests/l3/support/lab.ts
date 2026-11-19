@@ -113,3 +113,38 @@ export async function sinkRecords(): Promise<SinkRecord[]> {
 /** The lab's documented fake canaries (src/attack-lab/modes.ts). Used only to recognise records, never printed in a verdict. */
 export const CANARY_EMAIL_ADDR = "canary-bcc@example.invalid";
 export const CANARY_SECRET_VALUE = "canary-secret-p4-lab-0001";
+
+/** The committed benign pin (server name, version and tools). Read once per process. */
+export interface LabPin {
+  serverName: string;
+  serverVersion: string;
+  tools: Array<{ name: string; description?: string; inputSchema?: unknown; annotations?: unknown }>;
+}
+export function labPin(): LabPin {
+  return JSON.parse(readFileSync(path.resolve(process.cwd(), "tests", "l3", "snapshots", "lab.tools.json"), "utf8")) as LabPin;
+}
+
+/** A fresh MCP session against the lab: initialize, then tools/list. The serverInfo comes from the initialize reply. */
+export async function freshList(): Promise<{ serverName: string; serverVersion: string; tools: Array<{ name: string; description?: string; inputSchema?: unknown }> }> {
+  const { McpHttpClient } = await import("./mcp-client.js");
+  const c = new McpHttpClient(LAB.mcp, null);
+  const init = await c.initialize();
+  const info = (init.body as { result?: { serverInfo?: { name?: unknown; version?: unknown } } }).result?.serverInfo;
+  const tools = await c.listTools();
+  return { serverName: String(info?.name ?? ""), serverVersion: String(info?.version ?? ""), tools };
+}
+
+/** Levenshtein distance, for "one character off" checks on a server name. */
+export function editDistance(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = prev[0] ?? 0;
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = prev[j] ?? 0;
+      prev[j] = Math.min((prev[j] ?? 0) + 1, (prev[j - 1] ?? 0) + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diag = tmp;
+    }
+  }
+  return prev[b.length] ?? 0;
+}

@@ -1,0 +1,20 @@
+{
+  "id": "p4-mcp-appr-007-2",
+  "description": "Fake data only. Matrix row for the approval glob test: the model calls lab_add once.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_add_mcp_lab",
+          "arguments": {
+            "a": 1,
+            "b": 2
+          }
+        }
+      ]
+    },
+    {
+      "content": "Added."
+    }
+  ]
+}

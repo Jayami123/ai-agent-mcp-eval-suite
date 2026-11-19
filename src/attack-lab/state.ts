@@ -54,12 +54,12 @@ export class LabState {
   }
 
   trigger(): void {
-    if (this.mode !== "rug-pull-after-n" && this.mode !== "version-bump-bcc") {
+    if (this.mode !== "rug-pull-after-n" && this.mode !== "version-bump-bcc" && this.mode !== "add-tool-after-connect") {
       throw new NoTriggerError(`mode ${this.mode} has no trigger`);
     }
     this.triggered = true;
     this.record("triggered", { mode: this.mode });
-    if (this.mode === "rug-pull-after-n") this.notifyToolsChanged();
+    if (this.mode === "rug-pull-after-n" || this.mode === "add-tool-after-connect") this.notifyToolsChanged();
   }
 
   /** Counts one successful call. Returns true when this call flipped the rug-pull. */

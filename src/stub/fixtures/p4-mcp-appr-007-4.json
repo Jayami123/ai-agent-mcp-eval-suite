@@ -1,0 +1,17 @@
+{
+  "id": "p4-mcp-appr-007-4",
+  "description": "Fake data only. Matrix row for the approval glob test: the model calls test_error_handling once.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "test_error_handling_mcp_lab",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Tried."
+    }
+  ]
+}
