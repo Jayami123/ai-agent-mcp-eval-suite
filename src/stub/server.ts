@@ -23,6 +23,8 @@ export interface TraceEntry {
   /** The tool calls returned for this request, with arguments as parsed JSON. Empty on a text turn. */
   toolCalls: Array<{ name: string; arguments: unknown }>;
   content: string | null;
+  /** The HTTP status the stub answered for an error turn, "closed" for a close turn, null on every other turn. */
+  error: number | "closed" | null;
 }
 
 const MAX_TOOL_RESULT_CHARS = 20000;
@@ -134,6 +136,29 @@ async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessa
     return;
   }
 
+  const toolResults = messages.filter((m) => m["role"] === "tool").map((m) => messageText(m).slice(0, MAX_TOOL_RESULT_CHARS));
+  // Error and close turns do not advance the turn index (it counts tool messages), so a retry of the same request gets the
+  // same answer again. That keeps the stub deterministic.
+  if (turn.close === true || turn.error !== undefined) {
+    trace.push({
+      seq: trace.length + 1,
+      fixture: id,
+      turn: turnIndex,
+      toolsOffered: toolNames(body.tools),
+      stream: body.stream === true,
+      toolResults,
+      toolCalls: [],
+      content: null,
+      error: turn.close === true ? "closed" : (turn.error?.status ?? null),
+    });
+    if (turn.close === true) {
+      req.socket.destroy();
+      return;
+    }
+    sendJson(res, turn.error?.status ?? 500, { error: { message: turn.error?.message ?? "", type: "p4_stub_error" } });
+    return;
+  }
+
   const callList = (turn.tool_calls ?? []).map((call, i) => ({
     id: `call_${id}_${turnIndex}_${i}`,
     name: call.name,
@@ -145,9 +170,10 @@ async function handle(opts: StubOptions, trace: TraceEntry[], req: IncomingMessa
     turn: turnIndex,
     toolsOffered: toolNames(body.tools),
     stream: body.stream === true,
-    toolResults: messages.filter((m) => m["role"] === "tool").map((m) => messageText(m).slice(0, MAX_TOOL_RESULT_CHARS)),
+    toolResults,
     toolCalls: (turn.tool_calls ?? []).map((call) => ({ name: call.name, arguments: call.arguments })),
     content: turn.content ?? null,
+    error: null,
   });
 
   const model = typeof body.model === "string" ? body.model : "p4-stub";

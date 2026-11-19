@@ -9,6 +9,10 @@ export interface ToolCallSpec {
 export interface TurnSpec {
   tool_calls?: ToolCallSpec[];
   content?: string;
+  /** HTTP error answer with an OpenAI-shaped body. Status 400 to 599. */
+  error?: { status: number; message: string };
+  /** Destroy the connection without a response (a closed stream). */
+  close?: true;
 }
 
 export interface Fixture {
@@ -59,8 +63,21 @@ export function validateFixture(raw: unknown, expectedId: string): Fixture {
     const t = turn as Record<string, unknown>;
     const hasCalls = t["tool_calls"] !== undefined;
     const hasContent = t["content"] !== undefined;
-    if (hasCalls === hasContent) fail(expectedId, "each turn needs exactly one of tool_calls or content");
-    if (hasCalls) {
+    const hasError = t["error"] !== undefined;
+    const hasClose = t["close"] !== undefined;
+    if ([hasCalls, hasContent, hasError, hasClose].filter(Boolean).length !== 1) {
+      fail(expectedId, "each turn needs exactly one of tool_calls, content, error or close");
+    }
+    if (hasError) {
+      const e = t["error"] as Record<string, unknown> | null;
+      const status = e?.["status"];
+      if (typeof status !== "number" || !Number.isInteger(status) || status < 400 || status > 599) {
+        fail(expectedId, "error.status must be an integer from 400 to 599");
+      }
+      if (typeof e?.["message"] !== "string") fail(expectedId, "error.message must be a string");
+    } else if (hasClose) {
+      if (t["close"] !== true) fail(expectedId, "close must be true");
+    } else if (hasCalls) {
       const calls = t["tool_calls"];
       if (!Array.isArray(calls) || calls.length === 0) fail(expectedId, "tool_calls must be a non-empty array");
       for (const call of calls as unknown[]) {

@@ -1,0 +1,7 @@
+{
+  "id": "oc-rel-004",
+  "description": "Fake data only. The model host answers HTTP 429 on the first request.",
+  "turns": [
+    { "error": { "status": 429, "message": "p4 stub: rate limited" } }
+  ]
+}
