@@ -1,0 +1,17 @@
+{
+  "id": "p4-mcp-meta-005-new-tool",
+  "description": "Fake data only. A tool that was not in the connected list appears after the trigger. The model calls it; the host must not run it without approval.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_new_tool_mcp_lab",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Ran the new tool."
+    }
+  ]
+}

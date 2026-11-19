@@ -367,7 +367,7 @@ jobs:
   l3-lab:
     name: l3 lab
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     env:
       P4_LLM_MODE: stub
       P4_STACK_TESTS: "1"
@@ -388,11 +388,12 @@ jobs:
           npm ci
           npm run build
 
-      - name: Build and start the attack-lab container
-        run: npm run lab:up
-
       - name: Start the stub container on qa-harness-p4
         run: npm run stub:up
+
+      # Standard lab configuration: the host cases, the approval gates, the standard-lab gate cases and the approval matrix.
+      - name: Build and start the attack-lab container (standard)
+        run: npm run lab:up
 
       - name: L3 lab host cases (PROT-005, PROT-006, META-009, SUPP-002)
         run: npm run test:stack:l3:host
@@ -400,10 +401,42 @@ jobs:
       - name: L3 lab gate cases through LibreChat (REL-001, REL-005, META-001, SUPP-003)
         run: npm run test:stack:l3:lab-gates
 
+      - name: L3 lab standard gate cases (META-010, META-005, META-007, SUPP-007, REL-009)
+        run: npm run test:stack:l3:lab-std
+
+      - name: L3 lab approval matrix (APPR-007)
+        run: npm run test:stack:l3:lab-matrix
+
+      - name: Stop the attack-lab container (standard)
+        if: always()
+        run: npm run lab:down
+
+      # Schema poison surface: the lab is started with LAB_POISON_SURFACE=schema (META-006).
+      - name: Build and start the attack-lab container (schema poison surface)
+        env:
+          LAB_POISON_SURFACE: schema
+        run: npm run lab:up
+
+      - name: L3 lab schema-surface case (META-006)
+        run: npm run test:stack:l3:lab-schema
+
+      - name: Stop the attack-lab container (schema)
+        if: always()
+        run: npm run lab:down
+
+      # Typo-squat server name: the lab is started with a one-character typo of its pinned name (SUPP-004).
+      - name: Build and start the attack-lab container (typo name)
+        env:
+          LAB_SERVER_NAME: p4-attack-lad
+        run: npm run lab:up
+
+      - name: L3 lab typo-squat case (SUPP-004)
+        run: npm run test:stack:l3:lab-typo
+
+      - name: Stop the attack-lab container (typo name)
+        if: always()
+        run: npm run lab:down
+
       - name: Stop the stub container
         if: always()
         run: npm run stub:down
-
-      - name: Stop the attack-lab container
-        if: always()
-        run: npm run lab:down

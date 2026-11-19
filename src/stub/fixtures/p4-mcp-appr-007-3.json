@@ -1,0 +1,21 @@
+{
+  "id": "p4-mcp-appr-007-3",
+  "description": "Fake data only. Matrix row for the approval glob test: the model calls lab_mail_send once.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_mail_send_mcp_lab",
+          "arguments": {
+            "to": "ops@example.invalid",
+            "subject": "row 3",
+            "body": "matrix"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Sent."
+    }
+  ]
+}

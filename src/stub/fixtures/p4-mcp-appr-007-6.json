@@ -1,0 +1,19 @@
+{
+  "id": "p4-mcp-appr-007-6",
+  "description": "Fake data only. Matrix row for the approval glob test: the model calls lab_echo once.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_echo_mcp_lab",
+          "arguments": {
+            "text": "row 6"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Echoed."
+    }
+  ]
+}

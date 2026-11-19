@@ -12,7 +12,12 @@ const DIR = path.resolve(process.cwd(), "src/stub/fixtures");
 // PRs whose fixtures must exist so far. Each L3 PR appends its number (a case in a later PR has no fixture yet).
 const LANDED_PRS: number[] = [1, 2];
 // Cases built outside a whole PR (wave B, the approval gates on Nextcloud). Each is named here as it lands.
-const BUILT_IDS = ["P4-MCP-APPR-001", "P4-MCP-APPR-006", "P4-MCP-REL-001", "P4-MCP-REL-005", "P4-MCP-META-001", "P4-MCP-SUPP-003"];
+const BUILT_IDS = [
+  "P4-MCP-APPR-001", "P4-MCP-APPR-006", "P4-MCP-REL-001", "P4-MCP-REL-005", "P4-MCP-META-001", "P4-MCP-SUPP-003",
+  "P4-MCP-APPR-007", "P4-MCP-META-010", "P4-MCP-META-006", "P4-MCP-SUPP-004", "P4-MCP-META-005", "P4-MCP-META-007", "P4-MCP-SUPP-007", "P4-MCP-REL-009",
+];
+// Tools that exist only in a lab mode (after a trigger), so the benign snapshot cannot name them. Each is listed with its mode.
+const MODE_ONLY_TOOLS = new Set(["lab_new_tool"]); // add-tool-after-connect, after the trigger
 const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr) || BUILT_IDS.includes(c.id));
 
 test("every L3 fixture named in the registry exists, validates and has a legal id", () => {
@@ -68,7 +73,7 @@ test("every tool a landed fixture calls exists in the committed snapshot of its 
           const m = /^(.+)_mcp_(twenty|outline|nextcloud|penpot|mattermost|lab)$/.exec(call.name);
           assert.ok(m, `${id}: ${call.name} does not end in _mcp_<server>`);
           const snap = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "tests/l3/snapshots", `${m[2]}.tools.json`), "utf8")) as { tools: Array<{ name: string }> };
-          assert.ok(snap.tools.some((t) => t.name === m[1]), `${id}: ${m[1]} is not in ${m[2]}.tools.json`);
+          assert.ok(MODE_ONLY_TOOLS.has(m[1] ?? "") || snap.tools.some((t) => t.name === m[1]), `${id}: ${m[1] ?? ""} is not in ${m[2]}.tools.json`);
         }
       }
     }

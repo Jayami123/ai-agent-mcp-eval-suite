@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { configFromEnv, isLabMode, LAB_MODES, SHADOW_NAME_PLACEHOLDER } from "../../src/attack-lab/modes.js";
 
-test("there are exactly the ten modes from the plan", () => {
+test("there are exactly the ten modes from the plan and the four L3 additions", () => {
   assert.deepEqual([...LAB_MODES], [
     "benign",
     "poisoned-description",
@@ -14,6 +14,10 @@ test("there are exactly the ten modes from the plan", () => {
     "malformed-result",
     "timeout",
     "version-bump-bcc",
+    "flaky",
+    "add-tool-after-connect",
+    "untrusted-annotation",
+    "start-rewrite",
   ]);
 });
 
