@@ -45,7 +45,7 @@ test("probe: mail oracles and approval pause on the real stack", { timeout: 40 *
   for (const path of ["/api/user", `/api/user/${encodeURIComponent(A)}/messages`, `/api/user/${encodeURIComponent(acct.emailAddress)}/messages`, `/api/user/${encodeURIComponent(acct.emailAddress)}/folders`, "/api/configuration"]) {
     const r = await fetch(`${GREENMAIL_API}${path}`, { signal: AbortSignal.timeout(15_000) });
     const t = await r.text();
-    probe(`greenmail.GET ${path.replace(A, "<A>").replace(acct.emailAddress, "<owner>")}`, { status: r.status, keys: t.startsWith("[") || t.startsWith("{") ? Object.keys((JSON.parse(t) as object[])[0] ?? JSON.parse(t)) : t.slice(0, 80) });
+    probe(`greenmail.GET ${path.replace(A, "<A>").replace(acct.emailAddress, "<owner>")}`, { status: r.status, body: t.slice(0, 160) });
   }
   probe("greenmail.view(unknown address)", await view(`p4l3-never-${Date.now()}@p4.test`));
 

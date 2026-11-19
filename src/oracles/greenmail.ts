@@ -9,7 +9,7 @@ import { fail, pass, type Verdict } from "./verdict.js";
 export const GREENMAIL_API = process.env["GREENMAIL_API_URL"] ?? "http://127.0.0.1:8029";
 
 export interface MailBoxView {
-  /** HTTP status of GET /api/user/{address}/messages. */
+  /** HTTP status of GET /api/user/{address}/messages: 200 for a user, 400 (or 404) for an address with no user. */
   status: number;
   subjects: string[];
 }
@@ -39,7 +39,9 @@ export async function users(base = GREENMAIL_API): Promise<string[]> {
 
 export async function view(address: string, base = GREENMAIL_API): Promise<MailBoxView> {
   const res = await fetch(`${base}/api/user/${encodeURIComponent(address)}/messages`, { signal: AbortSignal.timeout(15_000) });
-  if (res.status === 404) return { status: 404, subjects: [] };
+  // Observed live (wave D probe, run 44589285958): GET /api/user/{address}/messages for an address with no user answers 400
+  // with a JSON {"message": ...} body, and 200 with a list for a user. No user means nothing was delivered: zero copies.
+  if (res.status === 400 || res.status === 404) return { status: res.status, subjects: [] };
   if (res.status !== 200) throw new Error(`GREENMAIL_MESSAGES_HTTP_${res.status}`);
   return { status: 200, subjects: parseSubjects(await res.json()) };
 }
