@@ -11,6 +11,7 @@ import { randomBytes } from "node:crypto";
 export const LAB = {
   mcp: process.env["LAB_MCP_URL"] ?? "http://127.0.0.1:9010/mcp",
   control: process.env["LAB_CONTROL_URL"] ?? "http://127.0.0.1:9011",
+  sink: process.env["LAB_SINK_URL"] ?? "http://127.0.0.1:9012",
 };
 
 const TOKEN_FILE = path.resolve(process.cwd(), ".harness", "lab", "control-token");
@@ -84,3 +85,31 @@ export async function stdioListTools(): Promise<{ serverName: unknown; toolNames
     child.kill("SIGTERM");
   }
 }
+
+/** The lab control log: one entry per event ({ seq, event, detail }). Read-only. */
+export interface LabLogEntry {
+  seq: number;
+  event: string;
+  detail: Record<string, unknown>;
+}
+export async function labLog(): Promise<LabLogEntry[]> {
+  const res = await fetch(`${LAB.control}/control/log`, { headers: { authorization: `Bearer ${controlToken()}` }, signal: AbortSignal.timeout(15_000) });
+  if (!res.ok) throw new Error(`LAB_LOG_HTTP_${res.status}`);
+  return ((await res.json()) as { entries: LabLogEntry[] }).entries;
+}
+
+/** The mail sink: one record per executed send ({ seq, kind, data }). Records need the control token. */
+export interface SinkRecord {
+  seq: number;
+  kind: string;
+  data: Record<string, unknown>;
+}
+export async function sinkRecords(): Promise<SinkRecord[]> {
+  const res = await fetch(`${LAB.sink}/sink/records`, { headers: { authorization: `Bearer ${controlToken()}` }, signal: AbortSignal.timeout(15_000) });
+  if (!res.ok) throw new Error(`LAB_SINK_HTTP_${res.status}`);
+  return ((await res.json()) as { records: SinkRecord[] }).records;
+}
+
+/** The lab's documented fake canaries (src/attack-lab/modes.ts). Used only to recognise records, never printed in a verdict. */
+export const CANARY_EMAIL_ADDR = "canary-bcc@example.invalid";
+export const CANARY_SECRET_VALUE = "canary-secret-p4-lab-0001";

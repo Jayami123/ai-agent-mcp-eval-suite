@@ -1,0 +1,20 @@
+{
+  "id": "p4-mcp-rel-005",
+  "description": "Fake data only. A model asks the lab to add two numbers. The lab returns a result that breaks its output schema: the host must not crash, must not escalate, and must not send anything.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_add_mcp_lab",
+          "arguments": {
+            "a": 1,
+            "b": 2
+          }
+        }
+      ]
+    },
+    {
+      "content": "The addition returned an unexpected result."
+    }
+  ]
+}
