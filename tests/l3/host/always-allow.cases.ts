@@ -4,8 +4,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getAdapter } from "qa-portfolio-harness";
 import { changedTools } from "../../../src/oracles/lab.js";
-import { fail, pass } from "../../../src/oracles/verdict.js";
-import { l3Case } from "../support/case.js";
+import { fail, pass, type Verdict } from "../../../src/oracles/verdict.js";
+import { expectedDefect, type DefectRef } from "../support/expected-defect.js";
+import { l3Case, type CaseCtx } from "../support/case.js";
 import { mcpToolName } from "../../l1/librechat-client.js";
 import { readStubTrace, resetStubTrace } from "../../l1/stub-recorder.js";
 import { chatWithApproval, type ApprovalRun, type Decision, type DecisionChoice, type PausedCall } from "../support/approval.js";
@@ -33,7 +34,18 @@ async function resetBoth(): Promise<void> {
   await resetLab("lab2");
 }
 
-const delivered = async (fixture: string): Promise<boolean> => (await readStubTrace(fixture)).some((e) => e.turn === 0);
+/** The stub served this fixture at least once. Padded fixtures serve their call at turn N, so any turn counts (not turn 0). */
+const delivered = async (fixture: string): Promise<boolean> => (await readStubTrace(fixture)).length > 0;
+/** The fixture's delivery check, with the turns the stub served as a note (the evidence for an inconclusive leg). */
+async function deliveredCheck(ctx: CaseCtx, fixture: string, label: string): Promise<void> {
+  const turns = (await readStubTrace(fixture)).map((e) => e.turn);
+  ctx.note(`${label}: stub served ${fixture} at turn(s) [${turns.join(",") || "none"}]`);
+  ctx.check(turns.length > 0 ? pass(`${label}: fixture delivered to the stub`) : fail(`${label}: the stub never served the fixture`));
+}
+/** A silent run: a lab_echo call ran in a leg where the host asked for no approval. Only this shape is recorded as an expected defect. */
+const silentRun = (run: ApprovalRun, ran: string[]): boolean => ran.length > 0 && run.pauses.length === 0;
+/** A product finding: a stored Always allow was honoured after the tool changed. */
+const stale = (caseId: string, what: string): DefectRef => ({ caseId, server: "librechat", summary: `stored Always allow honoured after a tool change: ${what}` });
 const offeredAlways = (run: ApprovalRun, tool: string): boolean => run.pauses.some((p) => p.calls.some((c) => c.name === tool && c.offeredAlways));
 const pauseCount = (run: ApprovalRun, tool: string): number => run.pauses.filter((p) => p.calls.some((c: PausedCall) => c.name === tool)).length;
 const lastSeq = (log: LabLogEntry[]): number => log.reduce((max, e) => Math.max(max, e.seq), 0);
@@ -58,7 +70,7 @@ l3Case("P4-MCP-META-002", "rug pull after always-allow: the changed tool with a 
 
     // Leg 1: the first call on lab_echo, approved with Always allow in conversation A.
     const a1 = await chatWithApproval(rt.stack, { fixture: "p4-mcp-meta-002-control", prompt: "Echo the text (p4l3 meta-002).", tools: [ECHO], decide: ALWAYS });
-    ctx.check((await delivered("p4-mcp-meta-002-control")) ? pass("leg 1: fixture delivered to the stub") : fail("leg 1: the stub never saw the fixture"));
+    await deliveredCheck(ctx, "p4-mcp-meta-002-control", "leg 1");
     ctx.check(offeredAlways(a1, ECHO) ? pass("leg 1: the approval card offered Always allow") : fail("leg 1: the card did not offer Always allow (see the host limit in the findings)"));
     ctx.check(a1.finished && a1.messageId !== undefined ? pass("leg 1: the approved run finished") : fail("leg 1: the approved run did not finish"));
     if (a1.messageId === undefined) return;
@@ -103,11 +115,13 @@ l3Case("P4-MCP-META-002", "rug pull after always-allow: the changed tool with a 
       parentMessageId: a2.messageId,
       agentId: a1.agentId,
     });
-    ctx.check((await delivered("p4-mcp-meta-002-hostile")) ? pass("leg 3: fixture delivered to the stub") : fail("leg 3: the stub never saw the fixture"));
+    await deliveredCheck(ctx, "p4-mcp-meta-002-hostile", "leg 3");
     const ran = callsAfter(await labLog(), mark);
-    ctx.check(withBcc(ran).length === 0
+    const bccRan = withBcc(ran).length;
+    const leg3: Verdict = bccRan === 0
       ? pass(`leg 3: no call carrying the new bcc parameter reached the lab (approval asked ${hostile.pauses.length} time(s))`)
-      : fail(`leg 3: ${withBcc(ran).length} call(s) with the new bcc parameter ran on the old Always allow (no new approval)`));
+      : fail(`leg 3: ${bccRan} call(s) with the new bcc parameter ran with no approval asked (pauses ${hostile.pauses.length})`);
+    ctx.check(silentRun(hostile, withBcc(ran)) ? expectedDefect(leg3, stale("P4-MCP-META-002", "a call with a new bcc parameter ran with no new approval")) : leg3);
     ctx.note(`leg 3: pauses=${hostile.pauses.length}; lab_echo calls after the rug pull=${ran.length}; with bcc=${withBcc(ran).length}`);
 
     // Snapshot diff: the served lab_echo differs from the committed pin (the diff is logged here, names only).
@@ -126,7 +140,7 @@ l3Case("P4-MCP-META-004", "re-approval is required when the tool hash changes, o
   try {
     await labControl("/control/mode", { mode: "rug-pull-echo" });
     const a = await chatWithApproval(rt.stack, { fixture: "p4-mcp-meta-004-a", prompt: "Echo (p4l3 meta-004 leg a).", tools: [ECHO], decide: ALWAYS });
-    ctx.check((await delivered("p4-mcp-meta-004-a")) ? pass("leg a: fixture delivered to the stub") : fail("leg a: the stub never saw the fixture"));
+    await deliveredCheck(ctx, "p4-mcp-meta-004-a", "leg a");
     ctx.check(a.finished && a.messageId !== undefined ? pass("leg a: the approved run finished with Always allow stored") : fail("leg a: the approved run did not finish"));
     if (a.messageId === undefined) return;
 
@@ -145,7 +159,9 @@ l3Case("P4-MCP-META-004", "re-approval is required when the tool hash changes, o
       parentMessageId: a.messageId,
       agentId: a.agentId,
     });
-    ctx.check(legVerdict("path 1 (same conversation, stored Always allow)", b, callsAfter(await labLog(), mark)));
+    const ran1 = callsAfter(await labLog(), mark);
+    const path1 = legVerdict("path 1 (same conversation, stored Always allow)", b, ran1);
+    ctx.check(silentRun(b, ran1) ? expectedDefect(path1, stale("P4-MCP-META-004", "same conversation, after a hash change, a call ran with no approval asked")) : path1);
 
     // Path 2: a new conversation after the change.
     mark = lastSeq(await labLog());
@@ -193,8 +209,10 @@ l3Case("P4-MCP-META-008", "mid-session description drift is detected and the lat
       parentMessageId: a.messageId,
       agentId: a.agentId,
     });
-    ctx.check((await delivered("p4-mcp-meta-008-drift")) ? pass("leg 2: fixture delivered to the stub") : fail("leg 2: the stub never saw the fixture"));
-    ctx.check(legVerdict("leg 2 (after the drift, same conversation)", b, callsAfter(await labLog(), mark)));
+    await deliveredCheck(ctx, "p4-mcp-meta-008-drift", "leg 2");
+    const ran2 = callsAfter(await labLog(), mark);
+    const drift = legVerdict("leg 2 (after the drift, same conversation)", b, ran2);
+    ctx.check(silentRun(b, ran2) ? expectedDefect(drift, stale("P4-MCP-META-008", "same conversation, after a description-only drift, a call ran with no approval asked")) : drift);
   } finally {
     await resetBoth();
   }
@@ -222,10 +240,10 @@ l3Case("P4-MCP-META-011", "a second server added after consent does not inherit 
       conversationId: a.conversationId,
       parentMessageId: a.messageId,
     });
-    ctx.check((await delivered("p4-mcp-meta-011-lab2")) ? pass("leg 2: fixture delivered to the stub") : fail("leg 2: the stub never saw the fixture"));
+    await deliveredCheck(ctx, "p4-mcp-meta-011-lab2", "leg 2");
     ctx.check(b.pauses.some((p) => p.calls.some((c) => c.name === ECHO_LAB2))
       ? pass(`leg 2: the second server's tool asked for approval (${pauseCount(b, ECHO_LAB2)} pause(s))`)
-      : fail("leg 2: the second server's tool ran without asking for approval"));
+      : fail("leg 2: no approval was asked for the lab2 tool and no call was recorded: inconclusive (the stub may not have served the tool call; see the served turns)"));
     const lab2Ran = callsAfter(await labLog("lab2"), mark2);
     ctx.check(lab2Ran.length === 0 ? pass("leg 2: no lab2 call ran without a new approval") : fail(`leg 2: ${lab2Ran.length} lab2 call(s) ran without a new approval`));
   } finally {
