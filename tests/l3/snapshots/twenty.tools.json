@@ -1,0 +1,173 @@
+{
+  "tools": [
+    {
+      "name": "search_help_center",
+      "description": "Search Twenty documentation and help center to find information about features, setup, usage, and troubleshooting.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "description": "The search query to find relevant help articles about Twenty",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      }
+    },
+    {
+      "name": "get_tool_catalog",
+      "description": "Fallback discovery — use only when you do not know which tool exists. You do not need this for record operations: build the name from the grammar ({operation}_{object}, e.g. find_many_people) and pass it straight to learn_tools, which returns the closest matching names when a name is wrong. Pass ONE category to keep the response small.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      }
+    },
+    {
+      "name": "execute_tool",
+      "description": "Execute a tool by name with arguments. Call learn_tools first to discover the required input schema.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "toolName": {
+            "description": "Tool name, as confirmed by learn_tools.",
+            "type": "string"
+          },
+          "arguments": {
+            "description": "Arguments matching the schema returned by learn_tools.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "toolName",
+          "arguments"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": true,
+        "destructiveHint": false
+      }
+    },
+    {
+      "name": "load_skills",
+      "description": "Load specialized skills for complex tasks. Returns detailed step-by-step instructions for building workflows, dashboards, manipulating data, or managing metadata. Call this before attempting complex operations.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "skillNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "skillNames"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      }
+    },
+    {
+      "name": "list_object_metadata_names",
+      "description": "List all available object metadata names in the workspace. Use this to get a fresh list of objects when the initial instructions may be outdated.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      }
+    },
+    {
+      "name": "list_skills",
+      "description": "List all available skill names in the workspace. Use this to get a fresh list of skills when the initial instructions may be outdated.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      }
+    },
+    {
+      "name": "learn_tools",
+      "description": "Get input schemas for tools, and confirm a tool name exists. Pass all the tool names you need in a single call (toolNames accepts an array) rather than calling learn_tools once per tool. A name you built from the CRUD grammar is safe to pass: unknown names come back under notFound with the closest matching names, so you never need a catalog call just to check a name.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "toolNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "aspects": {
+            "default": [
+              "description",
+              "schema"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "description",
+                "schema"
+              ]
+            }
+          }
+        },
+        "required": [
+          "toolNames"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      }
+    }
+  ]
+}

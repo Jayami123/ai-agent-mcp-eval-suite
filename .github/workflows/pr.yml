@@ -237,3 +237,172 @@ jobs:
       - name: Stop the lab container
         if: always()
         run: npm run lab:down
+
+  # L3 stack job for Twenty: the L3 cases through LibreChat against the real Twenty MCP, stub mode only (no secrets, safe for
+  # fork PRs). It also runs the S2 capture (P4_L3_CAPTURE=1), which records the real tools/list and database tables to
+  # evidence/ so a human can review them and commit the snapshots. Advisory until stable (docs/branch-protection.md).
+  l3-twenty:
+    name: l3 twenty
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: twenty
+      P4_L3_CAPTURE: "1"
+      PRODUCTS_ROOT: ${{ github.workspace }}/products
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Twenty fork, read-only, pinned to the commit the harness Twenty adapter uses (7cbdfec6, dev seeder). Never modified.
+      - name: Checkout Twenty fork (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Jayami123/twenty-CRM
+          ref: 7cbdfec6f346b43715bc2056932f4fad5886f733
+          path: products/twenty-CRM
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 twenty stack tests
+        run: npm run test:stack:l3:twenty
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-twenty-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # L3 stack job for Nextcloud: the L3 cases through LibreChat against the real Nextcloud MCP, stub mode only (no secrets, safe for
+  # fork PRs). Advisory until stable (docs/branch-protection.md).
+  l3-nextcloud:
+    name: l3 nextcloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: nextcloud
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 nextcloud stack tests
+        run: npm run test:stack:l3:nextcloud
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-nextcloud-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # L3 stack job for Penpot: the L3 cases through LibreChat against the real Penpot MCP, stub mode only (no secrets, safe for
+  # fork PRs). Advisory until stable (docs/branch-protection.md).
+  l3-penpot:
+    name: l3 penpot
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: penpot
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 penpot stack tests
+        run: npm run test:stack:l3:penpot
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-penpot-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
