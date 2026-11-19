@@ -145,6 +145,8 @@ export interface OcOracle {
   pairingApprove(code: string): void;
   /** Session keys of the Telegram sessions (not the main session). */
   telegramSessionKeys(): string[];
+  /** When the main session (the owner's DM and every paired DM) started. /new keeps the session id and resets this. */
+  mainSessionStartedAt(): number | undefined;
   deleteSession(key: string): void;
   skillNames(): string[];
   /**
@@ -229,6 +231,14 @@ export function createOcOracle(adapter: OpenClawAdapterLike, exec: Exec = docker
         return (JSON.parse(r.stdout) as { sessions: Array<{ key: string }> }).sessions.map((s) => s.key).filter((k) => k.includes(":telegram:"));
       } catch {
         return [];
+      }
+    },
+    mainSessionStartedAt() {
+      const r = exec(["openclaw", "sessions", "--json"]);
+      try {
+        return (JSON.parse(r.stdout) as { sessions: Array<{ key: string; sessionStartedAt?: number }> }).sessions.find((x) => x.key === "agent:main:main")?.sessionStartedAt;
+      } catch {
+        return undefined;
       }
     },
     deleteSession(key) {

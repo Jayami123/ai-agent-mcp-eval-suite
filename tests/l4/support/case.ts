@@ -113,8 +113,15 @@ export async function resetCaseState(oc: OcOracle, mc: MockChannelClient): Promi
   await quiet(mc, 2500, 40_000);
   for (const key of oc.telegramSessionKeys()) oc.deleteSession(key);
   // The main session cannot be deleted. The owner's /new starts a fresh one, so no earlier case's fixture marker is in its history.
-  await mc.dm(OWNER, "/new");
-  await quiet(mc, 2500, 30_000);
+  // A /new that lands while an earlier run is still finishing can be lost, so check that the main session really restarted (its start time changes; its id does not).
+  const startedAt = oc.mainSessionStartedAt();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await mc.dm(OWNER, "/new");
+    await quiet(mc, 2500, 30_000);
+    const now = oc.mainSessionStartedAt();
+    if (startedAt === undefined || now !== startedAt) break;
+    assert.ok(attempt < 3, "the owner's /new did not start a fresh main session");
+  }
   oc.exec(["sh", "-c", `cd ${OC_WORKSPACE} && rm -rf p4 MEMORY.md memory skills/p4-* skills/oc-*`]);
   await resetStubTrace();
   await clearWatch();
