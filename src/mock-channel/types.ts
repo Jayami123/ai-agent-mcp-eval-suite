@@ -8,6 +8,8 @@ export interface MockUser {
 
 export const OWNER: MockUser = { id: 1001, username: "p4_owner", firstName: "Owner" };
 export const FRIEND: MockUser = { id: 1002, username: "p4_friend", firstName: "Friend" };
+/** A sender used only by the quoted-reply case: its chat has no earlier history, and it pairs inside the case. */
+export const QUOTER: MockUser = { id: 1003, username: "p4_quoter", firstName: "Quoter" };
 export const STRANGER: MockUser = { id: 2001, username: "p4_stranger", firstName: "Stranger" };
 export const ATTACKER: MockUser = { id: 2002, username: "p4_attacker", firstName: "Attacker" };
 export const GROUP = { id: -100777, type: "group" as const };

@@ -125,7 +125,7 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
       return;
     }
     if (ids.size > 1) {
-      sendJson(res, 400, { error: { message: "more than one fixture id in messages" } });
+      sendJson(res, 400, { error: { message: `more than one fixture id in messages: ${[...ids].sort().join(", ")}` } });
       return;
     }
     id = [...ids][0] ?? "";

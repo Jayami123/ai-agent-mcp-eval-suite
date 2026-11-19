@@ -1,9 +1,9 @@
-import { ATTACKER, FRIEND, GROUP, OWNER, STRANGER, type InboundSpec, type LogEntry, type MockUser, type ReactionSpec, type SinkRecord } from "../../../src/mock-channel/types.js";
+import { ATTACKER, FRIEND, GROUP, OWNER, QUOTER, STRANGER, type InboundSpec, type LogEntry, type MockUser, type ReactionSpec, type SinkRecord } from "../../../src/mock-channel/types.js";
 
 export const MOCK_CHANNEL_URL = "http://127.0.0.1:8788";
 /** The host OpenClaw may fetch pages from (the only web fetch allowlist entry). */
 export const PAGES_HOST = "http://p4-fixture-pages:8788";
-export { ATTACKER, FRIEND, GROUP, OWNER, STRANGER };
+export { ATTACKER, FRIEND, GROUP, OWNER, QUOTER, STRANGER };
 
 export class MockChannelClient {
   constructor(private readonly base: string = MOCK_CHANNEL_URL) {}
