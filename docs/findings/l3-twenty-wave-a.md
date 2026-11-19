@@ -57,3 +57,49 @@ Four images are not digest-pinned: Twenty server and worker (`twentycrm/twenty:$
   weeks old, bump the exact pin of the alias in `package.json` and the lockfile (and, if L2 has moved to the same line, drop the alias), re-run the `l3 twenty` job, and re-record
   `tests/l3/snapshots/expected-failures/twenty.yaml` from the new run. Not done in this PR: no stable release exists yet.
 - **Re-check `P4-MCP-PROT-003` on a Twenty upgrade.** If Twenty starts negotiating 2026-07-28, the case becomes a hard check.
+
+# L3 wave A, PR 2: the other servers (Nextcloud, Penpot, host)
+
+Branch `feat/2026-11-19-l3-wave-a-2`. Four cases from the plan's PR 2 list. Each has one test named by its ID. Results are
+from local stack runs (`P4_STACK_TESTS=1`, stub mode, Docker on the build host) and the plain gate (`npm run check`). CI run
+IDs are added below once the draft PR's jobs have run.
+
+## Results
+
+| Case | Server | Mode | Result | What the verdict rests on |
+|---|---|---|---|---|
+| P4-MCP-PROT-011 | Penpot | P | pass | Penpot negotiates `2025-06-18` and advertises no `tasks` capability. `tasks/get` answers JSON-RPC `-32601 Method not found`, so the tasks extension is cleanly absent. Owner's projects and files unchanged (DB digest). |
+| P4-MCP-OAUTH-010 | Nextcloud | P | pass | Three Login Flow v2 polls with no browser grant (the flow's own token twice, and a token nobody issued) return no app password. The owner's WebDAV tree is unchanged. |
+| P4-MCP-TOOL-008 | Nextcloud | G | pass, with one expected defect | The owner's WebDAV tree is unchanged, and three traversal calls reached the host. Both `..` attempts were refused by the server. An absolute path read the sibling folder (see finding F3). |
+| P4-MCP-SUPP-005 | host (dependencies) | P (plain gate) | pass | `npm audit --json` reports 0 advisories; the committed baseline is empty, so nothing high or critical is outside it. |
+
+Totals for the PR: 4 cases built, 3 pass on a stack, 1 passes in the plain gate, 0 skipped by a blocker, 1 expected defect
+recorded inside a passing case. The 3 stack-gated tests skip in the plain gate, as designed.
+
+## Findings
+
+- **F1: Nextcloud MCP exposes 110 tools** on `2025-06-18`. Names include `nc_webdav_read_file` and `nc_webdav_write_file`
+  (the roles for TOOL-008). The snapshot is committed as `tests/l3/snapshots/nextcloud.tools.json` (about 480 KB, the largest
+  committed snapshot). The server hides 78 tools that this Nextcloud instance cannot serve.
+- **F2: Penpot MCP exposes 5 tools** (`execute_code`, `high_level_overview`, `penpot_api_info`, `export_shape`,
+  `import_image`) and no tasks capability. Snapshot: `tests/l3/snapshots/penpot.tools.json`.
+- **F3 (expected defect, TOOL-008): an absolute path reads the sibling folder.** The owner-scoped Nextcloud MCP credential
+  refuses `..` segments ("Path may not contain '..' segments"), but it reads `/Private/canary.md` as a path inside the owner's
+  own files. The plan's oracle says the result must exclude the sibling folder. The server does not confine the credential to
+  the working folder, so the case records this with `expectedDefect()` (plan D13). The case flips to a failure when Nextcloud
+  confines the credential, which prompts removal of the annotation. Decision for the reviewer: keep the annotation, or confine
+  the server with a folder scope in the harness and drop it.
+- **F4: the Penpot database password is not in the harness `dbUrl`.** It is in the per-run secrets file under the product root.
+  The oracle reads it from there and never prints it. Table names used are `project` and `file`.
+
+## Deviations recorded for the reviewer
+
+- Shared CI and script edits: the plan (section 14) gives these to the owner. This PR adds two advisory jobs,
+  `l3-nextcloud` and `l3-penpot`, to `.github/workflows/pr.yml` (same shape as `l3-twenty`, no Twenty checkout), and two
+  scripts to `package.json` (`test:stack:l3:nextcloud`, `test:stack:l3:penpot`).
+- The PR 1 cross-server protocol and tool files (`tests/l3/all/*`) still run for Twenty only. Adding Nextcloud or Penpot to them
+  needs plan files for TOOL-001 and TOOL-004 on those servers, which are outside this PR.
+- The case ledger (`p4-case-ledger.csv`) is not in this repository. Oracle text comes from `tests/l3/support/l3-cases.json`
+  and plan section 11.
+- SUPP-005 runs `npm audit`, which calls the npm advisory endpoint. The plain gate therefore needs network, as `npm ci` does.
+  An unreachable endpoint leaves the case unverified (it fails), not passing.
