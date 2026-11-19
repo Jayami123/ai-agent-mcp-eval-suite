@@ -8,4 +8,6 @@ bootRuntime(selectServers(["twenty"]), "twenty");
 await import("../all/prot.cases.js");
 await import("../all/conformance.cases.js");
 await import("../all/oauth.cases.js");
+await import("../all/tool.cases.js");
+await import("./tool.cases.js");
 if (process.env["P4_L3_CAPTURE"] === "1") await import("./capture.cases.js");

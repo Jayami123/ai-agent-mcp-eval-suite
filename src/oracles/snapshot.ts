@@ -28,3 +28,37 @@ export function unchanged(before: Snapshot, after: Snapshot): Verdict {
     ? pass(`${before.server} ${before.scope} unchanged`)
     : fail(`${before.server} ${before.scope} changed: before ${JSON.stringify(before.summary)}, after ${JSON.stringify(after.summary)}`);
 }
+
+/** Minimal shape of a tools/list entry. */
+export interface PinnedTool {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+  outputSchema?: unknown;
+  annotations?: unknown;
+}
+
+/**
+ * P4-MCP-PROT-007: differences between the committed tools/list and a live one: names added or removed, and for a shared
+ * name any change to description, inputSchema, outputSchema or annotations. Empty means no drift.
+ */
+export function toolsDiff(pinned: PinnedTool[], live: PinnedTool[]): string[] {
+  const out: string[] = [];
+  const p = new Map(pinned.map((t) => [t.name, t]));
+  const l = new Map(live.map((t) => [t.name, t]));
+  for (const n of p.keys()) if (!l.has(n)) out.push(`tool removed: ${n}`);
+  for (const n of l.keys()) if (!p.has(n)) out.push(`tool added: ${n}`);
+  for (const [n, a] of p) {
+    const b = l.get(n);
+    if (b === undefined) continue;
+    for (const field of ["description", "inputSchema", "outputSchema", "annotations"] as const) {
+      if (digestOf(a[field] ?? null) !== digestOf(b[field] ?? null)) out.push(`${n}: ${field} changed`);
+    }
+  }
+  return out;
+}
+
+export function toolsMatchPin(pinned: PinnedTool[], live: PinnedTool[]): Verdict {
+  const diff = toolsDiff(pinned, live);
+  return diff.length === 0 ? pass(`${live.length} tools match the committed snapshot`) : fail(`tools/list drift: ${diff.slice(0, 6).join("; ")}`);
+}

@@ -10,7 +10,7 @@ import { twentyInnerNames } from "./support/tool-map.js";
 // L3 fixture may exist that the registry does not name (an orphan is a case ID nobody approved).
 const DIR = path.resolve(process.cwd(), "src/stub/fixtures");
 // PRs whose fixtures must exist so far. Each L3 PR appends its number (a case in a later PR has no fixture yet).
-const LANDED_PRS: number[] = []; // PR 1's three fixtures land in the follow-up push with the S2 snapshots; then this becomes [1]
+const LANDED_PRS: number[] = [1];
 const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr));
 
 test("every L3 fixture named in the registry exists, validates and has a legal id", () => {
@@ -52,6 +52,21 @@ test("a Twenty execute_tool call names an inner tool that exists in the captured
           if (call.name !== "execute_tool_mcp_twenty") continue;
           const inner = (call.arguments as { toolName?: unknown }).toolName;
           assert.ok(typeof inner === "string" && known.has(inner), `${id}: execute_tool names an inner tool not in twenty.catalog.json`);
+        }
+      }
+    }
+  }
+});
+
+test("every tool a landed fixture calls exists in the committed snapshot of its server", () => {
+  for (const def of landed()) {
+    for (const id of def.fixtures) {
+      for (const turn of loadFixture(DIR, id).turns) {
+        for (const call of turn.tool_calls ?? []) {
+          const m = /^(.+)_mcp_(twenty|outline|nextcloud|penpot|mattermost)$/.exec(call.name);
+          assert.ok(m, `${id}: ${call.name} does not end in _mcp_<server>`);
+          const snap = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "tests/l3/snapshots", `${m[2]}.tools.json`), "utf8")) as { tools: Array<{ name: string }> };
+          assert.ok(snap.tools.some((t) => t.name === m[1]), `${id}: ${m[1]} is not in ${m[2]}.tools.json`);
         }
       }
     }

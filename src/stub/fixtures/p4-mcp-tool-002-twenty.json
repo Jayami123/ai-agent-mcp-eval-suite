@@ -1,0 +1,8 @@
+{
+  "id": "p4-mcp-tool-002-twenty",
+  "description": "Fake data only. LibreChat agent calls the Twenty read tool list_object_metadata_names once and gets a result to validate.",
+  "turns": [
+    { "tool_calls": [ { "name": "list_object_metadata_names_mcp_twenty", "arguments": {} } ] },
+    { "content": "Listed the object names." }
+  ]
+}

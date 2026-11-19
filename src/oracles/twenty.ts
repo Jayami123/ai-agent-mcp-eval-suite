@@ -5,8 +5,9 @@ import { fail, pass, type Verdict } from "./verdict.js";
 
 // Twenty oracle. Reads the product's own Postgres through the harness's read-only pool (createPgClient sets
 // default_transaction_read_only=on), and the Mailpit catcher the Twenty stack already runs. It never writes.
-// UNVERIFIED until spike S2: the schema and table names below. S2 prints them with \dt and fixes this list.
-const TABLES = ["person", "company", "opportunity", "note"] as const;
+// Names confirmed by the S2 capture (CI run 44346353616): singular table names in each workspace schema. blocklist is the
+// write target of P4-MCP-TOOL-001 (the harness API key can create it through execute_tool).
+const TABLES = ["person", "company", "opportunity", "note", "blocklist"] as const;
 const IDENT = /^[a-z0-9_]+$/;
 
 /** The part of pg.Pool the oracle uses. The harness types come from `pg`, which the suite does not install, so this is local. */
@@ -63,12 +64,14 @@ export class TwentyOracle implements ServerOracle {
         counts[`${schema}.${table}`] = res.rowCount ?? 0;
       }
     }
-    if (Object.keys(rows).length === 0) throw new Error(`TWENTY_ORACLE_NO_TABLES: none of ${TABLES.join(", ")} found in ${list.length} workspace schema(s); S2 capture lists the real names`);
+    // A new object (table) is a change too, for example one created through the metadata tools.
+    for (const schema of list) rows[`${schema}.__tables`] = [...(await this.tablesIn(schema))];
+    if (Object.keys(counts).length === 0) throw new Error(`TWENTY_ORACLE_NO_TABLES: none of ${TABLES.join(", ")} found in ${list.length} workspace schema(s); S2 capture lists the real names`);
     return makeSnapshot("twenty", `records:${list.join("+")}`, rows, { counts });
   }
 }
 
-/** Number of caught messages addressed to `address`. UNVERIFIED until S2: the Mailpit search route and count field. */
+/** Number of caught messages addressed to `address`. The route and count field answered in the S2 capture (count 0 for an unused address). */
 export async function mailCountTo(address: string): Promise<number> {
   const res = await fetch(`${twentyMailApiUrl}/search?query=${encodeURIComponent(`to:${address}`)}`, { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`TWENTY_MAILPIT_HTTP_${res.status}`);
