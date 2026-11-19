@@ -1,0 +1,29 @@
+# The L4 mock channel as a container, so OpenClaw reaches it at http://p4-mock-channel:8788 on qa-harness-p4. The host publish is
+# 127.0.0.1 only; tests use the control API at http://127.0.0.1:8788/__mc/*. The second alias, p4-fixture-pages, is the only host
+# OpenClaw's web fetch may reach (the sink and the Bot API sit behind the other alias and stay blocked by the private-network
+# guard). The bot token comes from the environment of the docker compose process (scripts/l4-stack.mjs), never from this file.
+#   npm run build && npm run l4:up        # and: npm run l4:down
+name: p4-suite-mock-channel
+
+services:
+  p4-mock-channel:
+    build:
+      context: ..
+      dockerfile: docker/mock-channel/Dockerfile
+    image: p4-suite-mock-channel:local
+    container_name: p4-suite-mock-channel
+    environment:
+      MOCK_CHANNEL_TOKEN: ${MOCK_CHANNEL_TOKEN:?set by scripts/l4-stack.mjs}
+    ports:
+      - "127.0.0.1:8788:8788"
+    networks:
+      default: {}
+      p4:
+        aliases:
+          - p4-mock-channel
+          - p4-fixture-pages
+
+networks:
+  p4:
+    external: true
+    name: qa-harness-p4
