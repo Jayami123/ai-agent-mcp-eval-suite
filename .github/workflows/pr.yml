@@ -629,7 +629,7 @@ jobs:
       - name: Print the Nextcloud log excerpt (redacted at capture)
         if: always()
         run: |
-          for f in evidence/l3/always-allow-mail-*/sends.json evidence/l3/always-allow-mail-*/nextcloud-log-tail.txt evidence/l3/always-allow-mail-*/nextcloud-log-mail-smtp.txt evidence/l3/always-allow-mail-*/nextcloud-mcp-logs-tail.txt evidence/l3/always-allow-mail-*/greenmail-logs-tail.txt evidence/l3/always-allow-mail-*/nextcloud-app-docker-logs.txt evidence/l3/always-allow-mail-*/mail-account-settings.json evidence/l3/always-allow-mail-*/nextcloud-to-greenmail.txt; do
+          for f in evidence/l3/always-allow-mail-*/sends.json evidence/l3/always-allow-mail-*/nextcloud-log-tail.txt evidence/l3/always-allow-mail-*/nextcloud-log-mail-smtp.txt evidence/l3/always-allow-mail-*/nextcloud-mcp-logs-tail.txt evidence/l3/always-allow-mail-*/greenmail-logs-tail.txt evidence/l3/always-allow-mail-*/nextcloud-app-docker-logs.txt evidence/l3/always-allow-mail-*/mail-account-settings.json evidence/l3/always-allow-mail-*/nextcloud-to-greenmail.txt evidence/l3/always-allow-mail-*/smtp-auth-probe.txt evidence/l3/always-allow-mail-*/nextcloud-other-logs.txt; do
             [ -f "$f" ] || { echo "missing: $f"; continue; }
             echo "== $f ($(wc -l < "$f") lines)"
             # Error-bearing lines first (the 500, SMTP, recipient and mail lines), then the last 60 lines.
