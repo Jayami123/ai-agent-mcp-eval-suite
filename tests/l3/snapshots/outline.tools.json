@@ -1,0 +1,240 @@
+{
+  "source": "Derived from the l3 outline probe log (CI run 44706257171, job 136186503310, tools/list). Names, input property names and required fields only; descriptions and annotations are not copied, because the log rendering escapes them lossily.",
+  "tools": [
+    {
+      "name": "create_attachment",
+      "inputProperties": [
+        "contentType",
+        "name",
+        "size"
+      ],
+      "required": [
+        "contentType",
+        "name",
+        "size"
+      ]
+    },
+    {
+      "name": "list_collections",
+      "inputProperties": [
+        "query",
+        "offset",
+        "limit"
+      ],
+      "required": []
+    },
+    {
+      "name": "create_collection",
+      "inputProperties": [
+        "name",
+        "description",
+        "icon",
+        "color"
+      ],
+      "required": [
+        "name"
+      ]
+    },
+    {
+      "name": "update_collection",
+      "inputProperties": [
+        "id",
+        "name",
+        "description",
+        "icon",
+        "color"
+      ],
+      "required": [
+        "id"
+      ]
+    },
+    {
+      "name": "delete_collection",
+      "inputProperties": [
+        "id",
+        "archive",
+        "reason"
+      ],
+      "required": [
+        "id"
+      ]
+    },
+    {
+      "name": "list_comments",
+      "inputProperties": [
+        "documentId",
+        "collectionId",
+        "parentCommentId",
+        "statusFilter",
+        "offset",
+        "limit"
+      ],
+      "required": []
+    },
+    {
+      "name": "create_comment",
+      "inputProperties": [
+        "documentId",
+        "text",
+        "parentCommentId",
+        "anchorText",
+        "anchorPrefix",
+        "anchorSuffix"
+      ],
+      "required": [
+        "documentId",
+        "text"
+      ]
+    },
+    {
+      "name": "update_comment",
+      "inputProperties": [
+        "id",
+        "text",
+        "status"
+      ],
+      "required": [
+        "id"
+      ]
+    },
+    {
+      "name": "delete_comment",
+      "inputProperties": [
+        "id"
+      ],
+      "required": [
+        "id"
+      ]
+    },
+    {
+      "name": "list_documents",
+      "inputProperties": [
+        "query",
+        "collectionId",
+        "includeArchived",
+        "offset",
+        "limit"
+      ],
+      "required": []
+    },
+    {
+      "name": "list_collection_documents",
+      "inputProperties": [
+        "collectionId"
+      ],
+      "required": [
+        "collectionId"
+      ]
+    },
+    {
+      "name": "create_document",
+      "inputProperties": [
+        "title",
+        "text",
+        "format",
+        "sourceFileName",
+        "collectionId",
+        "parentDocumentId",
+        "templateId",
+        "icon",
+        "color",
+        "publish",
+        "fullWidth"
+      ],
+      "required": []
+    },
+    {
+      "name": "move_document",
+      "inputProperties": [
+        "id",
+        "collectionId",
+        "parentDocumentId",
+        "index"
+      ],
+      "required": [
+        "id"
+      ]
+    },
+    {
+      "name": "update_document",
+      "inputProperties": [
+        "id",
+        "title",
+        "text",
+        "editMode",
+        "findText",
+        "collectionId",
+        "icon",
+        "color",
+        "publish",
+        "fullWidth"
+      ],
+      "required": [
+        "id"
+      ]
+    },
+    {
+      "name": "delete_document",
+      "inputProperties": [
+        "id",
+        "archive",
+        "reason"
+      ],
+      "required": [
+        "id"
+      ]
+    },
+    {
+      "name": "restore_document",
+      "inputProperties": [
+        "id",
+        "collectionId"
+      ],
+      "required": [
+        "id"
+      ]
+    },
+    {
+      "name": "fetch",
+      "inputProperties": [
+        "resource",
+        "id"
+      ],
+      "required": [
+        "resource",
+        "id"
+      ]
+    },
+    {
+      "name": "get_document_changes",
+      "inputProperties": [
+        "id",
+        "to"
+      ],
+      "required": [
+        "id",
+        "from"
+      ]
+    },
+    {
+      "name": "list_templates",
+      "inputProperties": [
+        "collectionId",
+        "offset",
+        "limit"
+      ],
+      "required": []
+    },
+    {
+      "name": "list_users",
+      "inputProperties": [
+        "query",
+        "role",
+        "filter",
+        "offset",
+        "limit"
+      ],
+      "required": []
+    }
+  ]
+}
