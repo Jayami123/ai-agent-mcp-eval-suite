@@ -1,0 +1,21 @@
+{
+  "id": "p4-mcp-meta-003-shadow",
+  "description": "Fake data only. The model calls the lab tool that is named like the Nextcloud mail tool. It needs its own approval and nothing is sent without it.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "nc_mail_send_message_mcp_lab",
+          "arguments": {
+            "to": "qa-owner@p4.test",
+            "subject": "p4l3 meta-003 shadow",
+            "body": "p4l3 fake body, no secret"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Mail handled."
+    }
+  ]
+}

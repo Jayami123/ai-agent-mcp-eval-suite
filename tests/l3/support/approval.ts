@@ -14,10 +14,11 @@ import type { L3Stack } from "./stack.js";
 
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 export type Decision = "approve" | "reject";
-/** A decision, with the optional Always allow scope. `scope: "session"` is only sent with `approve`. */
+/** A decision, with the optional Always allow scope (only with `approve`) or the edited arguments (only with `edit`). */
 export interface DecisionChoice {
-  decision: Decision;
+  decision: Decision | "edit";
   scope?: "session";
+  editedArguments?: Record<string, unknown>;
 }
 
 export interface PausedCall {
@@ -26,6 +27,8 @@ export interface PausedCall {
   allowed: string[];
   /** The card offered "Always allow" for this call (review_configs[].allow_always). */
   offeredAlways: boolean;
+  /** The arguments the pause shows for this call (a parsed object, or the raw string when it is not JSON). */
+  args?: unknown;
 }
 
 export interface PauseRecord {
@@ -49,7 +52,7 @@ export interface ApprovalRun {
 interface PauseEvent {
   actionId: string;
   payload: {
-    action_requests: Array<{ name: string; tool_call_id: string }>;
+    action_requests: Array<{ name: string; tool_call_id: string; arguments?: unknown }>;
     review_configs?: Array<{ tool_call_id: string; allowed_decisions: string[]; allow_always?: boolean }>;
   };
 }
@@ -60,7 +63,8 @@ export async function chatWithApproval(
     fixture: string;
     prompt: string;
     tools: string[];
-    decide: (call: PausedCall) => Decision | DecisionChoice;
+    /** Answers one pause. `pauseIndex` is 0 for the first pause of the run. */
+    decide: (call: PausedCall, pauseIndex: number) => Decision | DecisionChoice;
     maxPauses?: number;
     timeoutMs?: number;
     /** Continue this conversation instead of starting one. */
@@ -109,9 +113,10 @@ export async function chatWithApproval(
         toolCallId: a.tool_call_id,
         allowed: review?.allowed_decisions ?? [],
         offeredAlways: review?.allow_always === true,
+        args: typeof a.arguments === "string" ? safeParse(a.arguments) : a.arguments,
       };
     });
-    const sent = calls.map((c) => normalise(o.decide(c)));
+    const sent = calls.map((c) => normalise(o.decide(c, run.pauses.length)));
     run.pauses.push({ calls, sent: [...sent] });
     const body = {
       conversationId: streamId,
@@ -120,7 +125,13 @@ export async function chatWithApproval(
       endpoint: "agents",
       decisions: calls.map((c, i) => {
         const choice = sent[i] ?? { decision: "reject" as const };
-        return { tool_call_id: c.toolCallId, decision: choice.decision, reason: "p4-l3 headless decision", ...(choice.scope ? { scope: choice.scope } : {}) };
+        return {
+          tool_call_id: c.toolCallId,
+          decision: choice.decision,
+          reason: "p4-l3 headless decision",
+          ...(choice.scope ? { scope: choice.scope } : {}),
+          ...(choice.decision === "edit" ? { editedArguments: choice.editedArguments ?? {} } : {}),
+        };
       }),
     };
     const res = await fetch(`${s.baseUrl}/api/agents/chat/resume`, { method: "POST", headers: H, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
@@ -130,6 +141,14 @@ export async function chatWithApproval(
   run.finished = next === "final";
   if (run.finished) run.messageId = await lastFinishedMessage(s.baseUrl, s.authorizationHeader, run.conversationId);
   return run;
+}
+
+function safeParse(raw: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return raw;
+  }
 }
 
 function normalise(d: Decision | DecisionChoice): DecisionChoice {
