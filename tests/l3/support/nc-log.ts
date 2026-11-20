@@ -29,4 +29,17 @@ export function captureNextcloudLog(dir: string, secrets: string[]): void {
     `${redactValues(redact(`${r.stdout ?? ""}${r.stderr ?? ""}`, secrets))}\n`;
   writeEvidence(dir, "nextcloud-log-tail.txt", `container ${name}, file ${LOG}, exit ${tail.status}\n${clean(tail)}`);
   writeEvidence(dir, "nextcloud-log-mail-smtp.txt", `container ${name}, file ${LOG}, exit ${smtp.status}\n${clean(smtp)}`);
+  // The 500 may be produced below Nextcloud's own log: the Nextcloud MCP server and GreenMail (the SMTP server) keep their own logs.
+  for (const filter of ["nextcloud-mcp", "greenmail"]) {
+    const ps2 = spawnSync("docker", ["ps", "-a", "--filter", `name=${filter}`, "--format", "{{.Names}}"], { encoding: "utf8", timeout: 60_000 });
+    const names = (ps2.stdout ?? "").split("\n").map((x) => x.trim()).filter((x) => x.length > 0);
+    if (names.length === 0) {
+      writeEvidence(dir, `${filter}-logs-tail.txt`, `no ${filter} container found\n`);
+      continue;
+    }
+    for (const c of names) {
+      const logs = spawnSync("docker", ["logs", "--tail", "300", c], { encoding: "utf8", timeout: 120_000 });
+      writeEvidence(dir, `${filter}-logs-tail.txt`, `container ${c}, exit ${logs.status}\n${redactValues(redact(`${logs.stdout ?? ""}${logs.stderr ?? ""}`, secrets))}\n`);
+    }
+  }
 }

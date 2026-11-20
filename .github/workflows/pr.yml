@@ -629,10 +629,13 @@ jobs:
       - name: Print the Nextcloud log excerpt (redacted at capture)
         if: always()
         run: |
-          for f in evidence/l3/always-allow-mail-*/nextcloud-log-mail-smtp.txt evidence/l3/always-allow-mail-*/sends.json; do
+          for f in evidence/l3/always-allow-mail-*/sends.json evidence/l3/always-allow-mail-*/nextcloud-log-tail.txt evidence/l3/always-allow-mail-*/nextcloud-log-mail-smtp.txt evidence/l3/always-allow-mail-*/nextcloud-mcp-logs-tail.txt evidence/l3/always-allow-mail-*/greenmail-logs-tail.txt; do
             [ -f "$f" ] || { echo "missing: $f"; continue; }
-            echo "== $f"
-            tail -n 120 "$f"
+            echo "== $f ($(wc -l < "$f") lines)"
+            # Error-bearing lines first (the 500, SMTP, recipient and mail lines), then the last 60 lines.
+            grep -i -E 'could not|500|error|exception|smtp|rcpt|recipient|reject|denied|quota|size|mail' "$f" | tail -n 60 || true
+            echo "-- last 60 lines:"
+            tail -n 60 "$f"
           done
 
       - name: Stop the attack-lab containers
