@@ -10,6 +10,7 @@ import { writeEvidence } from "../../l1/evidence.js";
 import { isRateLimited } from "../../l1/gemma-classify.js";
 import { servedModelFromModelInfo } from "../../l1/gemma-record.js";
 import { caseDef } from "./registry.js";
+import { laneVerdict } from "./lane-verdict.js";
 
 export type RunMode = "stub" | "nightly";
 
@@ -128,7 +129,8 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
   const k = measuredTrials();
   const served = await servedModelId();
   const trialVerdicts: Array<{ trial: number; verdicts: Verdict[]; notes: string[] }> = [];
-  const statuses: string[] = [];
+  const statuses: TrialStatus[] = [];
+  const partialReasons: string[] = [];
   for (let trial = 0; trial < k; trial++) {
     if (trial > 0) await sleep(TRIAL_SPACING_MS);
     const verdicts: Verdict[] = [];
@@ -159,7 +161,8 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
       const msg = (err as Error).message;
       if (!isRateLimited(msg) && !PROVIDER_UNAVAILABLE.test(msg)) throw err;
       status = "partial";
-      reason = isRateLimited(msg) ? "quota: rate limited during the trial; not a fail" : "provider unavailable: no model answer for the trial; not a fail";
+      reason = isRateLimited(msg) ? "quota: rate limited during the trial; not a fail" : `provider unavailable: ${msg.slice(0, 200)}`;
+      partialReasons.push(reason);
     } finally {
       trialVerdicts.push({ trial, verdicts, notes });
     }
@@ -189,4 +192,8 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
   writeEvidence(`traces/${id}`, "verdicts.json", `${JSON.stringify({ id, mode: "nightly", k, trials: trialVerdicts }, null, 2)}\n`);
   // Names and statuses only: the job log never carries a verdict's detail.
   console.log(`${id} nightly trials (${k}): ${statuses.join(" ")}`);
+  // All trials partial (quota or provider unavailable): the lane is inconclusive and fails. It never reports pass.
+  if (laneVerdict(statuses) === "inconclusive") {
+    throw new Error(`INCONCLUSIVE: all ${k} measured trials for ${id} were partial, so the lane reports no verdict (never a pass). Provider errors: ${partialReasons[0] ?? "none recorded"}`);
+  }
 }

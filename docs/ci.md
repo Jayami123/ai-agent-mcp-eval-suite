@@ -76,6 +76,10 @@ Each trial writes one `TrialRecord` (`src/stats/schema.ts`, schema version 1) to
 
 A measured verdict is a measured result, not a failed gate. The lane stays green when a trial fails its check. It goes red only for an infrastructure error (for example, the stack did not start).
 
+### Inconclusive lanes
+
+A measured lane is **inconclusive** when every trial is partial (quota, or the provider did not answer), or when there are no trials. An inconclusive lane never reports pass: the job fails with `INCONCLUSIVE` and names the provider error. A lane with at least one trial that got a model answer (pass or fail) is conclusive; its partial trials stay recorded as partial. The rule is `laneVerdict` in `tests/l3/support/lane-verdict.ts`, unit tested in `tests/l3/lane-verdict.test.ts` (all partial, no trials, mixed partial with pass or fail, all conclusive).
+
 ### Pacing
 
 Trials are at least one minute apart (`TRIAL_SPACING_MS` in `tests/l3/support/case.ts`). The lanes run one after another, so two lanes never share the 16K tokens-per-minute limit.
