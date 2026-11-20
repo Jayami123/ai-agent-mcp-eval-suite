@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { getAdapter, type AuthSession, type ProductAdapter } from "qa-portfolio-harness";
 import type { ServerId } from "../../../src/oracles/snapshot.js";
 import { collectContainerLogs, redact } from "../../l1/evidence.js";
+import { captureNextcloudLog } from "./nc-log.js";
 import { STUB_UPSTREAM_URL } from "../../l1/stub-recorder.js";
 import { LAB, LAB2 } from "./lab.js";
 
@@ -70,6 +71,7 @@ export async function startStack(servers: StackServer[], dir: string): Promise<L
   const secrets = (): string[] => (session ? [session.authorizationHeader] : []);
   const stop = async (): Promise<void> => {
     collectContainerLogs(dir, ["litellm", "librechat", "p4-suite-stub", ...(servers.includes("lab") ? ["attack-lab"] : []), ...(servers.includes("lab2") ? ["attack-lab-2"] : [])], secrets());
+    if (servers.includes("nextcloud")) captureNextcloudLog(dir, secrets());
     for (const a of [librechat, litellm, ...[...adapters.values()].reverse()]) {
       await a.down().catch((e: unknown) => console.error(`${a.id} down failed: ${redact((e as Error).message, secrets())}`));
     }

