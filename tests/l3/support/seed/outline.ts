@@ -88,7 +88,10 @@ export async function sweep(s: OutlineSession): Promise<{ documents: number; col
   const docStatuses = await deleteDocsPermanently(s, found.docs);
   for (const id of found.collections) {
     const r = await s.oracle.api(s.oracle.authorization, "collections.delete", { id });
-    if (r.status !== 200) throw new Error(`OUTLINE_SWEEP_COLLECTION_HTTP_${r.status} (docs: ${docStatuses})`);
+    if (r.status !== 200) {
+      const why = await whatBlocks(s, id);
+      throw new Error(`OUTLINE_SWEEP_COLLECTION_HTTP_${r.status} (docs: ${docStatuses}; blocking: ${why})`);
+    }
   }
   return { documents: found.docs.length, collections: found.collections.length, docStatuses };
 }
@@ -153,4 +156,17 @@ export async function seedOl0(s: OutlineSession, poisonedText: string): Promise<
   const poisoned = await createDoc(s, POISONED_TITLE, poisonedText, publicCollection);
   const restricted = await createDoc(s, RESTRICTED_TITLE, "P4L3 restricted body. Fake data only.", restrictedCollection);
   return { publicCollection, restrictedCollection, welcome, poisoned, restricted };
+}
+
+/** Counts only (no ids, no titles): what still sits in a collection that refuses to be deleted. Diagnostics for a failed sweep. */
+async function whatBlocks(s: OutlineSession, collectionId: string): Promise<string> {
+  const tree = await s.oracle.api(s.oracle.authorization, "collections.documents", { id: collectionId });
+  const treeCount = Array.isArray(dataOf(tree)) ? (dataOf(tree) as unknown[]).length : `status ${tree.status}`;
+  const parts: string[] = [`collections.documents=${treeCount}`];
+  for (const extra of [{}, { statusFilter: ["draft"] }, { statusFilter: ["archived"] }]) {
+    const list = await s.oracle.api(s.oracle.authorization, "documents.list", { collectionId, limit: 100, ...extra });
+    const n = Array.isArray(dataOf(list)) ? (dataOf(list) as unknown[]).length : `status ${list.status}`;
+    parts.push(`documents.list${"statusFilter" in extra ? `[${(extra as { statusFilter: string[] }).statusFilter[0]}]` : ""}=${n}`);
+  }
+  return parts.join(", ");
 }
