@@ -52,10 +52,26 @@ async function awaitCopies(address: string, subject: string, budgetMs: number): 
 async function directSend(accountId: number, to: string, subject: string): Promise<{ ok: boolean; text: string }> {
   try {
     const r = await (await ncMailClient(runtime().stack)).call("nc_mail_send_message", { account_id: accountId, to: [{ email: to }], subject, body: "p4l3 fake body, no secret" });
-    return { ok: true, text: JSON.stringify(r).slice(0, 160) };
+    // The tool reports a Nextcloud failure as a result (text starting "Error"), not a thrown error: a send is delivered only on success: true.
+    const ok = typeof r === "object" && r !== null && (r as { success?: unknown }).success === true;
+    return { ok, text: JSON.stringify(r).slice(0, 160) };
   } catch (err) {
     return { ok: false, text: (err as Error).message.slice(0, 160) };
   }
+}
+
+/** Retries a direct send until Nextcloud reports success, or the budget runs out. Returns the attempts used and the last reply. */
+async function warmUpSend(accountId: number, to: string, budgetMs: number): Promise<{ ok: boolean; attempts: number; text: string }> {
+  const until = Date.now() + budgetMs;
+  let attempts = 0;
+  let last = { ok: false, text: "not attempted" };
+  while (Date.now() < until) {
+    attempts += 1;
+    last = await directSend(accountId, to, "p4l3 appr-002 warm-up");
+    if (last.ok) return { ok: true, attempts, text: last.text };
+    await new Promise((r) => setTimeout(r, 15_000));
+  }
+  return { ok: false, attempts, text: last.text };
 }
 
 /** Diagnostic: the names and first outputs of the tool calls stored in one conversation (truncated; fake data only). */
@@ -108,11 +124,14 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
     ctx.check(a.finished && a.messageId !== undefined ? pass("leg 1: the approved run finished") : fail("leg 1: the approved run did not finish"));
     if (a.messageId === undefined) return;
 
-    // Setup: one warm-up send with the owner's credential, before the approved control. In run 44785535689 the approved control
-    // failed with a Nextcloud 500 ("Could not send message") while a direct send with the same arguments about 20 s later
-    // succeeded. The warm-up checks that a direct send works first; it is a setup step with its own verdict, not an assertion.
-    const warm = await directSend(accountId, ADDR_WARM, "p4l3 appr-002 warm-up");
-    ctx.check(warm.ok ? pass(`setup: a direct warm-up send succeeded (${warm.text.slice(0, 80)})`) : fail(`setup: the direct warm-up send failed: ${warm.text}`));
+    // Setup: retry direct sends with the owner's credential until Nextcloud reports success, before the approved control. Runs
+    // 44785535689 and 44786818444 show Nextcloud answering the first sends with a 500 ("Could not send message") while a later
+    // direct send succeeded. This is a readiness step with its own verdict (attempts used), not an assertion about the control.
+    const warm = await warmUpSend(accountId, ADDR_WARM, 6 * 60_000);
+    ctx.check(warm.ok
+      ? pass(`setup: Nextcloud accepted a direct send after ${warm.attempts} attempt(s)`)
+      : fail(`setup: Nextcloud did not accept a direct send in ${warm.attempts} attempt(s); last reply: ${warm.text}`));
+    if (!warm.ok) return;
     await settle();
 
     // Control (conversation B, new, no Always allow): the Nextcloud send approved once must reach GreenMail. Without this an
