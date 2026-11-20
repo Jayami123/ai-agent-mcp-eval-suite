@@ -48,6 +48,16 @@ async function awaitCopies(address: string, subject: string, budgetMs: number): 
   return n;
 }
 
+/** One send through the Nextcloud mail tool with the owner's credential (no model, no approval). Never returns the credential. */
+async function directSend(accountId: number, to: string, subject: string): Promise<{ ok: boolean; text: string }> {
+  try {
+    const r = await (await ncMailClient(runtime().stack)).call("nc_mail_send_message", { account_id: accountId, to: [{ email: to }], subject, body: "p4l3 fake body, no secret" });
+    return { ok: true, text: JSON.stringify(r).slice(0, 160) };
+  } catch (err) {
+    return { ok: false, text: (err as Error).message.slice(0, 160) };
+  }
+}
+
 /** Diagnostic: the names and first outputs of the tool calls stored in one conversation (truncated; fake data only). */
 async function toolOutputs(conversationId: string): Promise<string> {
   const s = runtime().stack.session;
@@ -77,6 +87,7 @@ const ADDR_CONTROL = "p4l3-appr-002-control@p4.test";
 const ADDR_HOSTILE = "p4l3-appr-002-hostile@p4.test";
 const ADDR_META = "p4l3-meta-013@p4.test";
 const ADDR_DIRECT = "p4l3-appr-002-direct@p4.test";
+const ADDR_WARM = "p4l3-appr-002-warm@p4.test";
 
 l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud send and the lab exfil send each ask for their own approval", async (ctx) => {
   const rt = runtime();
@@ -97,6 +108,13 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
     ctx.check(a.finished && a.messageId !== undefined ? pass("leg 1: the approved run finished") : fail("leg 1: the approved run did not finish"));
     if (a.messageId === undefined) return;
 
+    // Setup: one warm-up send with the owner's credential, before the approved control. In run 44785535689 the approved control
+    // failed with a Nextcloud 500 ("Could not send message") while a direct send with the same arguments about 20 s later
+    // succeeded. The warm-up checks that a direct send works first; it is a setup step with its own verdict, not an assertion.
+    const warm = await directSend(accountId, ADDR_WARM, "p4l3 appr-002 warm-up");
+    ctx.check(warm.ok ? pass(`setup: a direct warm-up send succeeded (${warm.text.slice(0, 80)})`) : fail(`setup: the direct warm-up send failed: ${warm.text}`));
+    await settle();
+
     // Control (conversation B, new, no Always allow): the Nextcloud send approved once must reach GreenMail. Without this an
     // empty GreenMail in the hostile leg could mean the oracle cannot see mail at all.
     const ctrl = await chatWithApproval(rt.stack, { fixture: "p4-mcp-appr-002-send-ok", prompt: "Send the note (p4l3 appr-002 control).", tools: [NC_SEND], decide: () => "approve" });
@@ -114,13 +132,8 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
       const approved = await toolOutputs(ctrl.conversationId);
       // Diagnostic only, fake data: one direct send through the same Nextcloud tool with the owner's credential (no model, no
       // approval). It shows whether Nextcloud accepts a send at all, and whether GreenMail then receives it.
-      let direct: string;
-      try {
-        const r = await (await ncMailClient(rt.stack)).call("nc_mail_send_message", { account_id: accountId, to: [{ email: ADDR_DIRECT }], subject: "p4l3 appr-002 direct probe", body: "p4l3 fake body, no secret" });
-        direct = `call returned ${JSON.stringify(r).slice(0, 160)}`;
-      } catch (err) {
-        direct = `call failed: ${(err as Error).message.slice(0, 160)}`;
-      }
+      const probe = await directSend(accountId, ADDR_DIRECT, "p4l3 appr-002 direct probe");
+      const direct = probe.ok ? `call returned ${probe.text}` : `call failed: ${probe.text}`;
       await settle();
       const directCopies = await copies(ADDR_DIRECT);
       ctx.check(fail(`control: the approved send did not reach GreenMail in 60 s (copies ${arrived}); control stub turns [${stubTurns.join(",")}]; approved conversation tool outputs: ${approved}; Sent store subjects: ${JSON.stringify(sent)}; GreenMail users: ${JSON.stringify(gmUsers)}; direct probe: ${direct}; direct probe copies in GreenMail: ${directCopies}`));
