@@ -1,0 +1,32 @@
+# Conformance baseline for the Mattermost MCP, spec 2026-07-28, package 0.2.0-alpha.12 (P4-MCP-PROT-001).
+# Recorded from CI run 44696090074 (commit 7404bbf). Every entry is a known failure, not a pass. Observed reasons:
+#  - tools-list, tools-call-*, resources-*, prompts-*, completion-complete: the server answers "protocol version
+#    2026-07-28 is not supported by this server". The probe initialised with 2025-06-18 and got HTTP 200, so the server
+#    speaks an earlier revision. This is a spec gap between the suite's version and the pinned server (deployment finding).
+#  - server-sse-multiple-streams: the server answers HTTP 400 to several POST streams. The SSE streams check is optional
+#    and the server returned JSON responses. Recorded as a deployment finding, not a product bug.
+#  - dns-rebinding-protection: an invalid Host/Origin header got HTTP 200 instead of 4xx. The MCP listens on 127.0.0.1 only
+#    in this stack, so this is not confirmed as an exploitable product bug here. Not expectedDefect; it stays listed until a
+#    ledger case proves it (see docs/findings/l3-mattermost.md).
+# Shrink this list as the server or the suite changes; a listed scenario that starts passing is reported by the suite.
+server:
+  - completion-complete
+  - tools-list
+  - tools-call-simple-text
+  - tools-call-image
+  - tools-call-audio
+  - tools-call-embedded-resource
+  - tools-call-mixed-content
+  - tools-call-error
+  - tools-call-with-progress
+  - server-sse-multiple-streams
+  - resources-list
+  - resources-read-text
+  - resources-read-binary
+  - resources-templates-read
+  - prompts-list
+  - prompts-get-simple
+  - prompts-get-with-args
+  - prompts-get-embedded-resource
+  - prompts-get-with-image
+  - dns-rebinding-protection

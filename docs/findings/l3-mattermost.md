@@ -64,3 +64,26 @@ Assertions are built from these answers only. Until they are recorded here, no a
 - The round-2 `create_post` author question (3 above) is answered only by a case that runs the full sequence.
 - Round 1's `dm` result with `message` only (`ok`) is not explained. No case calls `dm` without a username.
 - OAUTH-015 (per-tool policy): the probe did not test it. The MCP has no per-tool policy setting in its tool list, so this stays skipped as planned.
+
+## Protocol legs: run 44696090074 (commit `7404bbf`, job 136153323831, failed on PROT-001 only)
+
+Per-case results from the job log and `traces/*/verdicts.json` in artifact `l3-mattermost-evidence-44696090074` (ID 14610997008):
+
+| Case | Result | Note |
+|---|---|---|
+| P4-MCP-PROT-002 | pass | wire messages match schema |
+| P4-MCP-PROT-003 | pass | header/body mismatch rejected |
+| P4-MCP-PROT-004 | pass | stateless initialize |
+| P4-MCP-PROT-007 | pass | live `tools/list` equals `tests/l3/snapshots/mattermost.tools.json` |
+| P4-MCP-PROT-008 | pass | unknown tool name: protocol error, no side effect |
+| P4-MCP-PROT-009 | pass | invalid JSON-RPC rejected |
+| P4-MCP-PROT-012 | pass | protocol version mismatch is a clean failure |
+| P4-MCP-OAUTH-001 | pass | 401 carries resource-metadata hint |
+| P4-MCP-PROT-001 | **fail, then baselined** | conformance exit 1 because no baseline existed. 19 of 20 scenarios failed; see below. `tests/l3/snapshots/expected-failures/mattermost.yaml` (20 entries) added. Deployment finding: spec gap, passes once baselined with reasons. |
+
+Conformance reasons (from the run's `checks.json` files):
+- 17 scenarios: "protocol version 2026-07-28 is not supported by this server". The suite is pinned to 2026-07-28; the probe showed the server accepts 2025-06-18.
+- `server-sse-multiple-streams`: HTTP 400 for several POST streams; SSE streams are optional and the server answered with JSON.
+- `dns-rebinding-protection`: an invalid Host/Origin got HTTP 200. Not confirmed as a product bug on the ledger; listed, not `expectedDefect`.
+
+Verdict count, from the stub run: PROT-001 fail before baseline; all others pass. The baseline run is pending the next push.
