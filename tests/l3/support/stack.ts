@@ -81,6 +81,16 @@ export async function startStack(servers: StackServer[], dir: string): Promise<L
         if (!a.waitMcp) throw new Error("TWENTY_ADAPTER_NO_MCP: harness Twenty adapter has no waitMcp");
         await a.waitMcp();
       }
+      if (a.id === "mattermost") {
+        // LibreChat connects its MCP servers at boot, so the Mattermost MCP (and the second identity's, H2) must answer first.
+        const mm = a as ProductAdapter & { waitMcp?: () => Promise<unknown>; waitSecondMcp?: () => Promise<unknown> };
+        if (!mm.waitMcp) throw new Error("MATTERMOST_ADAPTER_NO_MCP: harness Mattermost adapter has no waitMcp");
+        await mm.waitMcp();
+        if (process.env["P4_SECOND_IDENTITY"] === "1") {
+          if (!mm.waitSecondMcp) throw new Error("MATTERMOST_ADAPTER_NO_SECOND_MCP: harness Mattermost adapter has no waitSecondMcp");
+          await mm.waitSecondMcp();
+        }
+      }
     }
     await litellm.up();
     await librechat.up();

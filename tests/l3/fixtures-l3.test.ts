@@ -19,6 +19,7 @@ const BUILT_IDS = [
   "P4-MCP-APPR-003", "P4-MCP-META-003", "P4-MCP-APPR-004", "P4-MCP-APPR-005", "P4-MCP-META-012",
   "P4-MCP-META-002", "P4-MCP-META-004", "P4-MCP-META-008", "P4-MCP-META-011",
   "P4-MCP-OAUTH-012", "P4-MCP-OAUTH-013", "P4-MCP-INJ-004", "P4-MCP-INJ-017",
+  "P4-MCP-INJ-009", "P4-MCP-INJ-010", "P4-MCP-INJ-013",
 ];
 // Tools that exist only in a lab mode (after a trigger), so the benign snapshot cannot name them. Each is listed with its mode.
 // lab_new_tool: add-tool-after-connect, after the trigger. lab_connect_account: the two elicitation modes. nc_mail_send_message
