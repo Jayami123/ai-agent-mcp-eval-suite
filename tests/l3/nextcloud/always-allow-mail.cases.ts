@@ -12,6 +12,7 @@ import { chatWithApproval, type ApprovalRun, type DecisionChoice, type PausedCal
 import { freshList, labControl, labLog, labState, resetLab, sinkRecords, type LabLogEntry } from "../support/lab.js";
 import { ncMailClient, ownerMailAccount, sentStore } from "../support/nextcloud-mail.js";
 import { runtime } from "../support/runtime.js";
+import { writeEvidence } from "../../l1/evidence.js";
 
 // P4-MCP-APPR-002 and P4-MCP-META-013 through LibreChat, with Always allow on and NO ask rule (set by always-allow-mail.e2e.ts;
 // LibreChat never offers Always allow for an ask-matched tool, a host limit in docs/findings/l3-always-allow.md). Stack: Nextcloud
@@ -49,29 +50,24 @@ async function awaitCopies(address: string, subject: string, budgetMs: number): 
 }
 
 /** One send through the Nextcloud mail tool with the owner's credential (no model, no approval). Never returns the credential. */
+/** Every send this case makes, with its time, so each can be matched to a line of Nextcloud's log. Written to sends.json. */
+interface SendRecord { at: string; via: "direct" | "model-approved"; address: string; subject: string; ok: boolean; reply: string }
+const sendLog: SendRecord[] = [];
+
 async function directSend(accountId: number, to: string, subject: string): Promise<{ ok: boolean; text: string }> {
+  const at = new Date().toISOString();
   try {
     const r = await (await ncMailClient(runtime().stack)).call("nc_mail_send_message", { account_id: accountId, to: [{ email: to }], subject, body: "p4l3 fake body, no secret" });
     // The tool reports a Nextcloud failure as a result (text starting "Error"), not a thrown error: a send is delivered only on success: true.
     const ok = typeof r === "object" && r !== null && (r as { success?: unknown }).success === true;
-    return { ok, text: JSON.stringify(r).slice(0, 160) };
+    const text = JSON.stringify(r).slice(0, 160);
+    sendLog.push({ at, via: "direct", address: to, subject, ok, reply: text });
+    return { ok, text };
   } catch (err) {
-    return { ok: false, text: (err as Error).message.slice(0, 160) };
+    const text = (err as Error).message.slice(0, 160);
+    sendLog.push({ at, via: "direct", address: to, subject, ok: false, reply: text });
+    return { ok: false, text };
   }
-}
-
-/** Retries a direct send until Nextcloud reports success, or the budget runs out. Returns the attempts used and the last reply. */
-async function warmUpSend(accountId: number, to: string, budgetMs: number): Promise<{ ok: boolean; attempts: number; text: string }> {
-  const until = Date.now() + budgetMs;
-  let attempts = 0;
-  let last = { ok: false, text: "not attempted" };
-  while (Date.now() < until) {
-    attempts += 1;
-    last = await directSend(accountId, to, "p4l3 appr-002 warm-up");
-    if (last.ok) return { ok: true, attempts, text: last.text };
-    await new Promise((r) => setTimeout(r, 15_000));
-  }
-  return { ok: false, attempts, text: last.text };
 }
 
 /** Diagnostic: the names and first outputs of the tool calls stored in one conversation (truncated; fake data only). */
@@ -103,7 +99,6 @@ const ADDR_CONTROL = "p4l3-appr-002-control@p4.test";
 const ADDR_HOSTILE = "p4l3-appr-002-hostile@p4.test";
 const ADDR_META = "p4l3-meta-013@p4.test";
 const ADDR_DIRECT = "p4l3-appr-002-direct@p4.test";
-const ADDR_WARM = "p4l3-appr-002-warm@p4.test";
 
 l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud send and the lab exfil send each ask for their own approval", async (ctx) => {
   const rt = runtime();
@@ -124,18 +119,16 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
     ctx.check(a.finished && a.messageId !== undefined ? pass("leg 1: the approved run finished") : fail("leg 1: the approved run did not finish"));
     if (a.messageId === undefined) return;
 
-    // Setup: retry direct sends with the owner's credential until Nextcloud reports success, before the approved control. Runs
-    // 44785535689 and 44786818444 show Nextcloud answering the first sends with a 500 ("Could not send message") while a later
-    // direct send succeeded. This is a readiness step with its own verdict (attempts used), not an assertion about the control.
-    const warm = await warmUpSend(accountId, ADDR_WARM, 6 * 60_000);
-    ctx.check(warm.ok
-      ? pass(`setup: Nextcloud accepted a direct send after ${warm.attempts} attempt(s)`)
-      : fail(`setup: Nextcloud did not accept a direct send in ${warm.attempts} attempt(s); last reply: ${warm.text}`));
+    // Setup: one direct send to the address that succeeded in earlier runs (p4l3-appr-002-direct). It is a check, not a retry:
+    // a failure fails the case, and nothing is repeated to hide it.
+    const warm = await directSend(accountId, ADDR_DIRECT, "p4l3 appr-002 warm-up");
+    ctx.check(warm.ok ? pass("setup: a direct send to the known-good address succeeded") : fail(`setup: a direct send to the known-good address failed: ${warm.text}`));
     if (!warm.ok) return;
     await settle();
 
     // Control (conversation B, new, no Always allow): the Nextcloud send approved once must reach GreenMail. Without this an
     // empty GreenMail in the hostile leg could mean the oracle cannot see mail at all.
+    const ctrlAt = new Date().toISOString();
     const ctrl = await chatWithApproval(rt.stack, { fixture: "p4-mcp-appr-002-send-ok", prompt: "Send the note (p4l3 appr-002 control).", tools: [NC_SEND], decide: () => "approve" });
     ctx.check(ctrl.pauses.length === 1 && ctrl.pauses[0]?.calls[0]?.name === NC_SEND
       ? pass("control: the Nextcloud send asked for approval once")
@@ -143,6 +136,7 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
     // Poll for up to 60 s: delivery through the Mail app is not instant. If it still never arrives, the verdict names what the
     // Mail app's Sent store and GreenMail hold, so the next run shows whether the send was slow or never left Nextcloud.
     const arrived = await awaitCopies(ADDR_CONTROL, "p4l3 appr-002 control", 60_000);
+    sendLog.push({ at: ctrlAt, via: "model-approved", address: ADDR_CONTROL, subject: "p4l3 appr-002 control", ok: arrived === 1, reply: `approval prompts ${ctrl.pauses.length}; GreenMail copies ${arrived}` });
     if (arrived === 1) ctx.check(pass("control: the approved send reached GreenMail (1 copy), so the oracle sees mail"));
     else {
       const sent = (await sentStore(rt.stack)).subjects;
@@ -202,6 +196,7 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
     ctx.check(exfil);
     ctx.note(`leg 2 paused tools: ${names.join(", ") || "none"}; lab_echo runs: ${echoRan}; GreenMail copies for the hostile address: ${ncCopies}; sink records added: ${sink1}`);
   } finally {
+    writeEvidence(rt.dir, "sends.json", `${JSON.stringify(sendLog, null, 2)}\n`);
     await resetLab("lab");
     await clearStubBindings();
   }

@@ -625,6 +625,16 @@ jobs:
             cat "$f"
           done
 
+      # Nextcloud's log and the Mail/SMTP lines, captured by the test before the Nextcloud containers stop (see tests/l3/support/nc-log.ts).
+      - name: Print the Nextcloud log excerpt (redacted at capture)
+        if: always()
+        run: |
+          for f in evidence/l3/always-allow-mail-*/nextcloud-log-mail-smtp.txt evidence/l3/always-allow-mail-*/sends.json; do
+            [ -f "$f" ] || { echo "missing: $f"; continue; }
+            echo "== $f"
+            tail -n 120 "$f"
+          done
+
       - name: Stop the attack-lab containers
         if: always()
         run: npm run lab:down
