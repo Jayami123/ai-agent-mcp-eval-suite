@@ -63,10 +63,17 @@ export async function restoreMember(s: OutlineSession): Promise<void> {
 
 /** Every collection and document whose title starts with the prefix, found by listing (never by a stored ID). */
 async function ownedTitles(s: OutlineSession): Promise<{ docs: string[]; collections: string[] }> {
-  const docs = (await s.oracle.listAll("documents.list")) as Array<{ id: string; title: string }>;
+  // documents.list returns published documents by default. Drafts (for example from documents.import) and archived ones
+  // are listed with their own statusFilter; a draft left behind blocks collections.delete, so all three are read.
+  const docs = new Map<string, string>();
+  for (const extra of [{}, { statusFilter: ["draft"] }, { statusFilter: ["archived"] }]) {
+    for (const d of (await s.oracle.listAll("documents.list", extra)) as Array<{ id: string; title?: unknown }>) {
+      docs.set(String(d.id), String(d.title ?? ""));
+    }
+  }
   const cols = (await s.oracle.listAll("collections.list")) as Array<{ id: string; name: string }>;
   return {
-    docs: docs.filter((d) => String(d.title).startsWith(TITLE_PREFIX)).map((d) => d.id),
+    docs: [...docs].filter(([, title]) => title.startsWith(TITLE_PREFIX)).map(([id]) => id),
     collections: cols.filter((c) => String(c.name).startsWith(TITLE_PREFIX)).map((c) => c.id),
   };
 }
@@ -97,7 +104,9 @@ export async function deleteDocsPermanently(s: OutlineSession, ids: string[]): P
     const first = await s.oracle.api(s.oracle.authorization, "documents.delete", { id });
     const second = await s.oracle.api(s.oracle.authorization, "documents.delete", { id, permanent: true });
     pairs.push(`${first.status}/${second.status}`);
-    if (first.status !== 200 || second.status !== 200) throw new Error(`OUTLINE_SWEEP_DOC_HTTP_${first.status}_${second.status}`);
+    // 404 on the second call means the first already removed it (a draft is deleted outright), which is fine.
+    const secondOk = second.status === 200 || second.status === 404;
+    if (first.status !== 200 || !secondOk) throw new Error(`OUTLINE_SWEEP_DOC_HTTP_${first.status}_${second.status}`);
   }
   return pairs.join(",") || "none";
 }
