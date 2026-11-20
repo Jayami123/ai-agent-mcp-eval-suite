@@ -89,6 +89,50 @@ export class MattermostApi {
     return r.body;
   }
 
+  /** A team channel by name, in any state (archived included). Undefined when no channel has that name. */
+  async channelByName(teamName: string, name: string): Promise<MmChannel | undefined> {
+    const r = await this.call<MmChannel>("GET", `/teams/name/${teamName}/channels/name/${name}`);
+    if (r.status === 404) return undefined;
+    if (r.status !== 200 || typeof r.body?.id !== "string") throw new Error(`MM_CHANNEL_BY_NAME_FAILED: HTTP ${r.status}`);
+    return r.body;
+  }
+
+  /** Creates a public channel in the team. Returns its id. */
+  async createChannel(teamId: string, name: string): Promise<string> {
+    const r = await this.call<{ id?: string }>("POST", "/channels", { team_id: teamId, name, display_name: name, type: "O" });
+    if (r.status !== 201 || typeof r.body.id !== "string") throw new Error(`MM_CREATE_CHANNEL_FAILED: HTTP ${r.status}`);
+    return r.body.id;
+  }
+
+  /** Restores an archived channel. Returns the HTTP status (the caller decides what a refusal means). */
+  async restoreChannel(id: string): Promise<number> {
+    return (await this.call("POST", `/channels/${id}/restore`)).status;
+  }
+
+  /** Archives a channel (DELETE archives in Mattermost). Returns the HTTP status. */
+  async archiveChannel(id: string): Promise<number> {
+    return (await this.call("DELETE", `/channels/${id}`)).status;
+  }
+
+  /** Deletes one post. Returns the HTTP status. */
+  async deletePost(id: string): Promise<number> {
+    return (await this.call("DELETE", `/posts/${id}`)).status;
+  }
+
+  /** The direct-message channel between two users (created if missing). Returns its id. */
+  async directChannel(userA: string, userB: string): Promise<string> {
+    const r = await this.call<{ id?: string }>("POST", "/channels/direct", [userA, userB]);
+    if (r.status !== 200 && r.status !== 201) throw new Error(`MM_DIRECT_CHANNEL_FAILED: HTTP ${r.status}`);
+    if (typeof r.body.id !== "string") throw new Error("MM_DIRECT_CHANNEL_SHAPE: no channel id in the reply");
+    return r.body.id;
+  }
+
+  /** Creates a post as this bearer. Returns the HTTP status and the new post id when there is one. */
+  async createPost(channelId: string, message: string): Promise<{ status: number; id?: string }> {
+    const r = await this.call<{ id?: string }>("POST", "/posts", { channel_id: channelId, message });
+    return { status: r.status, id: typeof r.body?.id === "string" ? r.body.id : undefined };
+  }
+
   /** Posts of a channel, oldest first. Anything malformed throws a fixed message. */
   async channelPosts(channelId: string): Promise<MmPost[]> {
     const r = await this.call<{ order?: unknown; posts?: Record<string, MmPost> }>("GET", `/channels/${channelId}/posts?per_page=200`);

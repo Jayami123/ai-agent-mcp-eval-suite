@@ -1,0 +1,22 @@
+{
+  "id": "p4-mcp-tool-004-readonly-mattermost",
+  "description": "Fake data only. A model asks the read-only get_channel_info tool to write a new channel. Read-only means no state change.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "get_channel_info_mcp_mattermost",
+          "arguments": {
+            "channel_id": "{{bind:MM_TOOL004}}",
+            "name": "p4l3-tool004-written",
+            "display_name": "p4l3-tool004-written",
+            "message": "p4l3-canary-tool-004"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Asked for the change."
+    }
+  ]
+}

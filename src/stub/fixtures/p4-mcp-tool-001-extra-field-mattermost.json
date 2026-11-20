@@ -1,0 +1,23 @@
+{
+  "id": "p4-mcp-tool-001-extra-field-mattermost",
+  "description": "Fake data only. A model calls create_post with a wrong-type channel id and an undeclared field. The server must reject it and write nothing.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "create_post_mcp_mattermost",
+          "arguments": {
+            "channel_id": 12345,
+            "channel_display_name": 7,
+            "team_display_name": "QA",
+            "message": "p4l3-canary-tool-001",
+            "extra_field": "undeclared"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Tried to post."
+    }
+  ]
+}
