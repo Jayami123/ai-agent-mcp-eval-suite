@@ -29,6 +29,13 @@ export function captureNextcloudLog(dir: string, secrets: string[]): void {
     `${redactValues(redact(`${r.stdout ?? ""}${r.stderr ?? ""}`, secrets))}\n`;
   writeEvidence(dir, "nextcloud-log-tail.txt", `container ${name}, file ${LOG}, exit ${tail.status}\n${clean(tail)}`);
   writeEvidence(dir, "nextcloud-log-mail-smtp.txt", `container ${name}, file ${LOG}, exit ${smtp.status}\n${clean(smtp)}`);
+  // Can the Nextcloud app container reach GreenMail, and what does its SMTP and IMAP listener say? The greeting is the server's
+  // first line only (no credential is sent). Also the log settings that decide where Nextcloud writes its exceptions.
+  const reach = (port: number) => exec(`timeout 5 bash -c 'exec 3<>/dev/tcp/greenmail/${port} && head -c 120 <&3' 2>&1; echo "exit=$?"`);
+  const smtpReach = reach(3025);
+  const imapReach = reach(3143);
+  const logCfg = exec(`cd /var/www/html && php occ config:system:get log_type 2>&1; php occ config:system:get loglevel 2>&1; php occ config:system:get logfile 2>&1`);
+  writeEvidence(dir, "nextcloud-to-greenmail.txt", `SMTP 3025 from app: ${redactValues(redact(`${smtpReach.stdout ?? ""}${smtpReach.stderr ?? ""}`, secrets))}\nIMAP 3143 from app: ${redactValues(redact(`${imapReach.stdout ?? ""}${imapReach.stderr ?? ""}`, secrets))}\nlog settings (log_type, loglevel, logfile):\n${redactValues(redact(`${logCfg.stdout ?? ""}${logCfg.stderr ?? ""}`, secrets))}\n`);
   // The Nextcloud app container's own stdout and stderr: the Mail app's exception is written there when it is not in nextcloud.log.
   const appLogs = spawnSync("docker", ["logs", "--tail", "400", name], { encoding: "utf8", timeout: 120_000 });
   writeEvidence(dir, "nextcloud-app-docker-logs.txt", `container ${name}, exit ${appLogs.status}\n${redactValues(redact(`${appLogs.stdout ?? ""}${appLogs.stderr ?? ""}`, secrets))}\n`);

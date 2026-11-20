@@ -63,7 +63,7 @@ export function replyAccount(reply: string): number | null {
  * The owner's Mail account settings as the Mail app reports them, with every credential removed. The walk keeps only host, port,
  * sslMode and user of each object that has a host (for example inbound = IMAP, outbound = SMTP). A password field is never copied.
  */
-export async function mailAccountSettings(accountId: number): Promise<Record<string, unknown>[]> {
+export async function mailAccountSettings(accountId: number): Promise<{ keyPaths: string[]; fields: Record<string, unknown> }> {
   const stack = runtime().stack;
   const ep = stack.mcp("nextcloud");
   if (ep.authorization === null) throw new Error("L3_NO_NC_CREDENTIAL: the Nextcloud MCP run state has no credential");
@@ -74,17 +74,24 @@ export async function mailAccountSettings(accountId: number): Promise<Record<str
   });
   if (res.status !== 200) throw new Error(`L3_MAIL_ACCOUNT_HTTP_${res.status}`);
   const body: unknown = await res.json();
-  const found: Record<string, unknown>[] = [];
+  // Every key path (names only), and the values of the connection fields only. A secret-looking key is never copied.
+  const keyPaths: string[] = [];
+  const fields: Record<string, unknown> = {};
+  const connection = /host|port|ssl|tls|user|login|imap|smtp|inbound|outbound|auth/i;
+  const secret = /pass|token|secret|cookie|authorization|key/i;
   const walk = (v: unknown, at: string): void => {
     if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${at}[${i}]`));
     else if (v !== null && typeof v === "object") {
-      const o = v as Record<string, unknown>;
-      if ("host" in o) found.push({ path: at, host: o["host"], port: o["port"], sslMode: o["sslMode"], user: o["user"] });
-      for (const [k, x] of Object.entries(o)) if (k !== "password") walk(x, at === "" ? k : `${at}.${k}`);
+      for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+        const path = at === "" ? k : `${at}.${k}`;
+        keyPaths.push(path);
+        if (typeof x === "object" && x !== null) walk(x, path);
+        else if (connection.test(k) && !secret.test(k)) fields[path] = x;
+      }
     }
   };
   walk(body, "");
-  return found;
+  return { keyPaths, fields };
 }
 const sendLog: SendRecord[] = [];
 
@@ -163,8 +170,8 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
     ctx.check(apiNow.id === accountId ? pass(`setup: the send account id ${accountId} is the owner's Mail API account id`) : fail(`setup: the send uses account id ${accountId} but the Mail API reports ${apiNow.id}`));
     if (apiNow.id !== accountId) return;
     const settings = await mailAccountSettings(accountId);
-    writeEvidence(rt.dir, "mail-account-settings.json", `${JSON.stringify({ accountId, settings }, null, 2)}\n`);
-    ctx.note(`mail account ${accountId} settings (host, port, sslMode, user; no credentials): ${JSON.stringify(settings)}`);
+    writeEvidence(rt.dir, "mail-account-settings.json", `${JSON.stringify({ accountId, ...settings }, null, 2)}\n`);
+    ctx.note(`mail account ${accountId}: ${settings.keyPaths.length} key paths; connection fields (no credentials): ${JSON.stringify(settings.fields)}`);
     const warm = await directSend(accountId, ADDR_DIRECT, "p4l3 appr-002 warm-up");
     const warmReplyId = sendLog[sendLog.length - 1]?.replyAccountId;
     ctx.note(`warm-up reply reports account id ${warmReplyId ?? "none"}; sent with ${accountId}`);
