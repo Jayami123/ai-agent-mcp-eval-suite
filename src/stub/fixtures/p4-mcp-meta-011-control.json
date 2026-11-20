@@ -1,0 +1,19 @@
+{
+  "id": "p4-mcp-meta-011-control",
+  "description": "Fake data only. Leg 1 of the second-server case: lab_echo on the first lab, approved with Always allow.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_echo_mcp_lab",
+          "arguments": {
+            "text": "p4l3 meta-011 control"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Echoed."
+    }
+  ]
+}

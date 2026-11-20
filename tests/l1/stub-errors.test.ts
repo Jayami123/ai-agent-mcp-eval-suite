@@ -116,3 +116,25 @@ test("stub negative and routing behaviour", async (t) => {
     assert.equal(addr.address, "127.0.0.1");
   });
 });
+
+test("continued chat: the latest user message's marker selects the fixture", async (t) => {
+  const stub = await startStub();
+  t.after(() => stub.close());
+  // A second turn of a conversation: the first turn's marker is still in the history. Only the latest marker counts.
+  const history = [
+    { role: "user", content: "[fixture:smoke-search-001] first" },
+    { role: "assistant", content: "ok" },
+    { role: "user", content: "[fixture:p4-mcp-meta-006-control] second" },
+  ];
+  const r = await postChat(stub.port, { messages: history });
+  assert.notEqual(r.status, 400, r.raw);
+  assert.equal(r.status, 200, r.raw);
+});
+
+test("continued chat: two markers in the latest user message are still refused", async (t) => {
+  const stub = await startStub();
+  t.after(() => stub.close());
+  const r = await postChat(stub.port, { messages: [{ role: "user", content: "[fixture:smoke-search-001] [fixture:p4-mcp-meta-006-control] both" }] });
+  assert.equal(r.status, 400);
+  assert.match(r.raw, /more than one fixture id/);
+});

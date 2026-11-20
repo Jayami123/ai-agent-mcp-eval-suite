@@ -1,3 +1,4 @@
+import type { AuthSession } from "qa-portfolio-harness";
 import { lcCreateAgent, NO_PARENT } from "../../l1/librechat-client.js";
 import type { L3Stack } from "./stack.js";
 
@@ -6,53 +7,98 @@ import type { L3Stack } from "./stack.js";
 // POST /api/agents/chat/resume with one decision per call (tool_call_id + decision) continues the run; the stream then carries
 // the next pause or the final event. The helper answers every pause with `decide` and records what it saw. No assistant text
 // is read: the verdicts are taken from the pauses, the decisions sent, and the product state the case reads.
+//
+// Always allow (harness v0.6.7, LIBRECHAT_TOOL_APPROVAL_ALLOW_ALWAYS=1): an approve decision with `scope: "session"` is the
+// "Always allow" choice. It remembers the tool for the CONVERSATION. A run that continues an existing conversation passes
+// `conversationId`, `parentMessageId` and `agentId` from the earlier run. Each pause records whether the card offered it.
 
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
-type Decision = "approve" | "reject";
-/** A decision the helper can send: a plain approve or reject, or an edit that replaces the call's arguments. */
-export type Decision2 = Decision | { decision: "edit"; editedArguments: Record<string, unknown> };
-const decisionName = (d: Decision2): string => (typeof d === "string" ? d : d.decision);
+export type Decision = "approve" | "reject";
+/** A decision, with the optional Always allow scope (only with `approve`) or the edited arguments (only with `edit`). */
+export interface DecisionChoice {
+  decision: Decision | "edit";
+  scope?: "session";
+  editedArguments?: Record<string, unknown>;
+}
 
 export interface PausedCall {
   name: string;
   toolCallId: string;
   allowed: string[];
+  /** The card offered "Always allow" for this call (review_configs[].allow_always). */
+  offeredAlways: boolean;
   /** The arguments the pause shows for this call (a parsed object, or the raw string when it is not JSON). */
   args?: unknown;
 }
 
+export interface PauseRecord {
+  calls: PausedCall[];
+  sent: DecisionChoice[];
+}
+
 export interface ApprovalRun {
   /** Every pause the run reached, in order, with the decision sent for each call. */
-  pauses: Array<{ calls: PausedCall[]; sent: string[] }>;
+  pauses: PauseRecord[];
   /** True when the stream ended with a final event (the run finished, not stuck). */
   finished: boolean;
   /** LibreChat conversation id of this chat. */
   conversationId: string;
+  /** The final assistant message of this run (for the next turn's parentMessageId). Undefined when the run did not finish. */
+  messageId?: string;
+  /** The agent the run used (reuse it when continuing the conversation). */
+  agentId: string;
 }
 
 interface PauseEvent {
   actionId: string;
-  payload: { action_requests: Array<{ name: string; tool_call_id: string; arguments?: unknown }>; review_configs?: Array<{ tool_call_id: string; allowed_decisions: string[] }> };
+  payload: {
+    action_requests: Array<{ name: string; tool_call_id: string; arguments?: unknown }>;
+    review_configs?: Array<{ tool_call_id: string; allowed_decisions: string[]; allow_always?: boolean }>;
+  };
 }
 
 export async function chatWithApproval(
   stack: L3Stack,
-  o: { fixture: string; prompt: string; tools: string[]; decide: (call: PausedCall, pauseIndex: number) => Decision2; maxPauses?: number; timeoutMs?: number },
+  o: {
+    fixture: string;
+    prompt: string;
+    tools: string[];
+    /** Answers one pause. `pauseIndex` is 0 for the first pause of the run. */
+    decide: (call: PausedCall, pauseIndex: number) => Decision | DecisionChoice;
+    maxPauses?: number;
+    timeoutMs?: number;
+    /** Continue this conversation instead of starting one. */
+    conversationId?: string;
+    parentMessageId?: string;
+    /** Reuse this agent (the one the conversation already has). */
+    agentId?: string;
+    /** A LibreChat login other than the stack's own (a new session, for the scope probe). */
+    session?: AuthSession;
+  },
 ): Promise<ApprovalRun> {
-  const s = stack.session;
+  const s = o.session ?? stack.session;
   const H = { "content-type": "application/json", authorization: s.authorizationHeader, "user-agent": UA };
-  const agentId = await lcCreateAgent(s, { name: `p4-l3-${o.fixture}`.slice(0, 60), model: "p4-stub", tools: o.tools, instructions: "You are a test agent. Use the tools you are given." });
+  const agentId =
+    o.agentId ?? (await lcCreateAgent(s, { name: `p4-l3-${o.fixture}`.slice(0, 60), model: "p4-stub", tools: o.tools, instructions: "You are a test agent. Use the tools you are given." }));
   const start = (await (
     await fetch(`${s.baseUrl}/api/agents/chat`, {
       method: "POST",
       headers: H,
-      body: JSON.stringify({ text: `[fixture:${o.fixture}] ${o.prompt}`, endpoint: "agents", agent_id: agentId, conversationId: null, parentMessageId: NO_PARENT, isContinued: false, isRegenerate: false }),
+      body: JSON.stringify({
+        text: `[fixture:${o.fixture}] ${o.prompt}`,
+        endpoint: "agents",
+        agent_id: agentId,
+        conversationId: o.conversationId ?? null,
+        parentMessageId: o.parentMessageId ?? NO_PARENT,
+        isContinued: false,
+        isRegenerate: false,
+      }),
       signal: AbortSignal.timeout(60_000),
     })
   ).json()) as { streamId?: unknown; conversationId?: unknown };
   if (typeof start.streamId !== "string") throw new Error("APPROVAL_START_NO_STREAM: POST /api/agents/chat returned no streamId");
   const streamId = start.streamId;
-  const run: ApprovalRun = { pauses: [], finished: false, conversationId: String(start.conversationId ?? streamId) };
+  const run: ApprovalRun = { pauses: [], finished: false, conversationId: String(start.conversationId ?? streamId), agentId };
   const maxPauses = o.maxPauses ?? 8;
   const timeoutMs = o.timeoutMs ?? 180_000;
 
@@ -60,24 +106,32 @@ export async function chatWithApproval(
   while (next !== undefined && next !== "final" && run.pauses.length < maxPauses) {
     const pause: PauseEvent = next;
     const reviews = pause.payload.review_configs ?? [];
-    const calls: PausedCall[] = pause.payload.action_requests.map((a) => ({
-      name: a.name,
-      toolCallId: a.tool_call_id,
-      allowed: reviews.find((c) => c.tool_call_id === a.tool_call_id)?.allowed_decisions ?? [],
-      args: typeof a.arguments === "string" ? safeParse(a.arguments) : a.arguments,
-    }));
-    const sent = calls.map((c) => o.decide(c, run.pauses.length));
-    run.pauses.push({ calls, sent: sent.map(decisionName) });
+    const calls: PausedCall[] = pause.payload.action_requests.map((a) => {
+      const review = reviews.find((c) => c.tool_call_id === a.tool_call_id);
+      return {
+        name: a.name,
+        toolCallId: a.tool_call_id,
+        allowed: review?.allowed_decisions ?? [],
+        offeredAlways: review?.allow_always === true,
+        args: typeof a.arguments === "string" ? safeParse(a.arguments) : a.arguments,
+      };
+    });
+    const sent = calls.map((c) => normalise(o.decide(c, run.pauses.length)));
+    run.pauses.push({ calls, sent: [...sent] });
     const body = {
       conversationId: streamId,
       actionId: pause.actionId,
       agent_id: agentId,
       endpoint: "agents",
       decisions: calls.map((c, i) => {
-        const d = sent[i] as Decision2;
-        return typeof d === "string"
-          ? { tool_call_id: c.toolCallId, decision: d, reason: "p4-l3 headless decision" }
-          : { tool_call_id: c.toolCallId, decision: d.decision, editedArguments: d.editedArguments, reason: "p4-l3 headless decision" };
+        const choice = sent[i] ?? { decision: "reject" as const };
+        return {
+          tool_call_id: c.toolCallId,
+          decision: choice.decision,
+          reason: "p4-l3 headless decision",
+          ...(choice.scope ? { scope: choice.scope } : {}),
+          ...(choice.decision === "edit" ? { editedArguments: choice.editedArguments ?? {} } : {}),
+        };
       }),
     };
     const res = await fetch(`${s.baseUrl}/api/agents/chat/resume`, { method: "POST", headers: H, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
@@ -85,6 +139,7 @@ export async function chatWithApproval(
     next = await nextPauseOrFinal(s.baseUrl, s.authorizationHeader, streamId, timeoutMs);
   }
   run.finished = next === "final";
+  if (run.finished) run.messageId = await lastFinishedMessage(s.baseUrl, s.authorizationHeader, run.conversationId);
   return run;
 }
 
@@ -94,6 +149,24 @@ function safeParse(raw: string): unknown {
   } catch {
     return raw;
   }
+}
+
+function normalise(d: Decision | DecisionChoice): DecisionChoice {
+  return typeof d === "string" ? { decision: d } : d;
+}
+
+/** The last finished assistant message of a conversation (the final answer of the latest turn). Polls briefly. */
+async function lastFinishedMessage(baseUrl: string, authorization: string, conversationId: string): Promise<string | undefined> {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const res = await fetch(`${baseUrl}/api/messages/${conversationId}`, { headers: { authorization }, signal: AbortSignal.timeout(15_000) });
+    const list = res.ok ? ((await res.json()) as Array<{ messageId?: unknown; isCreatedByUser?: unknown; unfinished?: unknown }>) : [];
+    const done = list.filter((m) => m.isCreatedByUser !== true && m.unfinished !== true && typeof m.messageId === "string");
+    const last = done[done.length - 1];
+    if (last !== undefined && typeof last.messageId === "string") return last.messageId;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  return undefined;
 }
 
 /** Reads the stream until the next pause (returned), the final event ("final"), or the deadline (undefined). */

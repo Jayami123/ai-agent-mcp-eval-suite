@@ -115,11 +115,20 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     id = typeof headerValue === "string" ? headerValue.trim() : "";
   } else {
     // Fallback only when the header is absent (some proxies drop custom headers).
-    const ids = new Set<string>();
-    for (const message of messages) {
-      // A client may render the marker with markdown escapes (a quoted reply shows it as \[fixture:id\]). Drop trailing backslashes so the same id is one id.
-      for (const match of messageText(message).matchAll(FIXTURE_MARKER)) ids.add((match[1] ?? "").replace(/\\+$/, ""));
-    }
+    // The latest user message names the fixture for this request. A continued chat carries the markers of its earlier
+    // turns in its history, so only the latest marker counts there. A request with no marker in its latest user message
+    // falls back to every message and must then name exactly one fixture.
+    const markerIds = (list: Array<Record<string, unknown>>): Set<string> => {
+      const found = new Set<string>();
+      for (const message of list) {
+        // A client may render the marker with markdown escapes (a quoted reply shows it as \[fixture:id\]). Drop trailing backslashes so the same id is one id.
+        for (const match of messageText(message).matchAll(FIXTURE_MARKER)) found.add((match[1] ?? "").replace(/\\+$/, ""));
+      }
+      return found;
+    };
+    const latestUser = [...messages].reverse().find((m) => m["role"] === "user");
+    let ids = latestUser === undefined ? new Set<string>() : markerIds([latestUser]);
+    if (ids.size === 0) ids = markerIds(messages);
     if (ids.size === 0) {
       sendJson(res, 400, { error: { message: "no fixture id in X-P4-Fixture header or [fixture:<id>] message marker" } });
       return;

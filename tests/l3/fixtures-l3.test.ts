@@ -15,13 +15,14 @@ const LANDED_PRS: number[] = [1, 2];
 const BUILT_IDS = [
   "P4-MCP-APPR-001", "P4-MCP-APPR-006", "P4-MCP-REL-001", "P4-MCP-REL-005", "P4-MCP-META-001", "P4-MCP-SUPP-003",
   "P4-MCP-APPR-007", "P4-MCP-META-010", "P4-MCP-META-006", "P4-MCP-SUPP-004", "P4-MCP-META-005", "P4-MCP-META-007", "P4-MCP-SUPP-007", "P4-MCP-REL-009",
-  // Wave D (mail and UI cases on harness v0.6.6).
+  // Wave D (mail and UI cases, harness v0.6.8).
   "P4-MCP-APPR-003", "P4-MCP-META-003", "P4-MCP-APPR-004", "P4-MCP-APPR-005", "P4-MCP-META-012",
+  "P4-MCP-META-002", "P4-MCP-META-004", "P4-MCP-META-008", "P4-MCP-META-011",
 ];
 // Tools that exist only in a lab mode (after a trigger), so the benign snapshot cannot name them. Each is listed with its mode.
-// Keyed by "<server>:<tool>". lab_new_tool: add-tool-after-connect, after the trigger. lab_connect_account: the two elicitation modes.
-// nc_mail_send_message on the lab: the shadow-name mode renames lab_mail_send to the real Nextcloud name.
-const MODE_ONLY_TOOLS = new Set(["lab:lab_new_tool", "lab:lab_connect_account", "lab:nc_mail_send_message"]);
+// lab_new_tool: add-tool-after-connect, after the trigger. lab_connect_account: the two elicitation modes. nc_mail_send_message
+// on the lab: the shadow-name mode lists lab_mail_send under the real Nextcloud name.
+const MODE_ONLY_TOOLS = new Set(["lab_new_tool", "lab_connect_account", "nc_mail_send_message"]);
 const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr) || BUILT_IDS.includes(c.id));
 
 test("every L3 fixture named in the registry exists, validates and has a legal id", () => {
@@ -74,10 +75,12 @@ test("every tool a landed fixture calls exists in the committed snapshot of its 
     for (const id of def.fixtures) {
       for (const turn of loadFixture(DIR, id).turns) {
         for (const call of turn.tool_calls ?? []) {
-          const m = /^(.+)_mcp_(twenty|outline|nextcloud|penpot|mattermost|lab)$/.exec(call.name);
+          const m = /^(.+)_mcp_(twenty|outline|nextcloud|penpot|mattermost|lab2?)$/.exec(call.name);
           assert.ok(m, `${id}: ${call.name} does not end in _mcp_<server>`);
-          const snap = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "tests/l3/snapshots", `${m[2]}.tools.json`), "utf8")) as { tools: Array<{ name: string }> };
-          assert.ok(MODE_ONLY_TOOLS.has(`${m[2] ?? ""}:${m[1] ?? ""}`) || snap.tools.some((t) => t.name === m[1]), `${id}: ${m[1] ?? ""} is not in ${m[2]}.tools.json`);
+          // lab2 is a second container of the same image, so it serves the lab's committed tool snapshot.
+          const snapFile = m[2] === "lab2" ? "lab" : m[2];
+          const snap = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "tests/l3/snapshots", `${snapFile}.tools.json`), "utf8")) as { tools: Array<{ name: string }> };
+          assert.ok(MODE_ONLY_TOOLS.has(m[1] ?? "") || snap.tools.some((t) => t.name === m[1]), `${id}: ${m[1] ?? ""} is not in ${m[2]}.tools.json`);
         }
       }
     }

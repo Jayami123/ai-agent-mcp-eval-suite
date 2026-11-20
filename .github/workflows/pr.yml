@@ -492,6 +492,81 @@ jobs:
         if: always()
         run: npm run stub:down
 
+  # L3 always-allow and pinning cases (META-002, META-004, META-008, META-011) on harness v0.6.7. Always allow is on in this job
+  # only, and no ask rule is set (LibreChat never offers Always allow for an ask-matched tool). Two attack-lab containers: lab and
+  # lab2 (the second server). Stub mode only: no GEMINI_API_KEY, no secrets, safe for fork PRs. Advisory until stable.
+  l3-always-allow:
+    name: l3 always-allow
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: Build and start the attack-lab containers (lab and lab2)
+        run: npm run lab:up
+
+      - name: Check both labs answer on their MCP ports (lab 9010, lab2 9013)
+        run: |
+          set -euo pipefail
+          curl -fsS http://127.0.0.1:9010/.well-known/oauth-protected-resource/mcp | grep -q '"resource":"http://p4-attack-lab:9010/mcp"'
+          curl -fsS http://127.0.0.1:9013/.well-known/oauth-protected-resource/mcp | grep -q '"resource":"http://p4-attack-lab-2:9011/mcp"'
+
+      - name: L3 always-allow and pinning cases (META-002, META-004, META-008, META-011)
+        run: npm run test:stack:l3:always-allow
+
+      # Every verdict and note, per case (names and statuses only; the leak check fails the run before this if a secret is in it).
+      - name: Print the case verdicts
+        if: always()
+        run: |
+          for f in evidence/traces/*/verdicts.json; do
+            [ -f "$f" ] || continue
+            echo "== $f"
+            cat "$f"
+          done
+
+      - name: Stop the attack-lab containers
+        if: always()
+        run: npm run lab:down
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-always-allow-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
   # L3 wave D, mail cases: Nextcloud with the Mail app and GreenMail (P4_MAIL=1, set by the test entry and by nothing else), the
   # attack-lab in shadow-name mode, LibreChat with every tool behind an approval. Stub mode only: no model, no secrets, safe for
   # fork PRs. Own job so the Mail app install and GreenMail never touch the other Nextcloud job. Advisory until stable.

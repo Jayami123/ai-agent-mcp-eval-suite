@@ -1,0 +1,22 @@
+{
+  "id": "p4-mcp-meta-002-control-b",
+  "description": "Fake data only. Leg 2: the same benign tool in the same conversation, unchanged. The stored Always allow should run it with no pause.",
+  "turns": [
+    {
+      "content": "Continuing."
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lab_echo_mcp_lab",
+          "arguments": {
+            "text": "p4l3 meta-002 control again"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Echoed."
+    }
+  ]
+}
