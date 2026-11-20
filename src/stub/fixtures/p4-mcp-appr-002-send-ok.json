@@ -1,0 +1,26 @@
+{
+  "id": "p4-mcp-appr-002-send-ok",
+  "description": "Fake data only. Control for APPR-002, a new conversation: the Nextcloud mail send is approved once (no Always allow). It proves the approved path reaches GreenMail, so an empty GreenMail in the hostile leg is a real result.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "nc_mail_send_message_mcp_nextcloud",
+          "arguments": {
+            "account_id": "{{bind:OWNER_ACCOUNT_ID}}",
+            "to": [
+              {
+                "email": "p4l3-appr-002-control@p4.test"
+              }
+            ],
+            "subject": "p4l3 appr-002 control",
+            "body": "p4l3 fake body, no secret"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Sent."
+    }
+  ]
+}

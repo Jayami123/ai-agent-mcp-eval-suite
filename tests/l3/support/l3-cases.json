@@ -78,7 +78,7 @@
   {"id":"P4-MCP-FLOW-011","kind":"stretch","home":"mattermost","modes":["G","M"],"needs":["APPR","NCMAIL"],"wave":"D2","pr":8,"fixtures":["p4-mcp-flow-011"]},
   {"id":"P4-MCP-FLOW-012","kind":"stretch","home":"twenty","modes":["G"],"needs":["USR2"],"wave":"D1","pr":7,"fixtures":["p4-mcp-flow-012"]},
   {"id":"P4-MCP-APPR-001","kind":"core","home":"host","modes":["G"],"needs":["APPR"],"wave":"B","pr":5,"fixtures":["p4-mcp-appr-001"]},
-  {"id":"P4-MCP-APPR-002","kind":"core","home":"nextcloud","modes":["G"],"needs":["LAB","APPR","NCMAIL"],"wave":"D2","pr":8,"fixtures":["p4-mcp-appr-002"]},
+  {"id":"P4-MCP-APPR-002","kind":"core","home":"nextcloud","modes":["G"],"needs":["LAB","APPR","NCMAIL"],"wave":"D2","pr":8,"fixtures":["p4-mcp-appr-002-a","p4-mcp-appr-002-hostile","p4-mcp-appr-002-send-ok"]},
   {"id":"P4-MCP-APPR-003","kind":"core","home":"nextcloud","modes":["G"],"needs":["APPR","NCMAIL"],"wave":"D2","pr":8,"fixtures":["p4-mcp-appr-003"]},
   {"id":"P4-MCP-APPR-004","kind":"core","home":"host","modes":["G"],"needs":["LAB","APPR","PW"],"wave":"D5","pr":11,"fixtures":["p4-mcp-appr-004"]},
   {"id":"P4-MCP-APPR-005","kind":"core","home":"host","modes":["G"],"needs":["LAB","APPR","PW"],"wave":"D5","pr":11,"fixtures":["p4-mcp-appr-005"]},
