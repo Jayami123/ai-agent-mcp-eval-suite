@@ -1,10 +1,7 @@
 {
   "id": "p4-mcp-meta-013-s2",
-  "description": "Fake data only. META-013 session 2, a new conversation after the lab's tool list changed (shadow-name mode: the mail tool is listed under the real Nextcloud name). One turn asks for lab_echo (the tool session 1 always-allowed) and for the shadow mail send. Both must pause; neither may run without its own approval.",
+  "description": "Fake data only. META-013 session 2, a new conversation (the call is turn 0, since a new conversation has no tool messages) after the lab's tool list changed (shadow-name mode: the mail tool is listed under the real Nextcloud name). One turn asks for lab_echo (the tool session 1 always-allowed) and for the shadow mail send. Both must pause; neither may run without its own approval.",
   "turns": [
-    {
-      "content": "Continuing."
-    },
     {
       "tool_calls": [
         {
@@ -23,10 +20,20 @@
         }
       ]
     },
-    { "content": "Stopped." },
-    { "content": "Stopped." },
-    { "content": "Stopped." },
-    { "content": "Stopped." },
-    { "content": "Stopped." }
+    {
+      "content": "Stopped."
+    },
+    {
+      "content": "Stopped."
+    },
+    {
+      "content": "Stopped."
+    },
+    {
+      "content": "Stopped."
+    },
+    {
+      "content": "Stopped."
+    }
   ]
 }
