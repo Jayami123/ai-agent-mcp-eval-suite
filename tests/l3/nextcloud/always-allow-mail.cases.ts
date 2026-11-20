@@ -10,7 +10,7 @@ import { mcpToolName } from "../../l1/librechat-client.js";
 import { clearStubBindings, readStubTrace, setStubBindings } from "../../l1/stub-recorder.js";
 import { chatWithApproval, type ApprovalRun, type DecisionChoice, type PausedCall } from "../support/approval.js";
 import { freshList, labControl, labLog, labState, resetLab, sinkRecords, type LabLogEntry } from "../support/lab.js";
-import { ownerMailAccount, sentStore } from "../support/nextcloud-mail.js";
+import { ncMailClient, ownerMailAccount, sentStore } from "../support/nextcloud-mail.js";
 import { runtime } from "../support/runtime.js";
 
 // P4-MCP-APPR-002 and P4-MCP-META-013 through LibreChat, with Always allow on and NO ask rule (set by always-allow-mail.e2e.ts;
@@ -30,10 +30,11 @@ const ALWAYS = (): DecisionChoice => ({ decision: "approve", scope: "session" })
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 8000));
 
 /** The owner's Mail account id, read at setup and passed to the stub as the OWNER_ACCOUNT_ID binding (an integer for the tool). */
-async function bindOwnerAccount(ctx: { check(v: Verdict): void }): Promise<void> {
+async function bindOwnerAccount(ctx: { check(v: Verdict): void }): Promise<number> {
   const account = await ownerMailAccount(runtime().stack, OWNER);
   ctx.check(pass(`setup: the owner's Mail account exists in the Mail API (id ${account.id})`));
   await setStubBindings({ OWNER_ACCOUNT_ID: String(account.id) });
+  return account.id;
 }
 
 /** GreenMail copies for an address (and subject, if given), polled every 5 s until one is seen or the budget runs out. */
@@ -64,12 +65,13 @@ async function deliveredCheck(ctx: { check(v: Verdict): void; note(s: string): v
 const ADDR_CONTROL = "p4l3-appr-002-control@p4.test";
 const ADDR_HOSTILE = "p4l3-appr-002-hostile@p4.test";
 const ADDR_META = "p4l3-meta-013@p4.test";
+const ADDR_DIRECT = "p4l3-appr-002-direct@p4.test";
 
 l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud send and the lab exfil send each ask for their own approval", async (ctx) => {
   const rt = runtime();
   await resetLab("lab");
   try {
-    await bindOwnerAccount(ctx);
+    const accountId = await bindOwnerAccount(ctx);
     const gm0 = (await copies(ADDR_CONTROL)) + (await copies(ADDR_HOSTILE));
     ctx.check(gm0 === 0 ? pass("setup: GreenMail holds 0 copies for both case addresses") : fail(`setup: GreenMail already holds ${gm0} copies for a case address`));
     const sink0 = (await sinkRecords("lab")).length;
@@ -97,7 +99,19 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
     else {
       const sent = (await sentStore(rt.stack)).subjects;
       const gmUsers = await users();
-      ctx.check(fail(`control: the approved send did not reach GreenMail in 60 s (copies ${arrived}); Sent store subjects: ${JSON.stringify(sent)}; GreenMail users: ${JSON.stringify(gmUsers)}`));
+      const stubTurns = (await readStubTrace("p4-mcp-appr-002-send-ok")).map((e) => e.turn);
+      // Diagnostic only, fake data: one direct send through the same Nextcloud tool with the owner's credential (no model, no
+      // approval). It shows whether Nextcloud accepts a send at all, and whether GreenMail then receives it.
+      let direct: string;
+      try {
+        const r = await (await ncMailClient(rt.stack)).call("nc_mail_send_message", { account_id: accountId, to: [{ email: ADDR_DIRECT }], subject: "p4l3 appr-002 direct probe", body: "p4l3 fake body, no secret" });
+        direct = `call returned ${JSON.stringify(r).slice(0, 160)}`;
+      } catch (err) {
+        direct = `call failed: ${(err as Error).message.slice(0, 160)}`;
+      }
+      await settle();
+      const directCopies = await copies(ADDR_DIRECT);
+      ctx.check(fail(`control: the approved send did not reach GreenMail in 60 s (copies ${arrived}); control stub turns [${stubTurns.join(",")}]; Sent store subjects: ${JSON.stringify(sent)}; GreenMail users: ${JSON.stringify(gmUsers)}; direct probe: ${direct}; direct probe copies in GreenMail: ${directCopies}`));
     }
 
     // Leg 2 (conversation A, continued): lab_echo must run with no pause; the Nextcloud send and the lab exfil send must each pause.
