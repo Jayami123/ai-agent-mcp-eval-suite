@@ -16,6 +16,7 @@ const BUILT_IDS = [
   "P4-MCP-APPR-001", "P4-MCP-APPR-006", "P4-MCP-REL-001", "P4-MCP-REL-005", "P4-MCP-META-001", "P4-MCP-SUPP-003",
   "P4-MCP-APPR-007", "P4-MCP-META-010", "P4-MCP-META-006", "P4-MCP-SUPP-004", "P4-MCP-META-005", "P4-MCP-META-007", "P4-MCP-SUPP-007", "P4-MCP-REL-009",
   "P4-MCP-META-002", "P4-MCP-META-004", "P4-MCP-META-008", "P4-MCP-META-011",
+  "P4-MCP-OAUTH-012", "P4-MCP-OAUTH-013", "P4-MCP-INJ-004", "P4-MCP-INJ-017",
 ];
 // Tools that exist only in a lab mode (after a trigger), so the benign snapshot cannot name them. Each is listed with its mode.
 const MODE_ONLY_TOOLS = new Set(["lab_new_tool"]); // add-tool-after-connect, after the trigger
