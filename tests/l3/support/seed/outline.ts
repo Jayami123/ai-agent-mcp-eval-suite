@@ -86,6 +86,7 @@ async function ownedTitles(s: OutlineSession): Promise<{ docs: string[]; collect
 export async function sweep(s: OutlineSession): Promise<{ documents: number; collections: number; docStatuses: string }> {
   const found = await ownedTitles(s);
   const docStatuses = await deleteDocsPermanently(s, found.docs);
+  await ensureKeeper(s);
   for (const id of found.collections) {
     const r = await s.oracle.api(s.oracle.authorization, "collections.delete", { id });
     if (r.status !== 200) {
@@ -174,4 +175,19 @@ async function whatBlocks(s: OutlineSession, collectionId: string): Promise<stri
   const data = (dataOf(info) as { permission?: unknown; deletedAt?: unknown; archivedAt?: unknown } | undefined) ?? {};
   parts.push(`collections.info=${info.status} permission=${String(data.permission ?? "null")} deleted=${data.deletedAt != null} archived=${data.archivedAt != null}`);
   return parts.join(", ");
+}
+
+export const KEEPER_NAME = "QA keeper";
+
+/**
+ * Outline refuses to delete a team's last collection ("Cannot delete last collection", validation_error, observed in CI). The
+ * sweep therefore keeps one collection outside the P4L3 namespace. It is created only when the team has none without the
+ * prefix. It holds no case data and is never deleted by the sweep.
+ */
+export async function ensureKeeper(s: OutlineSession): Promise<"present" | "created"> {
+  const cols = (await s.oracle.listAll("collections.list")) as Array<{ name?: unknown }>;
+  if (cols.some((c) => !String(c.name ?? "").startsWith(TITLE_PREFIX))) return "present";
+  const r = await s.oracle.api(s.oracle.authorization, "collections.create", { name: KEEPER_NAME, permission: "read_write" });
+  if (r.status !== 200) throw new Error(`OUTLINE_KEEPER_CREATE_HTTP_${r.status}`);
+  return "created";
 }
