@@ -91,3 +91,12 @@ Verdict count, from the stub run: PROT-001 fail before baseline; all others pass
 ## Baseline run: run 44697967623 (commit `b28150d`), job 136159485746, green
 
 The `l3 mattermost` job passed, so PROT-001 passes with `tests/l3/snapshots/expected-failures/mattermost.yaml` (20 baselined scenarios). The stack-test step exits non-zero on any `not ok`, and it succeeded. Protocol legs (PROT-002/003/004/007/008/009/012, OAUTH-001) pass in the same run. INJ-009, INJ-010 and INJ-013 are not built yet.
+
+
+## Conformance at the supported version: run 44780334406 (commit `a046afc`)
+
+- The suite is pinned to spec `2025-06-18` for Mattermost (`tests/l3/all/conformance.cases.ts`, `SPEC_VERSION_BY_SERVER`). Evidence: the initialize response in the round-1 probe (`protocolVersion: 2025-06-18`, capabilities `logging` and `tools` only).
+- Result at `2025-06-18`: 36 scenarios pass, 20 fail. The 20 failing scenarios are the baseline: the server has none of the reference demo tools, prompts or resources, and it does not implement completions, resource subscriptions, sampling or elicitation. These are capability and fixture gaps, not product bugs.
+- Scenarios `dns-rebinding-protection` and `server-sse-multiple-streams` are not run at `2025-06-18`. They were in the old baseline (from the `2026-07-28` run), and they have been removed. They are not recorded as passing.
+- Deployment finding (recorded once): the suite's default spec `2026-07-28` is rejected by this server ("protocol version 2026-07-28 is not supported by this server"). The suite therefore pins `2025-06-18` for Mattermost only. Other servers keep `2026-07-28`.
+- The DNS rebinding question is open: a bad-Host request that reaches a tool has not been proven, so no expectedDefect is used.

@@ -1,32 +1,28 @@
-# Conformance baseline for the Mattermost MCP, spec 2026-07-28, package 0.2.0-alpha.12 (P4-MCP-PROT-001).
-# Recorded from CI run 44696090074 (commit 7404bbf). Every entry is a known failure, not a pass. Observed reasons:
-#  - tools-list, tools-call-*, resources-*, prompts-*, completion-complete: the server answers "protocol version
-#    2026-07-28 is not supported by this server". The probe initialised with 2025-06-18 and got HTTP 200, so the server
-#    speaks an earlier revision. This is a spec gap between the suite's version and the pinned server (deployment finding).
-#  - server-sse-multiple-streams: the server answers HTTP 400 to several POST streams. The SSE streams check is optional
-#    and the server returned JSON responses. Recorded as a deployment finding, not a product bug.
-#  - dns-rebinding-protection: an invalid Host/Origin header got HTTP 200 instead of 4xx. The MCP listens on 127.0.0.1 only
-#    in this stack, so this is not confirmed as an exploitable product bug here. Not expectedDefect; it stays listed until a
-#    ledger case proves it (see docs/findings/l3-mattermost.md).
+# Conformance baseline for the Mattermost MCP at spec 2025-06-18 (P4-MCP-PROT-001). Pinned in tests/l3/all/conformance.cases.ts,
+# evidence: the initialize response negotiated protocolVersion 2025-06-18 (probe, run 44692016929). Rebuilt from run 44780334406
+# (commit a046afc). Every entry is a scenario that FAILS at this version; a scenario that passes is not listed.
+# Reasons: the server advertises only the logging and tools capabilities, and it has none of the suite's reference demo tools,
+# prompts or resources. These are capability and fixture gaps, not product bugs, so no expectedDefect is used.
+# Deployment finding: the suite's default spec 2026-07-28 is rejected by this server (see docs/findings/l3-mattermost.md).
 # Shrink this list as the server or the suite changes; a listed scenario that starts passing is reported by the suite.
 server:
-  - completion-complete
-  - tools-list
-  - tools-call-simple-text
-  - tools-call-image
-  - tools-call-audio
-  - tools-call-embedded-resource
-  - tools-call-mixed-content
-  - tools-call-error
-  - tools-call-with-progress
-  - server-sse-multiple-streams
-  - resources-list
-  - resources-read-text
-  - resources-read-binary
-  - resources-templates-read
-  - prompts-list
-  - prompts-get-simple
-  - prompts-get-with-args
-  - prompts-get-embedded-resource
-  - prompts-get-with-image
-  - dns-rebinding-protection
+  - completion-complete              # method completion/complete not implemented (no completions capability)
+  - tools-call-simple-text           # reference tool test_simple_text absent (server has its own tools only)
+  - tools-call-image                 # reference tool test_image_content absent
+  - tools-call-audio                 # reference tool test_audio_content absent
+  - tools-call-embedded-resource     # reference tool test_embedded_resource absent
+  - tools-call-mixed-content         # reference tool test_multiple_content_types absent
+  - tools-call-error                 # reference tool test_error_handling absent
+  - tools-call-with-progress         # reference tool test_tool_with_progress absent
+  - tools-call-with-logging          # reference tool test_tool_with_logging absent
+  - tools-call-sampling              # reference tool test_sampling absent (no sampling capability)
+  - tools-call-elicitation           # reference tool test_elicitation absent (no elicitation capability)
+  - resources-read-text              # reference resource not found (no reference resources)
+  - resources-read-binary            # reference resource not found
+  - resources-templates-read         # reference resource template not found
+  - resources-subscribe              # method resources/subscribe not implemented (no subscribe capability)
+  - resources-unsubscribe            # method resources/unsubscribe not implemented (no subscribe capability)
+  - prompts-get-simple               # reference prompt test_simple_prompt absent (server has no prompts)
+  - prompts-get-with-args            # reference prompt test_prompt_with_arguments absent
+  - prompts-get-embedded-resource    # reference prompt test_prompt_with_embedded_resource absent
+  - prompts-get-with-image           # reference prompt test_prompt_with_image absent
