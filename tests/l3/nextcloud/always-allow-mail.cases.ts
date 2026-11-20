@@ -129,7 +129,12 @@ async function outboxFields(): Promise<Record<string, unknown>[] | string> {
   });
   if (res.status !== 200) return `outbox HTTP ${res.status}`;
   const body = (await res.json()) as unknown;
-  const list = (Array.isArray(body) ? body : ((body as { data?: unknown })?.data ?? [])) as Record<string, unknown>[];
+  // The outbox reply shape is not fixed (a list, or a wrapper with a list, or a map keyed by id). Read whatever message objects it holds;
+  // when it holds none, say what the reply is, so the diagnostic reports the shape instead of failing the case.
+  const rec = (body !== null && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const candidates = Array.isArray(body) ? body : Array.isArray(rec["data"]) ? (rec["data"] as unknown[]) : Object.values(rec["data"] !== undefined && typeof rec["data"] === "object" ? (rec["data"] as object) : rec);
+  const list = candidates.filter((x): x is Record<string, unknown> => x !== null && typeof x === "object" && "accountId" in (x as object));
+  if (list.length === 0) return `no message objects; reply is ${Array.isArray(body) ? "an empty or non-message list" : typeof body}, top-level keys ${JSON.stringify(Object.keys(rec).slice(0, 12))}`;
   const emails = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String((x as { email?: unknown }).email ?? "")) : []);
   return list.map((m) => ({
     id: m["id"],
