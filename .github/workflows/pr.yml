@@ -604,11 +604,9 @@ jobs:
       - name: Start the stub container on qa-harness-p4
         run: npm run stub:up
 
-      # The lab runs in shadow-name mode, as in the l3 mail job: the hostile leg needs its lab_mail_send listed under the
-      # real Nextcloud send name (nc_mail_send_message). Without it the shadow tool does not exist in this job.
-      - name: Build and start the attack-lab containers (lab shadow-name, lab2 benign)
-        env:
-          LAB_MODE: shadow-name
+      # The lab starts benign: META-013 switches it to shadow-name itself (/control/mode) and its setup checks the tool hash
+      # changes, and the cleanup sweep expects a benign start. Starting in shadow-name breaks both.
+      - name: Build and start the attack-lab containers (lab and lab2)
         run: npm run lab:up
 
       - name: Check the lab answers on its MCP port (lab 9010)

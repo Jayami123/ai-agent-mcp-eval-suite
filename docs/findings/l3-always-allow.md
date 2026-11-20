@@ -171,3 +171,37 @@ Suite-side defect found and fixed in this commit: `LAB_MODE` was not set to `sha
 - Ask: enable debug logging for the Mail app in the mail stack's Nextcloud setup, so its outbox and SMTP exceptions are written. The harness owns that setup; the suite does not change Mail app internals.
 - Not asked: no retries, sleeps or changed assertions to hide the 500. The control stays a hard assertion.
 - Open question for the harness owner: what differs between a send made before any LibreChat chat (wave D probe, works per the job log) and one made after leg 1 (this job, fails). If the owner approves, the suite can test that order in one commit by moving the known-good send before leg 1.
+
+### Correction and job diff (run 44811437381, head 09e7637)
+
+**Correction.** The "suite-side defect" in the section above is wrong. The always-allow cases do not need the lab to start in `shadow-name`: P4-MCP-META-013 switches it at run time (`/control/mode`, `tests/l3/nextcloud/always-allow-mail.cases.ts`), and APPR-002 does not use the shadow tool. Starting the lab in `shadow-name` (commit `59c4de3`) broke two checks in run 44811437381:
+- P4-MCP-META-013 setup: "the list did not change as expected (hash changed false; ...)". The case's session 2 checks then passed only because the lab already served the shadow tool, so this run did not test what the case tests. The verdict is **fail**.
+- Cleanup sweep: "lab mode after the sweep": actual `shadow-name`, expected `benign`.
+
+The `LAB_MODE` line is reverted in the next commit, so the always-allow job starts benign again, as in run 44804893661 and earlier runs where META-013 passed (run 44792119046).
+
+**Job diff, `l3 mail` (wave D) against `l3 always-allow mail` (current `.github/workflows/pr.yml`):**
+
+| Item | `l3 mail` | `l3 always-allow mail` |
+|---|---|---|
+| Job env | `P4_LLM_MODE=stub`, `P4_STACK_TESTS=1`, `P4_L3_PROBE=1` | `P4_LLM_MODE=stub`, `P4_STACK_TESTS=1`, `P4_L3_SERVERS=nextcloud,lab` |
+| `lab:up` | `LAB_MODE=shadow-name` (lab) | `LAB_MODE` unset (benign) |
+| Steps, in order | stub up; lab up; **wave D mail probe** (`test:stack:l3:probe:mail`); cases (`test:stack:l3:mail`) | stub up; lab up; lab check on 9010; cases (`test:stack:l3:always-allow-mail`) |
+| Test entry | `nextcloud/mail.e2e.ts`: `P4_MAIL=1`, approval on, mode default | `nextcloud/always-allow-mail.e2e.ts`: `P4_MAIL=1`, approval on, mode default, `LIBRECHAT_TOOL_APPROVAL_ALLOW_ALWAYS=1`, no ask or deny rule |
+| Probe entry | `probe/mail.e2e.ts`: `P4_MAIL=1`, approval on, runs `mail.probe.ts` when `P4_L3_PROBE=1` | not run |
+| `P4_L3_SERVERS` | unset (registered list, nextcloud and lab) | `nextcloud,lab` (same list) |
+| `allowAlways` | off | on (writes `allowAlways: true` to LibreChat's config only) |
+| Lab2 | started by `lab:up` (benign) | started by `lab:up` (benign) |
+
+**Harness mail setup path (both jobs, `node_modules/qa-portfolio-harness` v0.6.10).** `NextcloudAdapter.up()` (`dist/adapters/nextcloud.adapter.js`): `startGreenmail` (GreenMail compose down, up, REST ready), `composeUp` (Nextcloud), `waitHealthy`, `seed`, `seedMail` (`installMailApp`, then `configureMailIdentity` for the owner: delete any account with the owner's address, create the GreenMail user, create `Sent`, `occ mail:account:create`), then `composeUp` (MCP). `down()` keeps the named Nextcloud volumes (`composeDown` without `-v`; `NEXTCLOUD_DOWN_VOLUMES` is set by no job). The only harness difference between the jobs is therefore the number of boots: the wave D job boots twice (probe process, then cases process) on volumes kept from the first boot, so the second boot deletes and recreates the owner's Mail account. The always-allow job boots once on fresh volumes. Nothing in the harness depends on `allowAlways`, `P4_L3_SERVERS` or lab2 for the Mail setup.
+
+**Evidence that the boot count does not separate the working and failing sends (same run, 44811437381):**
+- Wave D probe, first boot on fresh volumes: `PROBE|nc.send.reply|{"status":200,"payload":{"success":true,...,"message":"Message sent successfully"}}`, and GreenMail shows `p4l3 probe direct` at t+0 (job 136549107067).
+- Always-allow job, first boot on fresh volumes: the known-good send and the warm-up both return `500 "Could not send message"` (job 136549106863, `sends.json`).
+
+So the one concrete Nextcloud-touching difference (the second boot on kept volumes) is real, but it does not explain the failure: the failing sends happen on a first boot where wave D's direct send works. The remaining difference between those two first-boot sends is the order: the always-allow sends run after leg 1 (a LibreChat chat with the lab's `lab_echo`); the wave D probe's send runs before any chat. That is the send-order experiment, not yet run.
+
+**Run 44811437381, per case (from `verdicts.json` printed by the job's "Print the case verdicts" step; the artifact itself could not be downloaded with the tools here):**
+- P4-MCP-APPR-002: setup fails, the send returns 500. The verdicts file has the setup passes before the failure (account id 1 in the Mail API and in the send; GreenMail 0 copies).
+- P4-MCP-META-013: **fail** at setup ("hash changed false"). Caused by the `shadow-name` start above, not by the product. Reverted in the next commit.
+- Job result: `l3 always-allow mail` failure; all other PR jobs success at the time of the check (`l4 openclaw stub` still running).
