@@ -29,6 +29,9 @@ export function captureNextcloudLog(dir: string, secrets: string[]): void {
     `${redactValues(redact(`${r.stdout ?? ""}${r.stderr ?? ""}`, secrets))}\n`;
   writeEvidence(dir, "nextcloud-log-tail.txt", `container ${name}, file ${LOG}, exit ${tail.status}\n${clean(tail)}`);
   writeEvidence(dir, "nextcloud-log-mail-smtp.txt", `container ${name}, file ${LOG}, exit ${smtp.status}\n${clean(smtp)}`);
+  // The Nextcloud app container's own stdout and stderr: the Mail app's exception is written there when it is not in nextcloud.log.
+  const appLogs = spawnSync("docker", ["logs", "--tail", "400", name], { encoding: "utf8", timeout: 120_000 });
+  writeEvidence(dir, "nextcloud-app-docker-logs.txt", `container ${name}, exit ${appLogs.status}\n${redactValues(redact(`${appLogs.stdout ?? ""}${appLogs.stderr ?? ""}`, secrets))}\n`);
   // The 500 may be produced below Nextcloud's own log: the Nextcloud MCP server and GreenMail (the SMTP server) keep their own logs.
   for (const filter of ["nextcloud-mcp", "greenmail"]) {
     const ps2 = spawnSync("docker", ["ps", "-a", "--filter", `name=${filter}`, "--format", "{{.Names}}"], { encoding: "utf8", timeout: 60_000 });

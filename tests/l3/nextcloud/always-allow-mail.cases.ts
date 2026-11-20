@@ -51,7 +51,41 @@ async function awaitCopies(address: string, subject: string, budgetMs: number): 
 
 /** One send through the Nextcloud mail tool with the owner's credential (no model, no approval). Never returns the credential. */
 /** Every send this case makes, with its time, so each can be matched to a line of Nextcloud's log. Written to sends.json. */
-interface SendRecord { at: string; via: "direct" | "model-approved"; address: string; subject: string; ok: boolean; reply: string }
+interface SendRecord { at: string; via: "direct" | "model-approved"; address: string; subject: string; ok: boolean; reply: string; sentAccountId?: number; replyAccountId?: number | null }
+
+/** The accountId a Nextcloud reply reports (the Mail app's own record of the message's account), or null when it reports none. */
+export function replyAccount(reply: string): number | null {
+  const m = /accountId\\*"?\s*:\s*(\d+)/.exec(reply);
+  return m === null ? null : Number(m[1]);
+}
+
+/**
+ * The owner's Mail account settings as the Mail app reports them, with every credential removed. The walk keeps only host, port,
+ * sslMode and user of each object that has a host (for example inbound = IMAP, outbound = SMTP). A password field is never copied.
+ */
+export async function mailAccountSettings(accountId: number): Promise<Record<string, unknown>[]> {
+  const stack = runtime().stack;
+  const ep = stack.mcp("nextcloud");
+  if (ep.authorization === null) throw new Error("L3_NO_NC_CREDENTIAL: the Nextcloud MCP run state has no credential");
+  const base = (stack.adapters.get("nextcloud") as { baseUrl: string }).baseUrl;
+  const res = await fetch(`${base}/index.php/apps/mail/api/accounts/${accountId}`, {
+    headers: { authorization: ep.authorization, "OCS-APIRequest": "true", accept: "application/json" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (res.status !== 200) throw new Error(`L3_MAIL_ACCOUNT_HTTP_${res.status}`);
+  const body: unknown = await res.json();
+  const found: Record<string, unknown>[] = [];
+  const walk = (v: unknown, at: string): void => {
+    if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${at}[${i}]`));
+    else if (v !== null && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      if ("host" in o) found.push({ path: at, host: o["host"], port: o["port"], sslMode: o["sslMode"], user: o["user"] });
+      for (const [k, x] of Object.entries(o)) if (k !== "password") walk(x, at === "" ? k : `${at}.${k}`);
+    }
+  };
+  walk(body, "");
+  return found;
+}
 const sendLog: SendRecord[] = [];
 
 async function directSend(accountId: number, to: string, subject: string): Promise<{ ok: boolean; text: string }> {
@@ -60,12 +94,14 @@ async function directSend(accountId: number, to: string, subject: string): Promi
     const r = await (await ncMailClient(runtime().stack)).call("nc_mail_send_message", { account_id: accountId, to: [{ email: to }], subject, body: "p4l3 fake body, no secret" });
     // The tool reports a Nextcloud failure as a result (text starting "Error"), not a thrown error: a send is delivered only on success: true.
     const ok = typeof r === "object" && r !== null && (r as { success?: unknown }).success === true;
-    const text = JSON.stringify(r).slice(0, 160);
-    sendLog.push({ at, via: "direct", address: to, subject, ok, reply: text });
+    const full = JSON.stringify(r);
+    const text = full.slice(0, 160);
+    sendLog.push({ at, via: "direct", address: to, subject, ok, reply: text, sentAccountId: accountId, replyAccountId: replyAccount(full) });
     return { ok, text };
   } catch (err) {
-    const text = (err as Error).message.slice(0, 160);
-    sendLog.push({ at, via: "direct", address: to, subject, ok: false, reply: text });
+    const full = (err as Error).message;
+    const text = full.slice(0, 160);
+    sendLog.push({ at, via: "direct", address: to, subject, ok: false, reply: text, sentAccountId: accountId, replyAccountId: replyAccount(full) });
     return { ok: false, text };
   }
 }
@@ -121,7 +157,18 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
 
     // Setup: one direct send to the address that succeeded in earlier runs (p4l3-appr-002-direct). It is a check, not a retry:
     // a failure fails the case, and nothing is repeated to hide it.
+    // The account id the sends use must be the owner's account as the Mail API reports it in this run. Read it again here and print both.
+    const apiNow = await ownerMailAccount(rt.stack, OWNER);
+    ctx.note(`account id used by the sends: ${accountId}; account id the Mail API reports now: ${apiNow.id} (email ${apiNow.emailAddress})`);
+    ctx.check(apiNow.id === accountId ? pass(`setup: the send account id ${accountId} is the owner's Mail API account id`) : fail(`setup: the send uses account id ${accountId} but the Mail API reports ${apiNow.id}`));
+    if (apiNow.id !== accountId) return;
+    const settings = await mailAccountSettings(accountId);
+    writeEvidence(rt.dir, "mail-account-settings.json", `${JSON.stringify({ accountId, settings }, null, 2)}\n`);
+    ctx.note(`mail account ${accountId} settings (host, port, sslMode, user; no credentials): ${JSON.stringify(settings)}`);
     const warm = await directSend(accountId, ADDR_DIRECT, "p4l3 appr-002 warm-up");
+    const warmReplyId = sendLog[sendLog.length - 1]?.replyAccountId;
+    ctx.note(`warm-up reply reports account id ${warmReplyId ?? "none"}; sent with ${accountId}`);
+    if (warmReplyId !== undefined && warmReplyId !== null) ctx.check(warmReplyId === accountId ? pass(`setup: the reply's account id ${warmReplyId} matches the send account id`) : fail(`setup: the reply reports account id ${warmReplyId} but the send used ${accountId}`));
     ctx.check(warm.ok ? pass("setup: a direct send to the known-good address succeeded") : fail(`setup: a direct send to the known-good address failed: ${warm.text}`));
     if (!warm.ok) return;
     await settle();
