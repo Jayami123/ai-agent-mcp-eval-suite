@@ -54,3 +54,61 @@ Classification: **PRODUCT BUG** (reproduced in two runs on the same host build).
 - Lab2 is attached at boot, not hot-plugged into a running chat. "Connect mid-chat" is tested as first use of lab2's tool in the same conversation through a new agent. A true runtime connect is not available in this host.
 - The pin moves v0.6.5 → v0.6.7 from main (v0.6.6 exists only on the unmerged wave D branch).
 - The lab2 healthcheck targets its own sink port (9014). The image's default check targets 9012, the first lab's port.
+
+## Wave 2: P4-MCP-APPR-002 and P4-MCP-META-013 (harness v0.6.10, job `l3 always-allow mail`)
+
+Plan: `docs/plans/2026-11-20-l3-always-allow-wave-2.md`. Mail stack: `P4_MAIL=1` (GreenMail, Mail app). Stub mode only.
+
+### Status
+
+- **P4-MCP-META-013: passes** in every run from `fbc7cfb` on (session 2 paused for both `lab_echo` and the shadowed send; neither ran; GreenMail 0 copies).
+- **P4-MCP-APPR-002: does not pass.** The approval legs pass (the always-allowed `lab_echo` runs with no pause; the Nextcloud send and the lab exfil send each pause and are rejected; 0 GreenMail copies, 0 sink records). The **control** does not: the approved Nextcloud send never reaches GreenMail. The case is not annotated as an expected defect and its control assertion is not weakened.
+
+### Runs
+
+| Run | Head | META-013 | APPR-002 |
+|---|---|---|---|
+| 44780372971 | 528b41b | not reached (APPR-002 failed first) | control failed; see below |
+| 44782444847 | 2a3a8cc | pass | control failed |
+| 44784169846 | fbc7cfb | pass | control failed |
+| 44785535689 | 07ad2ff | pass | control failed |
+| 44786818444 | c218553 | pass | control failed (warm-up wrongly reported a pass; see below) |
+| 44788287671 | 0476e81 | not reached | readiness check failed (24 attempts) |
+
+### Verbatim evidence (names and outputs only; fake data; no secrets)
+
+Run 44782444847 (head 2a3a8cc):
+
+> control: the approved send did not reach GreenMail in 60 s (copies 0); Sent store subjects: []; GreenMail users: ["qa-owner@p4.test"]
+
+Run 44784169846 (head fbc7cfb), the first with the direct probe:
+
+> control: the approved send did not reach GreenMail in 60 s (copies 0); control stub turns [0,1]; Sent store subjects: []; GreenMail users: ["qa-owner@p4.test"]; direct probe: call returned {"success":true,"timestamp":"2026-11-20T17:38:38.731168Z","message":"Message sent successfully"}; direct probe copies in GreenMail: 1
+
+Run 44785535689 (head 07ad2ff), the approved conversation's tool output:
+
+> approved conversation tool outputs: names ["nc_mail_send_message_mcp_nextcloud"]; outputs ["Error: Failed to send message: 500 {\"status\":\"error\",\"message\":\"Could not send message\",\"data\":[{\"id\":1,\"type\":0,\"accountId\":1,\"aliasId\":null,\"sendAt\":null,\"upd\"]
+
+So the approval resumed the tool and the tool ran, but Nextcloud answered 500. The model received the error and the stub served its next turn.
+
+Run 44786818444 (head c218553): the warm-up verdict said "pass", but the reply was the same 500. The harness's send helper treated a returned error text as success. Fixed in `0476e81`: a send counts as delivered only on `success: true`.
+
+Run 44788287671 (head 0476e81):
+
+> setup: Nextcloud did not accept a direct send in 24 attempt(s); last reply: "Failed to send message: 500 {\"status\":\"error\",\"message\":\"Could not send message\",\"data\":[{\"id\":24,\"type\":0,\"accountId\":1,\"aliasId\":null,\"sen
+
+Each failed attempt creates a message row (the `id` increases by one per attempt). Over the 6-minute budget no send to the case address (`p4l3-appr-002-warm@p4.test`) succeeded.
+
+### What the evidence shows, and what it does not
+
+- Shown: Nextcloud returns 500 "Could not send message" for sends to the case addresses through the Nextcloud MCP tool, in every run, with the owner's account 1.
+- Shown: the same tool, with the same arguments except the recipient and subject, succeeded once per run to `p4l3-appr-002-direct@p4.test` (subject "p4l3 appr-002 direct probe"). That probe ran after the approved leg in each run where it ran.
+- Not shown: why. Two hypotheses are open. (a) Recipient or subject sensitivity in the Mail app's send path. (b) An ordering effect: every success came after the approved leg and every failure came before it. A readiness delay is not supported: the 24 attempts over 6 minutes all failed.
+- Not shown: Nextcloud's own log for the 500. Reading `nextcloud-app` logs in CI is the next step.
+
+### Test bugs found and fixed in this wave
+
+- **TEST BUG** (`2a3a8cc`): META-013 session 2 served the placeholder text turn; the tool call is turn 0 in a new conversation.
+- **TEST BUG** (`0476e81`): a send was counted as delivered when Nextcloud returned an error as a result.
+
+No APPR-002 result is recorded as a pass. The control stays a hard assertion.
