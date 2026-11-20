@@ -311,7 +311,7 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
     await resetLab("lab");
     await clearStubBindings();
   }
-});
+}, { namedSkip: "Nextcloud Mail returns 500 Could not send message on the owner's outbox send (every run since 528b41b; the owner's account is recreated on the kept-volume second boot, account id 2). Harness request: docs/findings/l3-always-allow.md, section Harness request (mail stack logging). The body is kept and runs again when the request is met." });
 
 l3Case("P4-MCP-META-013", "a new session does not reuse the stored Always allow after the tool list changed to a shadowed mail name", async (ctx) => {
   const rt = runtime();

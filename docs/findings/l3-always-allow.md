@@ -225,3 +225,16 @@ One line per difference; "touches send path" means it runs on the Nextcloud Mail
 13. Teardown and artifact names: same steps, job-specific names only. Touches: no.
 
 Change in this commit: item 4 is aligned. The always-allow job now runs the wave D probe before its cases, with `P4_L3_PROBE=1`, so both jobs boot the Mail stack twice on kept volumes. No retries and no sleeps.
+
+### Option A result and option B (run 44817954142, head 33752b1)
+
+**Option A (send-order experiment): the known-good send before leg 1 returns 500.** In the cases process, the known-good send (`p4l3-appr-002-known-good@p4.test`) now runs before any LibreChat chat, with the same account id and fields. It still fails: `POST /index.php/apps/mail/api/outbox` returns 201, then `POST /index.php/apps/mail/api/outbox/3` returns 500 "Could not send message" (`verdicts.json` note, job 136571476433). The account id used is **2** (the owner's account, recreated on the kept-volume second boot). So a LibreChat chat before the send is **not** the trigger, and the hypothesis that it is is not supported.
+
+What the same run shows, for comparison: the wave D probe's direct send in the same job, on the first boot with account id 1, returns `{"status":200,"payload":{"success":true,"message":"Message sent successfully"}}`, and its copy reaches GreenMail (`PROBE|nc.send.reply`, 21:16:27). The kept-volume second boot gives account id 2, because `configureMailIdentity` deletes and recreates the owner's account. The two sends differ in the process, the account id, and the boot. The data does not separate them further.
+
+**Option B (taken, because the send still returns 500):**
+- P4-MCP-APPR-002 is a **named skip**: `l3Case(..., { namedSkip })` in `tests/l3/nextcloud/always-allow-mail.cases.ts`, pointing to the harness request in this file (section "Harness request (mail stack logging)"). The helper requires a `docs/` path in the skip reason. The case body is kept and runs again when the request is met. Core cases are not skipped by default; this is the one named exception.
+- P4-MCP-META-013 stays green in run 44817954142 (all eight checks pass, including the tool-hash change and the session-2 pause on the shadowed send).
+- Account id: the kept-volume second boot gives account id 2 (recorded above).
+
+Status: APPR-002 blocked on the harness request. The send-order experiment is closed: the known-good send fails whether or not a LibreChat chat runs first.
