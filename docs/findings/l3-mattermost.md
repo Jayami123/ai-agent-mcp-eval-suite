@@ -87,3 +87,7 @@ Conformance reasons (from the run's `checks.json` files):
 - `dns-rebinding-protection`: an invalid Host/Origin got HTTP 200. Not confirmed as a product bug on the ledger; listed, not `expectedDefect`.
 
 Verdict count, from the stub run: PROT-001 fail before baseline; all others pass. The baseline run is pending the next push.
+
+## Baseline run: run 44697967623 (commit `b28150d`), job 136159485746, green
+
+The `l3 mattermost` job passed, so PROT-001 passes with `tests/l3/snapshots/expected-failures/mattermost.yaml` (20 baselined scenarios). The stack-test step exits non-zero on any `not ok`, and it succeeded. Protocol legs (PROT-002/003/004/007/008/009/012, OAUTH-001) pass in the same run. INJ-009, INJ-010 and INJ-013 are not built yet.
