@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { configFromEnv, isLabMode, LAB_MODES, SHADOW_NAME_PLACEHOLDER } from "../../src/attack-lab/modes.js";
+import { configFromEnv, isLabMode, LAB_MODES, SHADOW_NAME_DEFAULT } from "../../src/attack-lab/modes.js";
 
 test("there are exactly the ten modes from the plan, the four L3 additions and the two pinning modes", () => {
   assert.deepEqual([...LAB_MODES], [
@@ -41,8 +41,8 @@ test("configFromEnv has the documented defaults", () => {
   assert.equal(c.serverName, "p4-attack-lab");
   assert.equal(c.serverTitle, undefined);
   assert.equal(c.auth, false);
-  assert.equal(c.shadowName, SHADOW_NAME_PLACEHOLDER);
-  assert.equal(SHADOW_NAME_PLACEHOLDER, "mail_send");
+  assert.equal(c.shadowName, SHADOW_NAME_DEFAULT);
+  assert.equal(SHADOW_NAME_DEFAULT, "nc_mail_send_message");
 });
 
 test("configFromEnv rejects bad values instead of falling back", () => {
