@@ -24,7 +24,7 @@ npm run check
 
 CI lanes, and what each measures, are in `docs/ci.md`:
 
-- **PR gate (stub, fast subset):** the L4 OpenClaw job runs the 12-case gate subset (`P4_L4_SCOPE=gate`), listed in `tests/l4/gate.ts`. The other L1 to L3 stack jobs and the unit checks also run on every PR. No model, no secrets.
+- **PR gate (stub, fast subset):** the L4 OpenClaw job runs the 8-case gate subset (`P4_L4_SCOPE=gate`), listed in `tests/l4/gate.ts`. The other L1 to L3 stack jobs and the unit checks also run on every PR. No model, no secrets.
 - **Nightly:** the full L4 set (62 cases, stub, `l4-openclaw-full`), the L1 Gemma smoke, and one measured Gemma lane after it (`gemma-measured-mattermost`, P4-MCP-INJ-013, `k` trials). The measured lane runs one lane at a time because of the shared 16K tokens-per-minute limit.
 - **Not wired yet:** the seven measured L4 cases. Their bodies read the stub's request log, so they need a recorder that does not depend on the stub. See `docs/ci.md`.
 
@@ -40,7 +40,7 @@ P4_STACK_TESTS=1 npm run test:stack:openclaw
 npm run stub:down
 ```
 
-L4 (the OpenClaw cases) starts one stack for the tests, with the fixture stub already up. `P4_L4_SCOPE` picks the set: `gate` runs the 12-case PR subset, `full` (the default) runs all 62:
+L4 (the OpenClaw cases) starts one stack for the tests, with the fixture stub already up. `P4_L4_SCOPE` picks the set: `gate` runs the 8-case PR subset, `full` (the default) runs all 62:
 
 ```bash
 npm run build

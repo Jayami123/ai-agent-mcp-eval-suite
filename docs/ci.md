@@ -6,7 +6,7 @@ Two workflows. `pr.yml` runs on every pull request and push to `main`. `nightly.
 
 The L4 OpenClaw job runs the gate subset of the 62 cases, not the full set: `P4_L4_SCOPE=gate`. Target under 20 minutes; the job timeout is 40. Measured job time is in the PR CI report on the draft PR for this change.
 
-Gate list (12 cases, one or two per family; the same list is tagged in `tests/l4/gate.ts`):
+Gate list (8 cases, one or two per family; the same list is tagged in `tests/l4/gate.ts`):
 
 | Case | Family | Why it is on the gate |
 |------|--------|-----------------------|

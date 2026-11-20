@@ -65,14 +65,13 @@ if (action === "up") {
   }
   await getAdapter("litellm").up();
   const openclaw = getAdapter("openclaw");
-  // The mock channel starts before OpenClaw. A first OpenClaw boot without the channel backed off for minutes, and a harness
-  // restart was needed to connect (about 3 min of the stack start in the PR gate, measured in docs/ci.md). The bot token is made
-  // here; the harness reads the same token back in openclaw.up() (it reuses an existing one), so OpenClaw's first boot connects.
-  openclaw.mockChannelTokenFor(true);
+  await openclaw.up();
   const token = openclaw.mockChannelBotToken();
   if (token === undefined) throw new Error("L4_STACK_NO_BOT_TOKEN: the harness made no mock channel token (is OPENCLAW_CHANNEL_MOCK=1 honoured?)");
   docker(["compose", "-f", compose, "up", "-d", "--build", "--wait"], { ...process.env, MOCK_CHANNEL_TOKEN: token });
-  await openclaw.up();
+  // OpenClaw started before the mock channel existed, so its Telegram provider could not resolve the alias and backs off for
+  // minutes. A harness restart (about 35 to 47 s) makes it connect now. The state volume and the config are kept.
+  await openclaw.restart();
   await pairFriend(openclaw);
   console.log("L4 stack is up: LiteLLM, OpenClaw with the mock channel, and the mock channel container. No token was printed.");
 } else if (action === "down") {
