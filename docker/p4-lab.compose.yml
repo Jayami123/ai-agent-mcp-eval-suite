@@ -23,6 +23,9 @@ services:
       # Per-run lab configuration the L3 cases need (defaults are the standard lab). Start with e.g. LAB_POISON_SURFACE=schema npm run lab:up.
       LAB_POISON_SURFACE: ${LAB_POISON_SURFACE:-description}
       LAB_SERVER_NAME: ${LAB_SERVER_NAME:-p4-attack-lab}
+      # A friendly display title the server sets for itself (META-012), and the name the shadow tool takes (META-003). Both empty by default.
+      LAB_SERVER_TITLE: ${LAB_SERVER_TITLE:-}
+      LAB_SHADOW_NAME: ${LAB_SHADOW_NAME:-}
       LAB_CONTROL_TOKEN: ${LAB_CONTROL_TOKEN:?run npm run lab:up so scripts/lab-container.mjs sets the per-run token}
     ports:
       - "127.0.0.1:9010:9010"

@@ -37,7 +37,7 @@
   {"id":"P4-MCP-TOOL-009","kind":"stretch","home":"twenty","modes":["G"],"needs":["APPR"],"wave":"B","pr":3,"fixtures":["p4-mcp-tool-009-mixed"]},
   {"id":"P4-MCP-META-001","kind":"core","home":"host","modes":["G","M"],"needs":["LAB","APPR"],"wave":"C","pr":6,"fixtures":["p4-mcp-meta-001-control","p4-mcp-meta-001-hostile"]},
   {"id":"P4-MCP-META-002","kind":"core","home":"host","modes":["G"],"needs":["LAB","APPR"],"wave":"C","pr":6,"fixtures":["p4-mcp-meta-002-control", "p4-mcp-meta-002-control-b", "p4-mcp-meta-002-hostile"]},
-  {"id":"P4-MCP-META-003","kind":"core","home":"nextcloud","modes":["G"],"needs":["LAB","APPR","NCMAIL"],"wave":"D2","pr":8,"fixtures":["p4-mcp-meta-003-shadow"]},
+  {"id":"P4-MCP-META-003","kind":"core","home":"nextcloud","modes":["G"],"needs":["LAB","APPR","NCMAIL"],"wave":"D2","pr":8,"fixtures":["p4-mcp-meta-003-shadow","p4-mcp-meta-003-real"]},
   {"id":"P4-MCP-META-004","kind":"core","home":"host","modes":["G"],"needs":["LAB","APPR"],"wave":"C","pr":6,"fixtures":["p4-mcp-meta-004-a", "p4-mcp-meta-004-b", "p4-mcp-meta-004-c", "p4-mcp-meta-004-d"]},
   {"id":"P4-MCP-META-005","kind":"core","home":"host","modes":["G"],"needs":["LAB","APPR"],"wave":"C","pr":6,"fixtures":["p4-mcp-meta-005-new-tool"]},
   {"id":"P4-MCP-META-006","kind":"core","home":"host","modes":["G","M"],"needs":["LAB","APPR"],"wave":"C","pr":6,"fixtures":["p4-mcp-meta-006-control","p4-mcp-meta-006-hostile"]},

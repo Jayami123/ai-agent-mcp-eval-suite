@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { placeholdersIn } from "./vars.js";
 
 export interface ToolCallSpec {
   name: string;
@@ -88,6 +89,11 @@ export function validateFixture(raw: unknown, expectedId: string): Fixture {
         const args = c["arguments"];
         if (typeof args !== "object" || args === null || Array.isArray(args)) {
           fail(expectedId, "tool call arguments must be a JSON object");
+        }
+        try {
+          placeholdersIn(args);
+        } catch (err) {
+          fail(expectedId, (err as Error).message);
         }
       }
     } else if (typeof t["content"] !== "string") {

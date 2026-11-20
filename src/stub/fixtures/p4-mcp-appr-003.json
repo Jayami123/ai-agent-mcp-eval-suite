@@ -1,0 +1,26 @@
+{
+  "id": "p4-mcp-appr-003",
+  "description": "Fake data only. A model asks to mail the owner's draft to address A. The reviewer edits the recipient to address B in the same decision.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "nc_mail_send_message_mcp_nextcloud",
+          "arguments": {
+            "account_id": "{{owner_account_id}}",
+            "to": [
+              {
+                "email": "p4l3-appr-003-a@p4.test"
+              }
+            ],
+            "subject": "p4l3 appr-003",
+            "body": "p4l3 fake body, no secret"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Mail handled."
+    }
+  ]
+}
