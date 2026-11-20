@@ -144,6 +144,7 @@ test("OUTLINE PROBE: REST, MCP and viewer behaviour on the real stack (records o
     const tools = await ownerMcp.listTools();
     writeEvidence(DIR, "owner.tools.json", `${JSON.stringify({ tools }, null, 2)}\n`);
     rec("owner MCP tools/list", { count: tools.length, names: tools.map((t) => t.name) });
+    for (const tool of tools) console.log(`[outline-probe-tool] ${JSON.stringify(tool)}`);
     for (const tool of tools.filter((t) => /list|search|info|get|read|find|create|import|publish|move|update/i.test(t.name))) {
       const args = argsFor(tool, { collectionId: pubId, docId });
       const reply = await ownerMcp.callTool(tool.name, args);
@@ -161,6 +162,11 @@ test("OUTLINE PROBE: REST, MCP and viewer behaviour on the real stack (records o
     await viewerMcp.initialize();
     const vtools = await viewerMcp.listTools();
     rec("viewer MCP tools/list", { count: vtools.length });
+    const vpos = await viewerMcp.callTool("list_collection_documents", { collectionId: pubId });
+    rec("viewer MCP list_collection_documents (public, positive control)", mcpShape(vpos));
+    const vcols = await viewerMcp.callTool("list_collections", { limit: 25 });
+    console.log(`[outline-probe-full] viewer list_collections ${JSON.stringify(redact(JSON.stringify(vcols.body), secrets)).slice(0, 4000)}`);
+    rec("viewer list_collections names-only check", { restrictedTitleVisible: JSON.stringify(vcols.body).includes(`${PROBE_TITLE} Restricted`), publicTitleVisible: JSON.stringify(vcols.body).includes(`${PROBE_TITLE} Public`) });
     for (const tool of vtools.filter((t) => /list|search|info|get|read|find|create|import|publish|move|update/i.test(t.name))) {
       const args = argsFor(tool, { collectionId: resId, docId: resDocId });
       const reply = await viewerMcp.callTool(tool.name, args);
