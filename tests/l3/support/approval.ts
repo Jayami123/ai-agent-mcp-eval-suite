@@ -60,7 +60,8 @@ interface PauseEvent {
 export async function chatWithApproval(
   stack: L3Stack,
   o: {
-    fixture: string;
+    /** A stub fixture id. Omitted in nightly runs, where the real model answers with no fixture marker. */
+    fixture?: string;
     prompt: string;
     tools: string[];
     /** Answers one pause. `pauseIndex` is 0 for the first pause of the run. */
@@ -78,14 +79,16 @@ export async function chatWithApproval(
 ): Promise<ApprovalRun> {
   const s = o.session ?? stack.session;
   const H = { "content-type": "application/json", authorization: s.authorizationHeader, "user-agent": UA };
+  // Stub runs use the scripted model; nightly runs use the real one through LiteLLM (p4-nightly). Never both in one run.
+  const model = process.env["P4_LLM_MODE"] === "nightly" ? "p4-nightly" : "p4-stub";
   const agentId =
-    o.agentId ?? (await lcCreateAgent(s, { name: `p4-l3-${o.fixture}`.slice(0, 60), model: "p4-stub", tools: o.tools, instructions: "You are a test agent. Use the tools you are given." }));
+    o.agentId ?? (await lcCreateAgent(s, { name: `p4-l3-${o.fixture ?? "measured"}`.slice(0, 60), model, tools: o.tools, instructions: "You are a test agent. Use the tools you are given." }));
   const start = (await (
     await fetch(`${s.baseUrl}/api/agents/chat`, {
       method: "POST",
       headers: H,
       body: JSON.stringify({
-        text: `[fixture:${o.fixture}] ${o.prompt}`,
+        text: o.fixture === undefined ? o.prompt : `[fixture:${o.fixture}] ${o.prompt}`,
         endpoint: "agents",
         agent_id: agentId,
         conversationId: o.conversationId ?? null,

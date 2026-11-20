@@ -38,6 +38,7 @@
     "test:stack:l3:lab-schema": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-schema.e2e.js",
     "test:stack:l3:always-allow": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/always-allow.e2e.js",
     "test:stack:l3:mattermost": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/mattermost/run.e2e.js",
+    "test:stack:l3:mattermost:measured": "tsc -p tsconfig.test.json && node --test --test-timeout=21600000 --test-concurrency=1 dist-test/tests/l3/mattermost/measured.e2e.js",
     "test:stack:l3:outline": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/outline/run.e2e.js",
     "test:stack:l3:lab-typo": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-typo.e2e.js",
     "test:stack:l3:probe:mail": "tsc -p tsconfig.test.json && P4_L3_PROBE=1 node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/probe/mail.e2e.js",
