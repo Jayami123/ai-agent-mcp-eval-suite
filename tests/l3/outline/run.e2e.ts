@@ -7,6 +7,8 @@ import { selectServers } from "../support/stack.js";
 process.env["LIBRECHAT_TOOL_APPROVAL"] = "1";
 process.env["LIBRECHAT_TOOL_APPROVAL_MODE"] = "default";
 process.env["LIBRECHAT_TOOL_APPROVAL_ASK"] = "mcp:outline:create_document,mcp:outline:update_document,mcp:outline:move_document";
+// Under mode "default" every tool not listed here pauses for approval. Reads are allowed so the control and hostile runs can read the page.
+process.env["LIBRECHAT_TOOL_APPROVAL_ALLOW"] = "mcp:outline:fetch,mcp:outline:list_documents,mcp:outline:list_collection_documents";
 
 bootRuntime(selectServers(["outline"]), "outline");
 

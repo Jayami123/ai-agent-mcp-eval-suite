@@ -49,10 +49,17 @@ export async function outlineSession(rt: Runtime): Promise<OutlineSession> {
 /** Makes the second identity a viewer and checks it (auth.info role must read `viewer`). Idempotent. */
 export async function makeViewer(s: OutlineSession): Promise<void> {
   const owner = s.oracle.authorization;
-  const up = await s.oracle.api(owner, "users.update_role", { id: s.viewerId, role: "viewer" });
-  if (up.status !== 200) throw new Error(`OUTLINE_SETUP_VIEWER_HTTP_${up.status}: users.update_role did not make the viewer`);
-  const me = await s.oracle.api(s.viewerAuthorization, "auth.info");
-  const role = (dataOf(me) as { user?: { role?: unknown } } | undefined)?.user?.role;
+  const roleOf = async (): Promise<unknown> => {
+    const me = await s.oracle.api(s.viewerAuthorization, "auth.info");
+    return (dataOf(me) as { user?: { role?: unknown } } | undefined)?.user?.role;
+  };
+  // Outline answers 400 to a role change to the role the user already has (the probe runs first in the same stack and
+  // leaves the viewer in place), so the change is made only when needed.
+  if ((await roleOf()) !== "viewer") {
+    const up = await s.oracle.api(owner, "users.update_role", { id: s.viewerId, role: "viewer" });
+    if (up.status !== 200) throw new Error(`OUTLINE_SETUP_VIEWER_HTTP_${up.status}: users.update_role did not make the viewer`);
+  }
+  const role = await roleOf();
   if (role !== "viewer") throw new Error(`OUTLINE_SETUP_VIEWER_ROLE: the second identity reads role ${String(role)}, not viewer`);
 }
 
