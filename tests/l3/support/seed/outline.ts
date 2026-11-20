@@ -90,7 +90,9 @@ export async function sweep(s: OutlineSession): Promise<{ documents: number; col
     const r = await s.oracle.api(s.oracle.authorization, "collections.delete", { id });
     if (r.status !== 200) {
       const why = await whatBlocks(s, id);
-      throw new Error(`OUTLINE_SWEEP_COLLECTION_HTTP_${r.status} (docs: ${docStatuses}; blocking: ${why})`);
+      const body = r.json as { error?: unknown; message?: unknown } | undefined;
+      const reason = `error=${String(body?.error ?? "none")} message=${String(body?.message ?? "none").slice(0, 120)}`;
+      throw new Error(`OUTLINE_SWEEP_COLLECTION_HTTP_${r.status} (docs: ${docStatuses}; blocking: ${why}; reply: ${reason})`);
     }
   }
   return { documents: found.docs.length, collections: found.collections.length, docStatuses };
@@ -168,5 +170,8 @@ async function whatBlocks(s: OutlineSession, collectionId: string): Promise<stri
     const n = Array.isArray(dataOf(list)) ? (dataOf(list) as unknown[]).length : `status ${list.status}`;
     parts.push(`documents.list${"statusFilter" in extra ? `[${(extra as { statusFilter: string[] }).statusFilter[0]}]` : ""}=${n}`);
   }
+  const info = await s.oracle.api(s.oracle.authorization, "collections.info", { id: collectionId });
+  const data = (dataOf(info) as { permission?: unknown; deletedAt?: unknown; archivedAt?: unknown } | undefined) ?? {};
+  parts.push(`collections.info=${info.status} permission=${String(data.permission ?? "null")} deleted=${data.deletedAt != null} archived=${data.archivedAt != null}`);
   return parts.join(", ");
 }
