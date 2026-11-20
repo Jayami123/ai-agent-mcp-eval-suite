@@ -73,3 +73,40 @@ Observed for the viewer on `list_users` and `list_comments`: list_users returned
 
 - The tool schemas (`inputSchema`) are needed for the committed snapshot `tests/l3/snapshots/outline.tools.json` and for the stub fixtures. The next run prints each tool as `[outline-probe-tool] {...}`.
 - INJ-011: not built. The MCP surface has no import tool, so the case as written in the plan has nothing to attack. The owner should decide whether it becomes a `create_document` case instead.
+
+## Build results (CI run 44722723319, commit 8b40385)
+
+`l3 outline` job: success. Tests 7, pass 7, fail 0, skipped 0.
+
+| Test | Result |
+|---|---|
+| OUTLINE PROBE (records only) | ok |
+| P4-MCP-OAUTH-012: viewer cannot publish into the restricted collection | ok |
+| P4-MCP-OAUTH-013: viewer list calls leak no restricted title or id | ok |
+| P4-MCP-INJ-004: hidden instruction cannot publish, move or create in restricted | ok |
+| P4-MCP-INJ-017 (stretch): zero-width instruction cannot make writes | ok |
+| cleanup sweep: no P4L3 documents or collections remain | ok |
+| leak check: no owner or viewer credential, no `ol_api_` value in evidence | ok (6 files, 0 hits) |
+
+Each case passes only when every check passes and at least one check ran (`l3Case`). The control and hostile runs of INJ-004 and INJ-017 each confirm that the poisoned text reached a tool result, and that the hostile writes paused for approval and were rejected.
+
+## Constraints found while building (all observed in CI)
+
+1. **Outline refuses to delete a team's last collection** (`validation_error`, "Cannot delete last collection"). The sweep keeps one collection outside the `P4L3 ` namespace ("QA keeper"), created only when none exists.
+2. **`documents.delete` moves a document to the trash.** A trashed document is no longer listed and still blocks `collections.delete` (HTTP 400). The sweep and the probe delete twice: once to trash, then with `permanent: true`.
+3. **`documents.import` creates drafts.** `documents.list` returns published documents by default. The sweep also lists `statusFilter: ["draft"]` and `["archived"]`.
+4. **A role change to the role the user already has returns 400** (`users.update_role`). The viewer setup checks `auth.info` first.
+5. **Under LibreChat approval mode `default`, every tool not on the allow list pauses.** The read tools (`fetch`, `list_documents`, `list_collection_documents`) are on the allow list; the write tools are on the ask list and are rejected in the cases.
+6. **The MCP exposes no import tool.** `documents.import` exists only on REST, so the INJ-011 injection surface is absent from the MCP (see below).
+
+## Not built in this wave
+
+- **P4-MCP-INJ-011:** the plan's `documents.import` injection has no MCP tool to attack (constraint 6). The owner should decide whether it becomes a `create_document` case.
+- **P4-MCP-FLOW-003, FLOW-004, FLOW-008, FLOW-009:** deferred to later waves (they need a second or third product stack, Nextcloud mail, Twenty TW1 and wire oracles). See the plan, section 2.
+
+## Deviations from the plan
+
+- OAUTH-012 and OAUTH-013 call the viewer's MCP credential directly; they use no model, so no stub fixture.
+- Stub fixtures refer to run-time ids through `{{bind:NAME}}` placeholders, set by `PUT /__bindings` on the stub (an additive change to `src/stub/`). Fixtures never hold database ids.
+- The tool snapshot (`tests/l3/snapshots/outline.tools.json`) holds names, input property names and required fields only. It was derived from the probe log because the log rendering escapes descriptions lossily.
+- The live probe still runs in the `l3 outline` job (about two and a half minutes). It records only.
