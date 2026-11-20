@@ -205,3 +205,23 @@ So the one concrete Nextcloud-touching difference (the second boot on kept volum
 - P4-MCP-APPR-002: setup fails, the send returns 500. The verdicts file has the setup passes before the failure (account id 1 in the Mail API and in the send; GreenMail 0 copies).
 - P4-MCP-META-013: **fail** at setup ("hash changed false"). Caused by the `shadow-name` start above, not by the product. Reverted in the next commit.
 - Job result: `l3 always-allow mail` failure; all other PR jobs success at the time of the check (`l4 openclaw stub` still running).
+
+### Job diff, l3 mail against l3 always-allow mail (head b759f3e, before this commit)
+
+One line per difference; "touches send path" means it runs on the Nextcloud Mail setup or send before the first send.
+
+1. Job env `P4_L3_PROBE=1` (l3 mail) vs not set: enables the wave D probe, which boots the Mail stack once before the cases. Touches send path: yes (boot count).
+2. Job env `P4_L3_SERVERS=nextcloud,lab` (always-allow) vs not set: same server list, no effect. Touches: no.
+3. `LAB_MODE=shadow-name` on lab start (l3 mail) vs benign (always-allow): the lab only; META-013 switches its mode itself. Touches: no (reverted in b759f3e).
+4. Step order: l3 mail runs the probe, then cases; always-allow runs cases only. Touches: yes (see 1).
+5. Harness mail flags: both `P4_MAIL=1` (set in the test entry). No difference. Touches: no.
+6. Harness H-options: neither sets `P4_SECOND_IDENTITY`; both use the same `seedMail`. No difference. Touches: no.
+7. Approval env: `LIBRECHAT_TOOL_APPROVAL=1` and mode default in both; always-allow adds `LIBRECHAT_TOOL_APPROVAL_ALLOW_ALWAYS=1` and no ask or deny. Touches: no (writes LibreChat config only).
+8. Test entry hygiene: l3 mail registers the hygiene tests; always-allow does not. Touches: no.
+9. Send order: l3 mail's cases send only through LibreChat after no direct send; always-allow runs leg 1 (LibreChat chat) before its direct sends. Touches: yes (the send-order candidate).
+10. Pre-send setup only in always-allow: `loglevel 0` (occ), a GreenMail probe user and SMTP AUTH probe, all added in commit b675b72 (after the first 500 in 07ad2ff). Touches: yes, but the 500 predates them, so not the original cause.
+11. Lab2: both start it through `lab:up`, benign. No difference. Touches: no.
+12. Timeouts: both 90 minutes. No difference. Touches: no.
+13. Teardown and artifact names: same steps, job-specific names only. Touches: no.
+
+Change in this commit: item 4 is aligned. The always-allow job now runs the wave D probe before its cases, with `P4_L3_PROBE=1`, so both jobs boot the Mail stack twice on kept volumes. No retries and no sleeps.

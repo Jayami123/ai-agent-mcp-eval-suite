@@ -578,6 +578,7 @@ jobs:
       P4_LLM_MODE: stub
       P4_STACK_TESTS: "1"
       P4_L3_SERVERS: nextcloud,lab
+      P4_L3_PROBE: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -613,6 +614,11 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS http://127.0.0.1:9010/.well-known/oauth-protected-resource/mcp | grep -q '"resource":"http://p4-attack-lab:9010/mcp"'
+
+      # Aligned with the l3 mail job: its Nextcloud stack boots once for the probe, then again for the cases. The probe runs first
+      # here too, so both jobs boot the Mail stack the same number of times on the same kept volumes.
+      - name: L3 wave D mail probe (aligns the boot sequence with l3 mail)
+        run: npm run test:stack:l3:probe:mail
 
       - name: L3 always-allow mail cases (APPR-002, META-013)
         run: npm run test:stack:l3:always-allow-mail
