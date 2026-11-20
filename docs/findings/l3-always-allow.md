@@ -141,3 +141,33 @@ No APPR-002 result is recorded as a pass. The control stays a hard assertion.
 - **Evidence:** run 44804893661 (head `b675b72`): the known-good send and the APPR-002 send both fail at `POST /index.php/apps/mail/api/outbox/1` with HTTP 500, after `POST /index.php/apps/mail/api/outbox` returns 201. `loglevel` is `0` (set by the suite for the run); `/var/www/html/data/nextcloud.log` contains only unrelated `occ` entries. SMTP AUTH from the app container to `greenmail:3025` returns `235`.
 - **Ask:** in the mail stack's Nextcloud setup, enable debug logging for the mail app and make the Mail app log the SMTP and outbox exception (the log backend is file and rotated at 100 MB). The harness already owns this setup; the suite should not change Mail app internals.
 - **Not asked:** no retries, sleeps or changed assertions in the suite to hide the 500.
+
+### Wave 2 analysis: job diff and harness trace (no run, local reading only)
+
+Status: **P4-MCP-APPR-002 blocked** on the Nextcloud Mail send (setup check fails before any approval leg is reached). **P4-MCP-META-013 passes** (run 44792119046, head a766fba).
+
+Job diff, `l3 mail` (wave D, merged PR #19) against `l3 always-allow mail` (this PR), from `.github/workflows/pr.yml` and the test entries:
+
+| Item | `l3 mail` | `l3 always-allow mail` | Effect on the Nextcloud send |
+|---|---|---|---|
+| `P4_MAIL` | 1 (set by `tests/l3/nextcloud/mail.e2e.ts`) | 1 (set by `always-allow-mail.e2e.ts`) | none: both start GreenMail and run `configureMailIdentity` |
+| `P4_L3_SERVERS` | unset (all registered: nextcloud, lab) | `nextcloud,lab` | none: `selectServers` returns the same list |
+| `LIBRECHAT_TOOL_APPROVAL_ALLOW_ALWAYS` | unset | 1 | none: writes one `allowAlways: true` line to LibreChat's config (`librechat-approval.js:70`); the failing send goes straight to the Nextcloud MCP |
+| `LAB_MODE` for `lab:up` | `shadow-name` | unset (benign) | none on the Nextcloud send; **the hostile leg needs it** (fixed in this commit, see below) |
+| `P4_L3_PROBE` | 1 (runs `probe/mail.e2e.ts` as a separate step first) | unset | the probe is a separate process: it boots and stops its own stack before the cases step |
+| Order of sends | probe's direct send (`mail.probe.ts` step 4) runs before any LibreChat chat | every direct send runs after leg 1, a LibreChat chat | **the only difference on the send path that is not an env value** |
+
+Harness path both jobs trigger (`node_modules/qa-portfolio-harness` v0.6.10, `dist/adapters/nextcloud.adapter.js`): `up()` calls `startGreenmail` when `cfg.mail`, then `composeUp`, `waitHealthy`, `seed`, `seedMail` (`installMailApp`, then `configureMailIdentity` per identity: delete any existing account with the owner's email, create the GreenMail user, create the `Sent` mailbox, `occ mail:account:create`). `down()` keeps Nextcloud volumes unless `NEXTCLOUD_DOWN_VOLUMES=1`, which no job sets. No harness branch depends on `allowAlways` or on the lab.
+
+Excluded as the cause: the environment, the server list, the Mail account setup, `allowAlways`, and the lab mode. None of them is on the path of the direct send, which calls the Nextcloud MCP with the owner's credential and reaches Nextcloud's `POST /index.php/apps/mail/api/outbox/{id}`.
+
+Not excluded: the send order. In wave D the direct send that works is made before any LibreChat chat. In this job it is always made after leg 1. Nothing in the repository shows that order matters; this is open. The wave D direct-send reply is not quoted in `docs/findings/l3-wave-d.md`, so the claim that it succeeds rests on the wave D job log, not on a quoted line here.
+
+Suite-side defect found and fixed in this commit: `LAB_MODE` was not set to `shadow-name` for this job. `src/attack-lab/modes.ts` renames `lab_mail_send` to the Nextcloud send name only in that mode, so the hostile leg's shadow tool did not exist here. The fix does not explain the setup 500 (the setup sends never touch the lab).
+
+**Harness request (mail stack logging and the outbox 500).** Blocked on the harness until shown otherwise:
+- Need: when the Mail app's outbox send fails with `500 "Could not send message"`, the cause must reach Nextcloud's log (or the harness must name it), so the suite can say why. The owner's Mail account (id 1), SMTP settings and GreenMail AUTH are already correct (run 44804893661).
+- Evidence: run 44792119046 (job 136482464961, head a766fba): `POST /index.php/apps/mail/api/outbox` returns 201, then `POST /index.php/apps/mail/api/outbox/1` returns 500, same second as `sends.json` `"ok": false`. Run 44804893661 (head b675b72): the known-good send fails the same way; `loglevel` 0; `nextcloud.log` has no entry for it. `smtp-auth-probe.txt`: `235`.
+- Ask: enable debug logging for the Mail app in the mail stack's Nextcloud setup, so its outbox and SMTP exceptions are written. The harness owns that setup; the suite does not change Mail app internals.
+- Not asked: no retries, sleeps or changed assertions to hide the 500. The control stays a hard assertion.
+- Open question for the harness owner: what differs between a send made before any LibreChat chat (wave D probe, works per the job log) and one made after leg 1 (this job, fails). If the owner approves, the suite can test that order in one commit by moving the known-good send before leg 1.
