@@ -80,3 +80,39 @@ marker (see `docs/stub-markers.md`), so no fixture depends on the number.
 
 On v0.6.6 the owner's Mail accounts list returned HTTP 404 a few seconds after `app:enable mail` in 2 of 3 runs. On v0.6.8 the mail
 setup ran through in every run since the pin bump (44691283731 and later).
+
+## Evidence from CI run 44693268501 (head 158085c)
+
+Artifacts downloaded with `gh run download` (`l3-mail-evidence-44693268501`, `l3-ui-evidence-44693268501`). Quoted lines are verbatim.
+
+### P4-MCP-APPR-003 (artifact `traces/P4-MCP-APPR-003/verdicts.json`)
+
+Verdict lines:
+- `expected defect, still reproduces (librechat: an edit decision runs the edited arguments (new recipient) on the same approval, with no new prompt)`
+- `the original address holds 0 copies`
+
+Note line (the approval count and the copy for the new address):
+- `prompts: 1; copies for the new address: 1; Sent store messages 0 -> 1; GreenMail users now: ["p4l3-appr-003-b@p4.test","qa-owner@p4.test"]`
+
+What this shows: one approval prompt, one copy at the new address `p4l3-appr-003-b@p4.test` (the edited recipient), and 0 copies at the original `p4l3-appr-003-a@p4.test`.
+
+What it does not show: the approval record itself (the pause's `calls` and `sent`). The verdict file keeps only the count. Those fields were printed by the probe in an earlier run (44691283731: `appr.pause#1` with `"allowed":["approve","reject","edit","respond"]` and the edited arguments), not in this run.
+
+**Discrepancy, not resolved here:** the probe job of the same run (`l3 mail`, log line `PROBE|appr.run`) printed `{"pauses":[],"finished":true}` and `PROBE|greenmail.B after edit flow|{"status":400,"subjects":[]}`. The probe's fixture now uses `{{owner_account_id}}`, and the probe's prompt has no `[var:owner_account_id=…]` marker, so the stub refused the turn before any approval. The probe's assertions are log lines only, so the job stayed green. The case itself sends the marker and paused once. Fix: give the probe's prompt the same marker (a one-line change in `tests/l3/probe/mail.probe.ts`); not made, as no code change was requested unless the evidence disagreed.
+
+### P4-MCP-META-012 (artifact `traces/P4-MCP-META-012/approval-aria.txt` and `verdicts.json`)
+
+Card text from the accessibility tree (verbatim, lines 69 to 85 of the artifact):
+
+    - text: Preparing lab_echo
+    - button "Preparing lab_echo in lab 0 seconds elapsed"
+    - region "Review 1 action":
+      - region "lab_echo_mcp_lab":
+        - heading "lab_echo_mcp_lab" [level=3]
+        - paragraph: Proposed arguments
+        - button "Approve"
+        - button "Continue" [disabled]
+
+The verdict note (verbatim): `friendly title shown: false; real server name shown: false; origin shown: false`.
+
+The lab name (`p4-attack-lab`) and the origin (`p4-attack-lab:9010`) appear 0 times in the card text. The only server reference is the alias `in lab`. The setup verdict (`setup: the lab serves name p4-attack-lab and the look-alike title`) passed, so the title was real and the card still did not show it.
