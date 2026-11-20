@@ -37,6 +37,7 @@
     "test:stack:l3:lab-matrix": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-matrix.e2e.js",
     "test:stack:l3:lab-schema": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-schema.e2e.js",
     "test:stack:l3:always-allow": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/always-allow.e2e.js",
+    "test:stack:l3:outline": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/outline/run.e2e.js",
     "test:stack:l3:lab-typo": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-typo.e2e.js",
     "test:stack:l3:probe:mail": "tsc -p tsconfig.test.json && P4_L3_PROBE=1 node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/probe/mail.e2e.js",
     "test:stack:l3:probe:ui": "tsc -p tsconfig.test.json && P4_L3_PROBE=1 node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/probe/ui.e2e.js",
@@ -45,7 +46,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
-    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.8",
+    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.10",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -57,6 +58,6 @@
     "typescript": "^5.8.2"
   },
   "allowScripts": {
-    "github:Jayami123/qa-portfolio-harness#v0.6.8": true
+    "github:Jayami123/qa-portfolio-harness#v0.6.10": true
   }
 }

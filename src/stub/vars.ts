@@ -9,6 +9,8 @@
 export const VAR_MARKER = /\[var:([^\]]*)\]/g;
 /** A whole-value placeholder in a fixture argument. Anything else that contains "{{" is rejected when the fixture loads. */
 export const VAR_PLACEHOLDER = /^\{\{([a-z][a-z0-9_]{0,31})\}\}$/;
+/** A whole-value binding placeholder (src/stub/bindings.ts). Left to that module. */
+export const BIND_PLACEHOLDER = /^\{\{bind:[A-Z][A-Z0-9_]{0,39}\}\}$/;
 export const VAR_NAME = /^[a-z][a-z0-9_]{0,31}$/;
 export const VAR_VALUE = /^[A-Za-z0-9_.@-]{1,128}$/;
 
@@ -44,6 +46,8 @@ export function parseVarMarkers(text: string): Record<string, string> {
 export function placeholdersIn(value: unknown): string[] {
   if (typeof value === "string") {
     if (!value.includes("{{")) return [];
+    // `{{bind:NAME}}` is the separate binding mechanism (src/stub/bindings.ts), validated when it is resolved, not here.
+    if (BIND_PLACEHOLDER.test(value)) return [];
     const m = VAR_PLACEHOLDER.exec(value);
     if (!m) throw new VarInvalidError(`argument ${JSON.stringify(value)} is not a whole-value {{name}} placeholder`);
     return [m[1] ?? ""];

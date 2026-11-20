@@ -15,5 +15,14 @@
   "nextcloud": {
     "files_read": "nc_webdav_read_file",
     "files_write": "nc_webdav_write_file"
+  },
+  "outline": {
+    "search": "list_documents",
+    "documents_list": "list_collection_documents",
+    "documents_create": "create_document",
+    "documents_move": "move_document",
+    "documents_update": "update_document",
+    "documents_read": "fetch",
+    "collections_list": "list_collections"
   }
 }

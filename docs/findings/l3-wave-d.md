@@ -1,6 +1,8 @@
 # L3 wave D findings (mail and UI cases)
 
-Branch `feat/2026-11-20-l3-wave-d-mail-ui`. Harness pinned to `v0.6.6` (tag object `5824bd6`, commit `8a8a5f4`). Stub model only.
+Branch `feat/2026-11-20-l3-wave-d-mail-ui`. Harness pinned to `v0.6.10` (tag object `9bb4d36`, commit `84d2d35`), the pin on main. Stub model only. Earlier runs used v0.6.6 and v0.6.8; the findings below name the run and pin each time.
+
+**Status:** APPR-003 is still an expected defect (LibreChat applies an edit decision to the edited arguments on the same approval). It stays an expected defect until the owner decides whether that is a product bug or by design. Nothing in this branch decides it.
 Case IDs come from the 2026-11-18 ledger (`tests/l3/support/l3-cases.json`); none were invented or renumbered.
 
 Every observation below was recorded by the probes in `tests/l3/probe/` (`PROBE|` lines in the CI log) on the real stack:

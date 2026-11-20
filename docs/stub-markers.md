@@ -19,7 +19,9 @@ a number, because the tool schema may require one; any other value is sent as a 
 - A marker that no placeholder uses is a 400 (`var marker(s) not used by fixture ...`). A typo cannot pass silently.
 - A fixture that is not valid JSON or has a bad placeholder fails to load (500 from the stub, with the reason).
 
-The trace records the substituted arguments, so a test sees what was actually sent.
+The trace keeps the fixture as written (placeholders unresolved). The arguments the host receives are the substituted ones. This follows the `{{bind:NAME}}` mechanism in `src/stub/bindings.ts`, which records the same way.
+
+`{{bind:NAME}}` (uppercase, from `PUT /__bindings`) is a separate mechanism with its own rules in `src/stub/bindings.ts`. A `{{bind:...}}` placeholder is left to that module when a fixture loads.
 
 Example (`src/stub/fixtures/p4-mcp-meta-003-real.json`, argument `"account_id": "{{owner_account_id}}"`):
 

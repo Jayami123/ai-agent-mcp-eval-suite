@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { bindArgs, parseBindings, type BindingMap } from "./bindings.js";
 import { canonicalJson } from "./canonical.js";
 import {
   FIXTURE_ID_PATTERN,
@@ -46,18 +47,20 @@ export function createStubServer(opts: StubOptions): Server {
   const trace: TraceEntry[] = [];
   /** value -> label. Memory only: the values are never printed, logged or returned. */
   const watched = new Map<string, string>();
+  /** Run-time values for "{{bind:NAME}}" placeholders in fixture arguments (see bindings.ts). */
+  const bindings: BindingMap = new Map();
   return createServer((req, res) => {
     // One line per request: method, path, status. No bodies, no headers.
     res.on("finish", () => {
       if (req.url !== "/health") console.log(`${req.method} ${req.url} -> ${res.statusCode}`);
     });
-    handle(opts, trace, watched, req, res).catch((err: unknown) => {
+    handle(opts, trace, watched, bindings, req, res).catch((err: unknown) => {
       sendJson(res, 500, { error: { message: String(err) } });
     });
   });
 }
 
-async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<string, string>, req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<string, string>, bindings: BindingMap, req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === "GET" && req.url === "/health") {
     sendJson(res, 200, { status: "ok" });
     return;
@@ -87,6 +90,23 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     } catch {
       sendJson(res, 400, { error: { message: "body is not valid JSON" } });
     }
+    return;
+  }
+  // Run-time bindings for fixture placeholders. PUT replaces the whole set; DELETE clears it.
+  if (req.url === "/__bindings" && req.method === "PUT") {
+    const parsed = parseBindings((await readBody(req)) ?? "");
+    if (!parsed.ok) {
+      sendJson(res, 400, { error: { message: parsed.reason } });
+      return;
+    }
+    bindings.clear();
+    for (const [name, value] of parsed.map) bindings.set(name, value);
+    sendJson(res, 200, { names: [...bindings.keys()].sort() });
+    return;
+  }
+  if (req.url === "/__bindings" && req.method === "DELETE") {
+    bindings.clear();
+    sendJson(res, 200, { names: [] });
     return;
   }
   if (req.method !== "POST" || req.url !== "/v1/chat/completions") {
@@ -220,7 +240,18 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     return;
   }
 
-  const callList = (toolCalls ?? []).map((call, i) => ({
+  // Placeholders are resolved here, for the call sent to the host only. The trace keeps the fixture as written. A `[var:]`
+  // value (already filled in above) and a `{{bind:NAME}}` binding both go through this one resolver.
+  const sent: Array<{ name: string; arguments: unknown }> = [];
+  for (const call of toolCalls ?? []) {
+    const bound = bindArgs(call.arguments, bindings);
+    if (!bound.ok) {
+      sendJson(res, 500, { error: { message: `fixture ${id} turn ${turnIndex} uses unbound placeholder ${bound.missing}`, type: "p4_stub_error" } });
+      return;
+    }
+    sent.push({ name: call.name, arguments: bound.value });
+  }
+  const callList = sent.map((call, i) => ({
     id: `call_${id}_${turnIndex}_${i}`,
     name: call.name,
     args: canonicalJson(call.arguments),
@@ -232,7 +263,7 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     toolsOffered: toolNames(body.tools),
     stream: body.stream === true,
     toolResults,
-    toolCalls: (toolCalls ?? []).map((call) => ({ name: call.name, arguments: call.arguments })),
+    toolCalls: (turn.tool_calls ?? []).map((call) => ({ name: call.name, arguments: call.arguments })),
     content: turn.content ?? null,
     error: null,
     promptHits,
