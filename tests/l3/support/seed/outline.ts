@@ -76,17 +76,30 @@ async function ownedTitles(s: OutlineSession): Promise<{ docs: string[]; collect
  * tracked, because MCP and import create documents the suite does not track (the probe showed this). Returns what it removed
  * (counts only) and throws if a delete the sweep depends on fails.
  */
-export async function sweep(s: OutlineSession): Promise<{ documents: number; collections: number }> {
+export async function sweep(s: OutlineSession): Promise<{ documents: number; collections: number; docStatuses: string }> {
   const found = await ownedTitles(s);
-  for (const id of found.docs) {
-    const r = await s.oracle.api(s.oracle.authorization, "documents.delete", { id });
-    if (r.status !== 200) throw new Error(`OUTLINE_SWEEP_DOC_HTTP_${r.status}`);
-  }
+  const docStatuses = await deleteDocsPermanently(s, found.docs);
   for (const id of found.collections) {
     const r = await s.oracle.api(s.oracle.authorization, "collections.delete", { id });
-    if (r.status !== 200) throw new Error(`OUTLINE_SWEEP_COLLECTION_HTTP_${r.status}`);
+    if (r.status !== 200) throw new Error(`OUTLINE_SWEEP_COLLECTION_HTTP_${r.status} (docs: ${docStatuses})`);
   }
-  return { documents: found.docs.length, collections: found.collections.length };
+  return { documents: found.docs.length, collections: found.collections.length, docStatuses };
+}
+
+/**
+ * documents.delete moves a document to the trash; a second delete of the trashed document removes it for good. A trashed
+ * document is not listed by documents.list but still blocks collections.delete (the probe showed HTTP 400), so both steps
+ * run. Returns the status pairs ("200/200") for the log, never the ids.
+ */
+export async function deleteDocsPermanently(s: OutlineSession, ids: string[]): Promise<string> {
+  const pairs: string[] = [];
+  for (const id of ids) {
+    const first = await s.oracle.api(s.oracle.authorization, "documents.delete", { id });
+    const second = await s.oracle.api(s.oracle.authorization, "documents.delete", { id, permanent: true });
+    pairs.push(`${first.status}/${second.status}`);
+    if (first.status !== 200 || second.status !== 200) throw new Error(`OUTLINE_SWEEP_DOC_HTTP_${first.status}_${second.status}`);
+  }
+  return pairs.join(",") || "none";
 }
 
 /** Reads a fixture text file from tests/l3/fixtures (JSON, so zero-width code points are written as \u escapes). */

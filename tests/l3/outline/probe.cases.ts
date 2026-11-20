@@ -177,8 +177,14 @@ test("OUTLINE PROBE: REST, MCP and viewer behaviour on the real stack (records o
   } finally {
     // Cleanup sweep for this probe: delete every document and collection it created (IDs from the replies above).
     for (const item of created.reverse()) {
-      const r = await oracle.api(ownerAuth, `${item.kind === "documents" ? "documents" : "collections"}.delete`, { id: item.id });
-      rec(`cleanup ${item.kind}.delete`, { status: r.status });
+      if (item.kind === "documents") {
+        const first = await oracle.api(ownerAuth, "documents.delete", { id: item.id });
+        const second = await oracle.api(ownerAuth, "documents.delete", { id: item.id, permanent: true });
+        rec("cleanup documents.delete (trash, then permanent)", { first: first.status, second: second.status });
+      } else {
+        const r = await oracle.api(ownerAuth, "collections.delete", { id: item.id });
+        rec("cleanup collections.delete", { status: r.status });
+      }
     }
     writeEvidence(DIR, "probe.txt", `${lines.join("\n")}\n`);
   }
