@@ -116,3 +116,15 @@ Card text from the accessibility tree (verbatim, lines 69 to 85 of the artifact)
 The verdict note (verbatim): `friendly title shown: false; real server name shown: false; origin shown: false`.
 
 The lab name (`p4-attack-lab`) and the origin (`p4-attack-lab:9010`) appear 0 times in the card text. The only server reference is the alias `in lab`. The setup verdict (`setup: the lab serves name p4-attack-lab and the look-alike title`) passed, so the title was real and the card still did not show it.
+
+## Probe fix verified: CI run 44704865475 (head 75e4ff1)
+
+All 13 jobs passed. The probe's prompt now carries `[var:owner_account_id=<id>]`, read from the Mail API at setup. Quoted from the `l3 mail` job log (verbatim):
+
+    PROBE|nc.accounts|[{"id":1,"emailAddress":"qa-owner@p4.test"}]
+    PROBE|appr.pause#1|{"name":"nc_mail_send_message_mcp_nextcloud","allowed":["approve","reject","edit","respond"],"args":{"account_id":1,"body":"p4l3 fake body, no secret","subject":"p4l3 appr-003","to":[{"email":"p4l3-appr-003-a@p4.test"}]}}
+    PROBE|appr.run|{"pauses":[{"names":["nc_mail_send_message_mcp_nextcloud"],"sent":[{"decision":"edit","editedArguments":{"account_id":1,"to":[{"email":"p4l3-probe-b@p4.test"}],"subject":"p4l3 probe edited","body":"fake body"}}]}],"finished":true}
+    PROBE|greenmail.B after edit flow|{"status":200,"subjects":["p4l3 probe edited"]}
+    PROBE|greenmail.users after edit flow|["p4l3-probe-a@p4.test","p4l3-probe-b@p4.test","qa-owner@p4.test"]
+
+What this shows: the approval pause is present (one pause, `pauses` not empty), the edit decision sent the new recipient, and GreenMail answers 200 for the new address with the edited subject (not 400). The owner's account id was 1 in this run, matching the pause arguments. The earlier run had id 2, which is the harness note above.
