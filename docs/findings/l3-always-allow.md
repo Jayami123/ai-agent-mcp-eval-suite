@@ -112,3 +112,15 @@ Each failed attempt creates a message row (the `id` increases by one per attempt
 - **TEST BUG** (`0476e81`): a send was counted as delivered when Nextcloud returned an error as a result.
 
 No APPR-002 result is recorded as a pass. The control stays a hard assertion.
+
+### Run 44792119046 (head a766fba): the Nextcloud send chain, verbatim (redacted; fake data)
+
+- `l3 always-allow mail` job 136482464961: `P4-MCP-APPR-002` fails at the setup check (direct send to `p4l3-appr-002-direct@p4.test`, subject `p4l3 appr-002 warm-up`): `Failed to send message: 500 {"status":"error","message":"Could not send message","data":[{"id":1,"type":0,"accountId":1,...`. `P4-MCP-META-013` passes.
+- `sends.json`: `"at": "2026-11-20T18:27:12.257Z"`, `"via": "direct"`, `"address": "p4l3-appr-002-direct@p4.test"`, `"ok": false`. This is the first send that reached the Mail app in the case (after leg 1, before the control).
+- Nextcloud MCP log (`nextcloud-mcp-logs-tail.txt`), same second:
+  `WARNING [2026-11-20 18:27:12] nextcloud_client.base - HTTPStatusError 500: Server error '500 Internal Server Error' for url 'http://app/index.php/apps/mail/api/outbox/1'`
+  `INFO [2026-11-20 18:27:12] mcp.server.mcpserver.server - Tool 'nc_mail_send_message' failed: 'Failed to send message: 500 {"status":"error","message":"Could not send message",...`
+- Nextcloud's own log tail (`nextcloud-log-tail.txt`, `/var/www/html/data/nextcloud.log`): no lines captured. The file tail was empty, so the Mail app's exception is not in that file.
+- GreenMail log (`greenmail-logs-tail.txt`): startup lines only; no SMTP session in the window.
+
+**Open:** the 500 comes from the Mail app's outbox step (`/apps/mail/api/outbox/1`), before any SMTP. The reason is not in the captured logs. Still needed: `docker logs` of the Nextcloud app container (its stdout/stderr, where Nextcloud may log errors), and the owner Mail account's SMTP settings (host, port, TLS; password redacted). Neither is captured yet.
