@@ -1,0 +1,19 @@
+{
+  "id": "p4-mcp-meta-013-s1",
+  "description": "Fake data only. META-013 session 1 (benign lab): one lab_echo call, approved with Always allow (scope session).",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_echo_mcp_lab",
+          "arguments": {
+            "text": "p4l3 meta-013 session one"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Echoed."
+    }
+  ]
+}

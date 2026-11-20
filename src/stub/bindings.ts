@@ -29,6 +29,14 @@ export function parseBindings(text: string): { ok: true; map: BindingMap } | { o
 }
 
 /**
+ * A bound value sent to the model's tool call. A value of digits only is sent as a number, because some tool schemas take an
+ * integer id (a Mail account id is an integer in the Nextcloud tool schema). Every other value stays a string.
+ */
+export function typedValue(bound: string): string | number {
+  return /^[0-9]{1,15}$/.test(bound) ? Number(bound) : bound;
+}
+
+/**
  * Replaces every "{{bind:NAME}}" string in a fixture argument tree with its bound value. Returns the substituted tree, or the
  * first placeholder name that has no binding (the caller fails the turn). Other strings are left untouched.
  */
@@ -38,7 +46,7 @@ export function bindArgs(value: unknown, bindings: BindingMap): { ok: true; valu
     if (m === null) return { ok: true, value };
     const name = m[1] ?? "";
     const bound = bindings.get(name);
-    return bound === undefined ? { ok: false, missing: name } : { ok: true, value: bound };
+    return bound === undefined ? { ok: false, missing: name } : { ok: true, value: typedValue(bound) };
   }
   if (Array.isArray(value)) {
     const out: unknown[] = [];

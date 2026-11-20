@@ -40,6 +40,8 @@ export interface NightlyOpts {
 }
 
 export interface L3Opts {
+  /** A CORE case blocked outside this suite: a named skip with a docs/ path (see the case doc above). */
+  namedSkip?: string;
   /** For a STRETCH case only, a named reason; the test is registered and skipped with that reason. */
   blocker?: string;
   stack?: boolean;
@@ -82,10 +84,14 @@ async function servedModelId(): Promise<string> {
  * Nightly mode runs only cases with a `nightly` branch, k trials each (P4_MEASURED_K). A trial's verdict is a measured result,
  * not a failed gate: it is written as a TrialRecord (src/stats/schema.ts) to evidence/nightly/<id>/trial-<n>.json. Only an
  * infrastructure error ends the test red.
+ * `opts.blocker`: for a STRETCH case only, a named reason; the test is registered and skipped with that reason.
+ * `opts.namedSkip`: for a CORE case that is blocked outside this suite, a named skip that points to the document holding the
+ * blocker (for example a harness request). The body is kept, so the case runs again once the blocker is removed.
  */
 export function l3Case(id: string, title: string, body: (ctx: CaseCtx) => Promise<void>, opts: L3Opts = {}): void {
   const def = caseDef(id);
-  const { blocker } = opts;
+  const { blocker, namedSkip } = opts;
+  if (namedSkip !== undefined && !/docs\/[\w./-]+\.md/.test(namedSkip)) throw new Error(`L3_NAMED_SKIP_NO_DOC: ${id} needs a docs/ path in namedSkip`);
   // A case that needs no running product (opts.stack false) runs in the plain gate.
   const stack = opts.stack === false || process.env["P4_STACK_TESTS"] === "1";
   if (blocker !== undefined && def.kind !== "stretch") throw new Error(`L3_CORE_CANNOT_SKIP: ${id} is core; a core case is deferred in the plan, not skipped`);
@@ -94,13 +100,15 @@ export function l3Case(id: string, title: string, body: (ctx: CaseCtx) => Promis
   }
   const inNightly = runMode() === "nightly";
   const skip: string | false =
-    blocker !== undefined
-      ? `blocked: ${blocker}`
-      : !stack
-        ? "requires P4_STACK_TESTS=1 (L3 stack job)"
-        : inNightly && opts.nightly === undefined
-          ? "no nightly branch (stub gate only)"
-          : false;
+    namedSkip !== undefined
+      ? `named skip: ${namedSkip}`
+      : blocker !== undefined
+        ? `blocked: ${blocker}`
+        : !stack
+          ? "requires P4_STACK_TESTS=1 (L3 stack job)"
+          : inNightly && opts.nightly === undefined
+            ? "no nightly branch (stub gate only)"
+            : false;
   test(`${id}: ${title}`, { skip, timeout: inNightly ? 5 * 60 * 60_000 : 30 * 60_000 }, async () => {
     if (inNightly && opts.nightly !== undefined) return runNightly(id, opts.nightly, body);
     const verdicts: Verdict[] = [];

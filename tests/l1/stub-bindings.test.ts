@@ -26,6 +26,11 @@ test("bindArgs substitutes whole-string placeholders at any depth and leaves oth
   if (r.ok) assert.deepEqual(r.value, { id: "doc-1", nested: { list: ["col-9", "plain"] }, text: "see {{bind:DOC}} inline" });
 });
 
+test("bindArgs sends an all-digit bound value as a number and any other value as a string", () => {
+  const r = bindArgs({ account_id: "{{bind:MAIL_ACCOUNT}}", label: "{{bind:LABEL}}" }, new Map([["MAIL_ACCOUNT", "42"], ["LABEL", "42a"]]));
+  assert.deepEqual(r, { ok: true, value: { account_id: 42, label: "42a" } });
+});
+
 test("bindArgs fails closed on a placeholder with no binding, naming it", () => {
   const r = bindArgs({ id: "{{bind:MISSING_ONE}}" }, new Map());
   assert.deepEqual(r, { ok: false, missing: "MISSING_ONE" });
