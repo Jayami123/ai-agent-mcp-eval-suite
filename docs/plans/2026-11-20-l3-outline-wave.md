@@ -22,7 +22,7 @@ Harness pin: `qa-portfolio-harness` moves from `v0.6.7` to `v0.6.10` (tag object
 | P4-MCP-OAUTH-012 | core | **yes** | USR2 | H2: Outline second member with its own key | - |
 | P4-MCP-OAUTH-013 | core | **yes** | USR2 | H2 | - |
 | P4-MCP-INJ-004 | core | **yes** | APPR | H3 (`LIBRECHAT_TOOL_APPROVAL*`) | - |
-| P4-MCP-INJ-011 | core | **yes** | APPR | H3 | - |
+| P4-MCP-INJ-011 | core | no | APPR | H3 (REST import exists; the Outline MCP has no import tool) | No MCP surface to attack. Not built; the owner decides whether it becomes a `create_document` case. See findings. |
 | P4-MCP-INJ-017 | stretch | **yes** (stretch) | APPR | H3 | - |
 | P4-MCP-FLOW-003 | core | no | APPR, NCMAIL | H1 (GreenMail, `P4_MAIL=1`) | Needs the Outline and Nextcloud stacks in one run, plus GreenMail. The 20-minute Outline job cannot carry a second product stack. Deferred to an outline+nextcloud pair job in the next wave. |
 | P4-MCP-FLOW-004 | core | no | APPR | H3 | Needs TW1 (Twenty seed with an injected note, not in the repo) and a Twenty workflow-run oracle (not in the repo). Needs an outline+twenty pair job. Deferred. |
@@ -85,6 +85,6 @@ New job `l3-outline` in `.github/workflows/pr.yml`, stub mode, no secrets, timeo
 ## 9. Risks and open items
 
 - The Outline image is 1.13.0 (harness pin). Route names are unverified until the probe. The probe decides the role-change route, the import route and the list routes.
-- If Outline's MCP returns no `documents.import` (needs multipart), INJ-011 is built on the approval gate with the attempted call recorded, and the finding is stated.
+- Confirmed in CI: the Outline MCP has no `documents.import` tool, so INJ-011 is not built (see `docs/findings/l3-outline.md`).
 - If a viewer can create in a restricted collection, that is a candidate product bug. It becomes an expected defect only after the setup (role `viewer`, not a member) is asserted and the call reproduces in CI.
 - CI runtime is not yet measured. If the job goes over 20 minutes, the findings doc says so and the cause.
