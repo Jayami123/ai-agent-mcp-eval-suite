@@ -14,6 +14,17 @@ export const LAB = {
   sink: process.env["LAB_SINK_URL"] ?? "http://127.0.0.1:9012",
 };
 
+/** The second lab (docker/p4-lab.compose.yml, service p4-attack-lab-2). Same token file: one per-run token for both. */
+export const LAB2 = {
+  mcp: process.env["LAB2_MCP_URL"] ?? "http://127.0.0.1:9013/mcp",
+  control: process.env["LAB2_CONTROL_URL"] ?? "http://127.0.0.1:9014",
+  sink: process.env["LAB2_SINK_URL"] ?? "http://127.0.0.1:9015",
+};
+
+/** Which attack-lab a helper talks to. Default "lab"; META-011 reads "lab2" as well. */
+export type LabName = "lab" | "lab2";
+const endpoints = (which: LabName) => (which === "lab2" ? LAB2 : LAB);
+
 const TOKEN_FILE = path.resolve(process.cwd(), ".harness", "lab", "control-token");
 
 function controlToken(): string {
@@ -23,8 +34,8 @@ function controlToken(): string {
 }
 
 /** One control call. Returns the parsed JSON reply; a non-2xx status throws with the status only. */
-export async function labControl(route: string, body?: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const res = await fetch(`${LAB.control}${route}`, {
+export async function labControl(route: string, body?: Record<string, unknown>, which: LabName = "lab"): Promise<Record<string, unknown>> {
+  const res = await fetch(`${endpoints(which).control}${route}`, {
     method: "POST",
     headers: { authorization: `Bearer ${controlToken()}`, "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -34,15 +45,15 @@ export async function labControl(route: string, body?: Record<string, unknown>):
   return (await res.json()) as Record<string, unknown>;
 }
 
-export async function labState(): Promise<Record<string, unknown>> {
-  const res = await fetch(`${LAB.control}/control/state`, { headers: { authorization: `Bearer ${controlToken()}` }, signal: AbortSignal.timeout(15_000) });
+export async function labState(which: LabName = "lab"): Promise<Record<string, unknown>> {
+  const res = await fetch(`${endpoints(which).control}/control/state`, { headers: { authorization: `Bearer ${controlToken()}` }, signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error(`LAB_STATE_HTTP_${res.status}`);
   return (await res.json()) as Record<string, unknown>;
 }
 
 /** Back to the start mode, empty log and sink. Every case starts and ends with it so cases cannot see each other. */
-export async function resetLab(): Promise<void> {
-  await labControl("/control/reset");
+export async function resetLab(which: LabName = "lab"): Promise<void> {
+  await labControl("/control/reset", undefined, which);
 }
 
 /**
@@ -92,8 +103,8 @@ export interface LabLogEntry {
   event: string;
   detail: Record<string, unknown>;
 }
-export async function labLog(): Promise<LabLogEntry[]> {
-  const res = await fetch(`${LAB.control}/control/log`, { headers: { authorization: `Bearer ${controlToken()}` }, signal: AbortSignal.timeout(15_000) });
+export async function labLog(which: LabName = "lab"): Promise<LabLogEntry[]> {
+  const res = await fetch(`${endpoints(which).control}/control/log`, { headers: { authorization: `Bearer ${controlToken()}` }, signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error(`LAB_LOG_HTTP_${res.status}`);
   return ((await res.json()) as { entries: LabLogEntry[] }).entries;
 }
@@ -104,8 +115,8 @@ export interface SinkRecord {
   kind: string;
   data: Record<string, unknown>;
 }
-export async function sinkRecords(): Promise<SinkRecord[]> {
-  const res = await fetch(`${LAB.sink}/sink/records`, { headers: { authorization: `Bearer ${controlToken()}` }, signal: AbortSignal.timeout(15_000) });
+export async function sinkRecords(which: LabName = "lab"): Promise<SinkRecord[]> {
+  const res = await fetch(`${endpoints(which).sink}/sink/records`, { headers: { authorization: `Bearer ${controlToken()}` }, signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error(`LAB_SINK_HTTP_${res.status}`);
   return ((await res.json()) as { records: SinkRecord[] }).records;
 }
@@ -125,9 +136,9 @@ export function labPin(): LabPin {
 }
 
 /** A fresh MCP session against the lab: initialize, then tools/list. The serverInfo comes from the initialize reply. */
-export async function freshList(): Promise<{ serverName: string; serverVersion: string; tools: Array<{ name: string; description?: string; inputSchema?: unknown }> }> {
+export async function freshList(which: LabName = "lab"): Promise<{ serverName: string; serverVersion: string; tools: Array<{ name: string; description?: string; inputSchema?: unknown }> }> {
   const { McpHttpClient } = await import("./mcp-client.js");
-  const c = new McpHttpClient(LAB.mcp, null);
+  const c = new McpHttpClient(endpoints(which).mcp, null);
   const init = await c.initialize();
   const info = (init.body as { result?: { serverInfo?: { name?: unknown; version?: unknown } } }).result?.serverInfo;
   const tools = await c.listTools();
