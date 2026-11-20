@@ -13,6 +13,11 @@ import { runtime } from "../support/runtime.js";
 // the alias p4-conformance-2026 so both can exist; its entry file is run with node, not through .bin.
 const ENTRY = path.resolve(process.cwd(), "node_modules", "p4-conformance-2026", "dist", "index.js");
 const SPEC_VERSION = "2026-07-28";
+// Per-server pin. Mattermost's MCP answers initialize with protocolVersion 2025-06-18 and rejects 2026-07-28 ("protocol version
+// 2026-07-28 is not supported by this server"). Evidence: the round-1 probe's initialize response (artifact of run 44692016929,
+// l3-capture/mattermost.initialize.json) and the round-2 conformance checks (run 44696090074). Other servers keep 2026-07-28.
+const SPEC_VERSION_BY_SERVER: Partial<Record<string, string>> = { mattermost: "2025-06-18" };
+const specVersionFor = (server: string): string => SPEC_VERSION_BY_SERVER[server] ?? SPEC_VERSION;
 
 l3Case("P4-MCP-PROT-001", "the conformance suite exits 0 against the committed expected-failures baseline", async (ctx) => {
   const rt = runtime();
@@ -22,7 +27,7 @@ l3Case("P4-MCP-PROT-001", "the conformance suite exits 0 against the committed e
     const out = path.resolve(process.cwd(), "evidence", rt.dir, `conformance-${server}`);
     // The CLI cannot send a header, so it talks to a loopback proxy that adds the credential.
     const proxy = await startAuthProxy(url, authorization);
-    const args = ["server", "--url", proxy.url, "--spec-version", SPEC_VERSION, "--output-dir", out];
+    const args = ["server", "--url", proxy.url, "--spec-version", specVersionFor(server), "--output-dir", out];
     if (fs.existsSync(baseline)) args.push("--expected-failures", baseline);
     // spawnSync would block the event loop and starve the proxy, so the CLI runs through an async spawn.
     const res = await run(process.execPath, [ENTRY, ...args]);

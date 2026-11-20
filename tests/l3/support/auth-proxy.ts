@@ -31,13 +31,27 @@ export async function startAuthProxy(target: string, authorization: string | nul
         if (!["content-encoding", "content-length", "transfer-encoding", "connection"].includes(k)) out[k] = v;
       });
       res.writeHead(upstream.status, out);
-      if (upstream.body) Readable.fromWeb(upstream.body as never).pipe(res);
-      else res.end();
+      if (upstream.body) {
+        // An upstream or client disconnect ends the stream with an error (for example "TypeError: terminated"). Handle it here,
+        // so it never becomes an uncaught exception after the test has ended.
+        const body = Readable.fromWeb(upstream.body as never);
+        body.on("error", () => res.destroy());
+        res.on("close", () => body.destroy());
+        body.pipe(res);
+      } else res.end();
     })().catch(() => {
       res.writeHead(502).end();
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
   const { port } = server.address() as AddressInfo;
-  return { url: `http://127.0.0.1:${port}${base.pathname}`, close: () => new Promise<void>((r) => server.close(() => r())) };
+  // closeAllConnections ends keep-alive and open event-stream connections, so close() cannot hang on a client that is still reading.
+  return {
+    url: `http://127.0.0.1:${port}${base.pathname}`,
+    close: () =>
+      new Promise<void>((r) => {
+        server.closeAllConnections();
+        server.close(() => r());
+      }),
+  };
 }

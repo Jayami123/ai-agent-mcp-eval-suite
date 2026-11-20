@@ -1,0 +1,3290 @@
+{
+  "tools": [
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Add your acknowledgement to a post that requests one. Parameters: post_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to acknowledge,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "acknowledge_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Add a user to a channel (channel membership). Parameters: user_id (required), channel_id (required). Returns confirmation message.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "ID of the user to add,minLength=26,maxLength=26"
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "ID of the channel to add user to,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "user_id",
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "add_channel_member"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Add several users to a channel (bulk; pairs with add_channel_member). Parameters: channel_id (required), user_ids (required list).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to add users to,minLength=26,maxLength=26"
+          },
+          "user_ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The user IDs to add"
+          }
+        },
+        "required": [
+          "channel_id",
+          "user_ids"
+        ],
+        "additionalProperties": false
+      },
+      "name": "add_channel_members"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Add an emoji reaction to a post. Parameters: post_id (required), emoji_name (required, no colons).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to react to,minLength=26,maxLength=26"
+          },
+          "emoji_name": {
+            "type": "string",
+            "description": "The emoji name without colons (e.g. thumbsup),minLength=1"
+          }
+        },
+        "required": [
+          "post_id",
+          "emoji_name"
+        ],
+        "additionalProperties": false
+      },
+      "name": "add_reaction"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Add a user to a team (team membership). Parameters: user_id (required), team_id (required). Returns confirmation message.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "ID of the user to add,minLength=26,maxLength=26"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "ID of the team to add user to,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "user_id",
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "add_team_member"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Add several users to a team (bulk). Parameters: team_id (required), user_ids (required list).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team to add users to,minLength=26,maxLength=26"
+          },
+          "user_ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The user IDs to add"
+          }
+        },
+        "required": [
+          "team_id",
+          "user_ids"
+        ],
+        "additionalProperties": false
+      },
+      "name": "add_team_members"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Archive (soft-delete) a channel. Parameters: channel_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to archive,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "archive_channel"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Convert a channel between public (O) and private (P). Parameters: channel_id (required), privacy (O or P).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to convert,minLength=26,maxLength=26"
+          },
+          "privacy": {
+            "type": "string",
+            "description": "Target privacy,enum=O,enum=P"
+          }
+        },
+        "required": [
+          "channel_id",
+          "privacy"
+        ],
+        "additionalProperties": false
+      },
+      "name": "convert_channel_privacy"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create a new channel in Mattermost. Parameters: name (URL-friendly), display_name (user-visible), type ('O' for public, 'P' for private), team_id (required), purpose (optional), header (optional). Returns created channel details. Example: {\"name\": \"dev-chat\", \"display_name\": \"Development Chat\", \"type\": \"O\", \"team_id\": \"w1jkn9ebkiby7qezqfxk7o5ney\"}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The channel name (URL-friendly),minLength=1,maxLength=64"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "The channel display name,minLength=1,maxLength=64"
+          },
+          "type": {
+            "type": "string",
+            "description": "Channel type,enum=O,enum=P"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "The team ID where the channel will be created,minLength=26,maxLength=26"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Optional channel purpose,maxLength=250"
+          },
+          "header": {
+            "type": "string",
+            "description": "Optional channel header,maxLength=1024"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "type",
+          "team_id",
+          "purpose",
+          "header"
+        ],
+        "additionalProperties": false
+      },
+      "name": "create_channel"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Add a link or file bookmark to a channel. Parameters: channel_id (required), display_name (required), link_url OR file_id, emoji (optional).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to add the bookmark to,minLength=26,maxLength=26"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "The bookmark display name,minLength=1"
+          },
+          "link_url": {
+            "type": "string",
+            "description": "The bookmark link URL (for a link bookmark)"
+          },
+          "file_id": {
+            "type": "string",
+            "description": "The file ID (for a file bookmark); provide link_url OR file_id,maxLength=26"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Optional emoji name for the bookmark"
+          }
+        },
+        "required": [
+          "channel_id",
+          "display_name"
+        ],
+        "additionalProperties": false
+      },
+      "name": "create_channel_bookmark"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Save a message as a draft in a channel (or thread) for you to review and send yourself; nothing is posted. Replaces any existing draft in that channel or thread. Parameters: channel_id (required), message (required), root_id (optional).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The ID of the channel to leave the draft in,minLength=26,maxLength=26"
+          },
+          "message": {
+            "type": "string",
+            "description": "The draft message content,minLength=1"
+          },
+          "root_id": {
+            "type": "string",
+            "description": "Optional root post ID to draft a thread reply,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "name": "create_draft"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create a new post in Mattermost. IMPORTANT WORKFLOW: You MUST first call get_channel_info to obtain the channel_id, channel_display_name, and team_display_name (team_display_name only applies to public and private channels; omit it for direct and group message channels, which have no team). Present this context to the user before posting. Then call this tool with all required parameters. This ensures full transparency about where the message will be posted. Parameters: channel_id (required), channel_display_name (required), team_display_name (required unless the channel is a direct or group message), message (required), root_id (optional - for replies), files (optional: create and attach text files inline by providing name + content; the extension sets the file type; max 10). Returns created post details including ID and timestamp. Example: {\"channel_id\": \"h5wqm8kxptbztfgzpaxbsqozah\", \"message\": \"Hello team!\"}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The ID of the channel to post in,minLength=26,maxLength=26"
+          },
+          "channel_display_name": {
+            "type": "string",
+            "description": "The display name of the channel (for context verification),minLength=1"
+          },
+          "team_display_name": {
+            "type": "string",
+            "description": "The display name of the channel's team (for context verification). Required for public and private channels; omit for direct and group message channels, which have no team."
+          },
+          "message": {
+            "type": "string",
+            "description": "The message content,minLength=1"
+          },
+          "root_id": {
+            "type": "string",
+            "description": "Optional root post ID for replies,minLength=26,maxLength=26"
+          },
+          "files": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "File name including extension; the extension determines the file type (e.g. report.md data.csv script.py),minLength=1,maxLength=255"
+                },
+                "content": {
+                  "type": "string",
+                  "description": "The full text content of the file,minLength=1"
+                }
+              },
+              "required": [
+                "name",
+                "content"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Optional text files to create from inline content and attach to the post (max 10). The file name extension determines the file type."
+          }
+        },
+        "required": [
+          "channel_id",
+          "channel_display_name",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "name": "create_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Schedule a message to send to a channel (or thread) at a future time. Parameters: channel_id (required), message (required), scheduled_at (required, future ISO 8601 timestamp), root_id (optional). Returns the scheduled post ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The ID of the channel to post in,minLength=26,maxLength=26"
+          },
+          "message": {
+            "type": "string",
+            "description": "The message content,minLength=1"
+          },
+          "scheduled_at": {
+            "type": "string",
+            "description": "When to send the message (ISO 8601 / RFC3339 timestamp, must be in the future),format=date-time"
+          },
+          "root_id": {
+            "type": "string",
+            "description": "Optional root post ID to schedule a thread reply,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id",
+          "message",
+          "scheduled_at"
+        ],
+        "additionalProperties": false
+      },
+      "name": "create_scheduled_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Remove a channel bookmark. Parameters: channel_id (required), bookmark_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel the bookmark belongs to,minLength=26,maxLength=26"
+          },
+          "bookmark_id": {
+            "type": "string",
+            "description": "The bookmark to remove,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id",
+          "bookmark_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "delete_channel_bookmark"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Delete your draft in a channel (or thread). Parameters: channel_id (required), root_id (optional, for a thread reply draft).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The ID of the channel the draft belongs to,minLength=26,maxLength=26"
+          },
+          "root_id": {
+            "type": "string",
+            "description": "Root post ID when the draft is a thread reply,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "delete_draft"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Delete (soft-remove) a post by ID. Parameters: post_id (required). This cannot be undone by the agent.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to delete,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "delete_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Cancel a pending scheduled post. Parameters: scheduled_post_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scheduled_post_id": {
+            "type": "string",
+            "description": "The ID of the pending scheduled post to cancel,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "scheduled_post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "delete_scheduled_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Send a direct message to a user. Provide username to specify the recipient (a user ID is also accepted). If username is omitted, the message is sent to yourself. This is the DEFAULT way to message people \u2014 call it multiple times to message multiple people individually. Only use the group_message tool when the user explicitly asks for a group chat. Parameters: message (required), username (optional), files (optional: create and attach text files inline by providing name + content; the extension sets the file type; max 10). Returns confirmation with message ID. Example: {\"message\": \"Hello!\", \"username\": \"john\"}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Target username (a user ID is also accepted). If omitted the message is sent to yourself."
+          },
+          "message": {
+            "type": "string",
+            "description": "The message content to send,minLength=1"
+          },
+          "files": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "File name including extension; the extension determines the file type (e.g. report.md data.csv script.py),minLength=1,maxLength=255"
+                },
+                "content": {
+                  "type": "string",
+                  "description": "The full text content of the file,minLength=1"
+                }
+              },
+              "required": [
+                "name",
+                "content"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Optional text files to create from inline content and attach to the post (max 10). The file name extension determines the file type."
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "name": "dm"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a single bot account's details. Parameters: bot_user_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "bot_user_id": {
+            "type": "string",
+            "description": "The bot account's user ID,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "bot_user_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_bot"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the groups synced to a channel. Parameters: channel_id (required), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Groups per page (default: 60, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_channel_groups"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get information about channel(s). Provide channel_id (fastest) or channel_name (matches against both display name and URL name, case-insensitive, supports partial matches). Optional: team_id to limit search scope. If multiple channels match (e.g., 'General' exists in multiple teams), returns ALL matches with team context for disambiguation. Returns channel metadata including ID, names, type, team, purpose, member count, and the requesting user's role in the channel (admin, member, guest, or not_member). Example: {\"channel_name\": \"General\"} or {\"channel_id\": \"h5wqm8kxptbztfgzpaxbsqozah\"}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The exact channel ID (fastest, most reliable method),maxLength=26"
+          },
+          "channel_name": {
+            "type": "string",
+            "description": "Channel name to search for \u2014 matches against both display name and URL name (case-insensitive, supports partial matches),maxLength=64"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "Team ID (optional - if provided, searches within specific team; if omitted, searches across all teams),maxLength=26"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "get_channel_info"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get your (or a given user's) membership in a channel: roles, mute, last-viewed. Parameters: channel_id (required), user_id (optional, defaults to you).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user; omit for your own membership,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_channel_member"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get member counts for a batch of channels. Parameters: channel_ids (required list). Returns a count per channel.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The channel IDs to get member counts for"
+          }
+        },
+        "required": [
+          "channel_ids"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_channel_member_counts"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get members of a channel with pagination support. Parameters: channel_id (required), limit (1-200, default 50), page (0+, default 0), exclude_bots (optional, default true). Returns user details for each member including username, email, display name, and role. Example: {\"channel_id\": \"h5wqm8kxptbztfgzpaxbsqozah\", \"limit\": 25, \"page\": 0}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "ID of the channel to get members for,minLength=26,maxLength=26"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Number of members to return (default: 50, max: 200),minimum=1,maximum=200"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "exclude_bots": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Exclude bot accounts from results (default: true)"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_channel_members"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get membership records for a specific set of users in a channel. Parameters: channel_id (required), user_ids (required list).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "user_ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The user IDs whose membership records to fetch"
+          }
+        },
+        "required": [
+          "channel_id",
+          "user_ids"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_channel_members_by_ids"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a channel's members ordered by presence status (online first). Parameters: channel_id (required), page, per_page, exclude_bots.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Members per page (default: 50, max: 200),minimum=1,maximum=200"
+          },
+          "exclude_bots": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Exclude bot accounts (default: true)"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_channel_members_by_status"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a channel's moderation settings (which actions members and guests may take). Parameters: channel_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_channel_moderations"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a channel's statistics: member, guest, pinned-post, and file counts. Parameters: channel_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to get statistics for,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_channel_stats"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get your unread message and mention counts for one channel. Parameters: channel_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to read unread counts for,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_channel_unread"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get teams shared by all members of a direct message (DM) or group message (GM) channel. Parameters: channel_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The direct message or group message channel,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_dm_common_teams"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get metadata for a single file/attachment. Parameters: file_id (required). Returns name, type, size, and File ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "The file/attachment ID,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_file_info"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a public permalink URL for a file. Parameters: file_id (required). Requires public links to be enabled on the server.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "The file to get a public permalink for,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_file_link"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a group's metadata. Parameters: group_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "description": "The group ID,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "group_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_group_info"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the authenticated agent/bot's own user profile (current user). No parameters.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "name": "get_me"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get recent posts containing unread at-mentions of you (Recent Mentions). Parameters: team_id (optional). Returns posts that mention your username or notification keywords.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "Optional team ID to limit the search scope,maxLength=26"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "get_mentions"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the most recently joined members of a team. Parameters: team_id (required), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Users per page (default: 50, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_new_users_in_team"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the file attachments on a post (metadata per file). Parameters: post_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The post whose file attachments to list,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_post_files"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get metadata and channel/team context for a single post (without the thread). Parameters: post_id (required). Use read_post to get the full thread content. Returns channel, team, type, and your membership.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_post_info"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List the emoji reactions on a post and who reacted. Parameters: post_id (required). Returns each emoji with its count and reacting usernames.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_post_reactions"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the posts surrounding your last-read line in a channel. Parameters: channel_id (required), limit. Returns posts before and after the unread marker.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to read around the last-read line,minLength=26,maxLength=26"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Posts to fetch before and after the unread line (default: 20, max: 100),minimum=1,maximum=100"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_posts_around_unread"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a role definition and its permission set. Parameters: role_id OR role_name (e.g. channel_admin, team_admin, system_user).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "role_id": {
+            "type": "string",
+            "description": "The role ID (provide role_id or role_name),maxLength=26"
+          },
+          "role_name": {
+            "type": "string",
+            "description": "The role name (e.g. channel_admin); provide role_id or role_name"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "get_role"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the groups synced to a team. Parameters: team_id (required), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Groups per page (default: 60, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_team_groups"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get information about a team. Provide team_id (fastest) or team_name (matches against both display name and URL name, case-insensitive, supports partial matches). Returns team metadata including ID, names, type, description, and member count. Example: {\"team_name\": \"Engineering\"} or {\"team_id\": \"w1jkn9ebkiby7qezqfxk7o5ney\"}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The exact team ID (fastest, most reliable method),maxLength=26"
+          },
+          "team_name": {
+            "type": "string",
+            "description": "Team name to search for \u2014 matches against both display name and URL name (case-insensitive, supports partial matches)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "get_team_info"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a user's team membership record (roles). Parameters: team_id (required), user_id (optional, defaults to you).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user; omit for yourself,maxLength=26"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_team_member"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get members of a team with pagination support. Parameters: team_id (required), limit (1-200, default 50), page (0+, default 0), exclude_bots (optional, default true). Returns user details for each member including username, email, display name, and roles. Example: {\"team_id\": \"w1jkn9ebkiby7qezqfxk7o5ney\", \"limit\": 10, \"page\": 0}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "ID of the team to get members for,minLength=26,maxLength=26"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Number of members to return (default: 50, max: 200),minimum=1,maximum=200"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "exclude_bots": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Exclude bot accounts from results (default: true)"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_team_members"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a team's member counts (total and active). Parameters: team_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_team_stats"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get your collated threads inbox (followed and unread threads, CRT / collapsed reply threads) for a team. Parameters: team_id (required), unread_only (optional), limit. Returns each thread's root post, reply count, and unread counts.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team whose threads inbox to read,minLength=26,maxLength=26"
+          },
+          "unread_only": {
+            "type": "boolean",
+            "description": "Only return unread threads (default: false)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Number of threads to return (default: 30, max: 100),minimum=1,maximum=100"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_threads"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get your unread message, mention, and thread counts across teams, or for one team. Parameters: team_id (optional).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "Optional team ID; omit for unread counts across all teams,maxLength=26"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "get_unread_counts"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a single user's full profile by ID. Parameters: user_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The ID of the user,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_user"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a user's profile by email. Parameters: email (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The user's email address,minLength=1"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_user_by_email"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a user's profile by username. Parameters: username (required, without @; a user ID is also accepted).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "The username (without @). A user ID is also accepted.,minLength=1"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_user_by_username"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a user's channel membership records within a team (roles per channel). Parameters: user_id (optional, defaults to you), team_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user; omit for yourself,maxLength=26"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "The team to scope channel memberships to,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_user_channel_memberships"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get channels the current user is a member of, including DMs and GMs. Parameters: team_id (optional, filter by team), page (default 0), per_page (1-200, default 60). Returns channel details with team info and pagination. Example: {\"team_id\": \"w1jkn9ebkiby7qezqfxk7o5ney\", \"per_page\": 60}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "Optional team ID to filter channels by team,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Number of channels per page (default: 60, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "get_user_channels"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a user's Custom Profile Attribute (CPA) values. Parameters: user_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user whose custom profile attribute (CPA) values to fetch,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_user_cpa_values"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a user's custom status (emoji, text, expiry). Parameters: user_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user whose custom status to fetch,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_user_custom_status"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the groups a user belongs to. Parameters: user_id (optional, defaults to you).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user; omit for yourself,maxLength=26"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "get_user_groups"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the total user count on the server. No parameters.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "name": "get_user_stats"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get a user's presence: online, away, do not disturb (dnd), or offline. Parameters: user_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user whose presence to fetch,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_user_status"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the teams a user belongs to. Parameters: user_id (optional, defaults to you).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user; omit for yourself,maxLength=26"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "get_user_teams"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Batch-fetch user profiles by a list of IDs. Parameters: user_ids (required list).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The user IDs to fetch"
+          }
+        },
+        "required": [
+          "user_ids"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_users_by_ids"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Batch-fetch user profiles by a list of usernames. Parameters: usernames (required list, without @).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "usernames": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The usernames (without @) to fetch"
+          }
+        },
+        "required": [
+          "usernames"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_users_by_usernames"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the members of given group-message (GM) channels. Parameters: channel_ids (required list).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The group-message (GM) channel IDs"
+          }
+        },
+        "required": [
+          "channel_ids"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_users_in_group_channels"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get the member profiles of a team. Parameters: team_id (required), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Users per page (default: 50, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_users_in_team"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get team members who are not in a channel (candidates to add). Parameters: team_id (required), channel_id (required), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Users per page (default: 50, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "required": [
+          "team_id",
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_users_not_in_channel"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get users who are not members of a team. Parameters: team_id (required), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Users per page (default: 50, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_users_not_in_team"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Batch-fetch presence for a list of user IDs. Parameters: user_ids (required list).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The user IDs whose presence to fetch"
+          }
+        },
+        "required": [
+          "user_ids"
+        ],
+        "additionalProperties": false
+      },
+      "name": "get_users_statuses"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Send a message to a shared group conversation with 2 or more other users. All participants can see each other's messages. ONLY use this when the user explicitly asks for a group message, group chat, or group conversation. If the user just asks to 'message' or 'send to' multiple people, use the dm tool once per person instead. Parameters: message (required), usernames (at least 2 required), files (optional: create and attach text files inline by providing name + content; the extension sets the file type; max 10). Returns confirmation with message ID. Example: {\"message\": \"Hey team!\", \"usernames\": [\"alice\", \"bob\"]}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "usernames": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Target usernames (must be at least 2; user IDs are also accepted)."
+          },
+          "message": {
+            "type": "string",
+            "description": "The message content to send,minLength=1"
+          },
+          "files": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "File name including extension; the extension determines the file type (e.g. report.md data.csv script.py),minLength=1,maxLength=255"
+                },
+                "content": {
+                  "type": "string",
+                  "description": "The full text content of the file,minLength=1"
+                }
+              },
+              "required": [
+                "name",
+                "content"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Optional text files to create from inline content and attach to the post (max 10). The file name extension determines the file type."
+          }
+        },
+        "required": [
+          "usernames",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "name": "group_message"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Email-invite users to a team. Parameters: team_id (required), emails (required list).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team to invite users to,minLength=26,maxLength=26"
+          },
+          "emails": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The email addresses to invite"
+          }
+        },
+        "required": [
+          "team_id",
+          "emails"
+        ],
+        "additionalProperties": false
+      },
+      "name": "invite_users_to_team"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Email-invite users to a team and specific channels. Parameters: team_id (required), emails (required list), channel_ids (required list), message (optional).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team to invite users to,minLength=26,maxLength=26"
+          },
+          "emails": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The email addresses to invite"
+          },
+          "channel_ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The channel IDs to add the invited users to"
+          },
+          "message": {
+            "type": "string",
+            "description": "Optional custom invite message"
+          }
+        },
+        "required": [
+          "team_id",
+          "emails",
+          "channel_ids"
+        ],
+        "additionalProperties": false
+      },
+      "name": "invite_users_to_team_and_channels"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List all available AI agents (bots). Returns each agent's ID, display name, and username.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "name": "list_agents"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List a team's archived (deleted) channels. Parameters: team_id (required), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team whose archived channels to list,minLength=26,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Number of channels per page (default: 60, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_archived_channels"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List bot accounts. Parameters: page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Bots per page (default: 50, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "list_bots"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List a channel's bookmarks (pinned links and files). Parameters: channel_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel whose bookmarks to list,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_channel_bookmarks"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List the server's Custom Profile Attribute (CPA) field definitions. No parameters.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "name": "list_cpa_fields"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List the server's custom emoji. Parameters: page, per_page. Returns each emoji's name and ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Number of emoji per page (default: 50, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "list_custom_emoji"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List your unsent message drafts for a team, including direct and group message drafts. Parameters: team_id (required). Returns each draft's channel, thread, last update time, and message.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team whose drafts to list (direct and group message drafts are included),minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_drafts"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List or search custom and LDAP-synced groups. Parameters: query (optional search term), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Optional search term to filter groups by name"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Groups per page (default: 60, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "list_groups"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List incoming webhooks. Parameters: page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Webhooks per page (default: 50, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "list_incoming_webhooks"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List outgoing webhooks for a team or channel. Parameters: team_id (optional), channel_id (optional), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "Optional team ID to scope the webhooks,maxLength=26"
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "Optional channel ID to scope the webhooks,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Webhooks per page (default: 50, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "list_outgoing_webhooks"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List the pinned posts in a channel. Parameters: channel_id (required). Returns each pinned post's author, content, and timestamp.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The ID of the channel,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_pinned_posts"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List your saved (flagged) posts, optionally scoped to a channel or team. Parameters: channel_id (optional), team_id (optional), page, per_page. Returns matching saved posts.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "Optional channel ID to scope saved posts to one channel,maxLength=26"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "Optional team ID to scope saved posts to one team,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Number of posts per page (default: 30, max: 100),minimum=1,maximum=100"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "list_saved_posts"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List your pending scheduled posts for a team. Parameters: team_id (required). Returns each scheduled post's channel, send time, and message.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team whose pending scheduled posts to list,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_scheduled_posts"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List your sidebar categories and their channels for a team. Parameters: team_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team whose sidebar categories to list,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_sidebar_categories"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List a team's public and private channels. Parameters: team_id (required), page, per_page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team whose channels to list,minLength=26,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Number of channels per page (default: 60, max: 200),minimum=1,maximum=200"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "list_team_channels"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Mark a channel viewed/read to clear its unread badge. Parameters: channel_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to mark viewed/read,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "mark_channel_read"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Mark one or more channels viewed/read (bulk). Parameters: channel_ids (required list).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The channels to mark viewed (bulk)"
+          }
+        },
+        "required": [
+          "channel_ids"
+        ],
+        "additionalProperties": false
+      },
+      "name": "mark_channels_viewed"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Mark a channel unread starting at a specific post. Parameters: post_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "Mark the channel unread starting at this post,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "mark_post_unread"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Pin a post to its channel. Parameters: post_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to pin,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "pin_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read recent posts from a Mattermost channel, with history pagination. Parameters: channel_id (required), limit (1-100, default 20), page (default 0), since (ISO 8601 timestamp), before (post ID), after (post ID). Use before/after with a post ID to page through older/newer history; since/before/after are mutually exclusive. Returns post details including author, content, and timestamps. Example: {\"channel_id\": \"h5wqm8kxptbztfgzpaxbsqozah\", \"limit\": 10, \"before\": \"8xqzn3pfmtbyfkr9hqbw4hheoa\"}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The ID of the channel to read from,minLength=26,maxLength=26"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Number of posts to retrieve (default: 20, max: 100),minimum=1,maximum=100"
+          },
+          "since": {
+            "type": "string",
+            "description": "Only get posts since this timestamp (ISO 8601 format),format=date-time"
+          },
+          "before": {
+            "type": "string",
+            "description": "Return the page of posts immediately before this post ID (history pagination). Mutually exclusive with after/since.,maxLength=26"
+          },
+          "after": {
+            "type": "string",
+            "description": "Return the page of posts immediately after this post ID (history pagination). Mutually exclusive with before/since.,maxLength=26"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number for pagination (default: 0),minimum=0"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "read_channel"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read the text contents of a Mattermost file attachment by its File ID. Large attachments in a conversation are shown to you as metadata (name, type, size, File ID) instead of inline content \u2014 call this tool with that File ID to read them. Returns extracted text for documents (PDF, Office) and the raw text for plain-text files. Supports ranged reads via offset and limit to page through large files. Parameters: file_id (required), offset (optional), limit (optional). Example: {\"file_id\": \"8xqzn3pfmtbyfkr9hqbw4hheoa\", \"offset\": 0, \"limit\": 6000}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "The ID of the file to read; use the File ID shown in the attached-file metadata,minLength=26,maxLength=26"
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Character offset to start reading from (default 0). Pass the next offset reported by a previous call to page through a large file."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of characters to return (default 6000, capped at 20000)."
+          }
+        },
+        "required": [
+          "file_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "read_file"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read a specific post and its thread from Mattermost. Parameters: post_id (required), include_thread (boolean, default true). Returns post content, author info, and optionally all replies in the thread. Example: {\"post_id\": \"8xqzn3pfmtbyfkr9hqbw4hheoa\", \"include_thread\": true}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to read,minLength=26,maxLength=26"
+          },
+          "include_thread": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Whether to include the entire thread (default: true). Set false to fetch only the single post."
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "read_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Remove a user from a channel. Parameters: channel_id (required), user_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user to remove,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id",
+          "user_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "remove_channel_member"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Remove your emoji reaction from a post. Parameters: post_id (required), emoji_name (required, no colons).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to remove your reaction from,minLength=26,maxLength=26"
+          },
+          "emoji_name": {
+            "type": "string",
+            "description": "The emoji name without colons (e.g. thumbsup),minLength=1"
+          }
+        },
+        "required": [
+          "post_id",
+          "emoji_name"
+        ],
+        "additionalProperties": false
+      },
+      "name": "remove_reaction"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Remove a user from a team. Parameters: team_id (required), user_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user to remove,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "team_id",
+          "user_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "remove_team_member"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Restore (unarchive) an archived channel. Parameters: channel_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The archived channel to restore,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "restore_channel"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Save (flag) a post for yourself so you can find it later. Parameters: post_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to save (flag) for yourself,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "save_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Search channels by term. Parameters: term (required), team_id (optional), public/private/archived (team-scoped filters). Returns matching channels.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Search term to match against channel names,minLength=1,maxLength=64"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "Optional team ID; if provided, search is scoped to that team,maxLength=26"
+          },
+          "public": {
+            "type": "boolean",
+            "description": "Only public channels (team-scoped search only)"
+          },
+          "private": {
+            "type": "boolean",
+            "description": "Only private channels (team-scoped search only)"
+          },
+          "archived": {
+            "type": "boolean",
+            "description": "Only archived channels (team-scoped search only)"
+          }
+        },
+        "required": [
+          "term"
+        ],
+        "additionalProperties": false
+      },
+      "name": "search_channels"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Search custom emoji by name. Parameters: term (required). Returns matching custom emoji.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Search term to match against custom emoji names,minLength=1,maxLength=64"
+          }
+        },
+        "required": [
+          "term"
+        ],
+        "additionalProperties": false
+      },
+      "name": "search_custom_emoji"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Search file attachments by filename/content within a team. Parameters: terms (required), team_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "terms": {
+            "type": "string",
+            "description": "Search terms to match against file names/content,minLength=1,maxLength=4000"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "The team to search within,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "terms",
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "search_files"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Search for posts in Mattermost using both semantic (AI-powered) and keyword search. Semantic search finds posts by meaning and does not require exact term matches. Keyword search treats the query as a literal AND match \u2014 every whitespace-separated token must appear in the same post \u2014 so prefer short, focused queries (1-2 key terms) over long multi-word phrases. Parameters: query (required), team_id (optional), channel_id (optional). semantic_limit/semantic_offset control semantic results (default: 10). keyword_limit/keyword_offset control keyword results (default: 10). You can make separate calls with different queries optimized for each search type (e.g., a natural language query for semantic and specific keywords for keyword search). To find posts mentioning a specific person, query their username only (e.g. `john.smith`); at-mentions in posts use the username, never the display name. Do not combine username and display name (e.g. `john.smith John Smith`) in a single query \u2014 that requires all of those tokens to co-occur and will miss most posts. Optional structured filters (keyword search only): from (username), in (channel name or ID), before/after (YYYY-MM-DD date). Returns matching posts with content, author, channel, and relevance score for semantic results. Results show individual matching posts \u2014 to see the full conversation around a result, use read_channel with the channel_id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query,minLength=1,maxLength=4000"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "Optional team ID to limit search scope,minLength=26,maxLength=26"
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "Optional channel ID to limit search to a specific channel,minLength=26,maxLength=26"
+          },
+          "from": {
+            "type": "string",
+            "description": "Optional username \u2014 only posts from this user (keyword search only),maxLength=64"
+          },
+          "in": {
+            "type": "string",
+            "description": "Optional channel name or ID \u2014 only posts in this channel (keyword search only),maxLength=64"
+          },
+          "before": {
+            "type": "string",
+            "description": "Optional date YYYY-MM-DD \u2014 only posts before this date (keyword search only)"
+          },
+          "after": {
+            "type": "string",
+            "description": "Optional date YYYY-MM-DD \u2014 only posts after this date (keyword search only)"
+          },
+          "semantic_limit": {
+            "type": "integer",
+            "description": "Max results from semantic search (default 10; max 50),minimum=1,maximum=50"
+          },
+          "semantic_offset": {
+            "type": "integer",
+            "description": "Offset for semantic search pagination,minimum=0"
+          },
+          "keyword_limit": {
+            "type": "integer",
+            "description": "Max results from keyword search (default 10; max 100),minimum=1,maximum=100"
+          },
+          "keyword_offset": {
+            "type": "integer",
+            "description": "Offset for keyword search pagination,minimum=0"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "name": "search_posts"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Search teams by name or display name. Parameters: term (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Search term to match team name or display name,minLength=1,maxLength=64"
+          }
+        },
+        "required": [
+          "term"
+        ],
+        "additionalProperties": false
+      },
+      "name": "search_teams"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Search for existing users by username, email, or name. Parameters: term (required search text), limit (1-100, default 20). Returns user details including username, email, display name, and position for matching users. Example: {\"term\": \"john\", \"limit\": 5}",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Search term (username, email, first name, or last name),minLength=1,maxLength=64"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of results to return (default: 20, max: 100),minimum=1,maximum=100"
+          }
+        },
+        "required": [
+          "term"
+        ],
+        "additionalProperties": false
+      },
+      "name": "search_users"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Search for users within (or excluding) a channel. Parameters: term (required), channel_id (required), not_in (optional), team_id (required when not_in).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Search term,minLength=1,maxLength=64"
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "not_in": {
+            "type": "boolean",
+            "description": "If true, search users NOT in the channel instead of in it"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "Team ID (required when not_in is true to scope candidates),maxLength=26"
+          }
+        },
+        "required": [
+          "term",
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "search_users_in_channel"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Search for users within (or excluding) a team. Parameters: term (required), team_id (required), not_in (optional).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Search term,minLength=1,maxLength=64"
+          },
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          },
+          "not_in": {
+            "type": "boolean",
+            "description": "If true, search users NOT in the team instead of in it"
+          }
+        },
+        "required": [
+          "term",
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "search_users_in_team"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Add or remove a channel from your favorites. Parameters: channel_id (required), favorite (true/false).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "favorite": {
+            "type": "boolean",
+            "description": "true to favorite the channel, false to unfavorite"
+          }
+        },
+        "required": [
+          "channel_id",
+          "favorite"
+        ],
+        "additionalProperties": false
+      },
+      "name": "set_channel_favorite"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Mute or unmute a channel for yourself. Parameters: channel_id (required), muted (true/false).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "muted": {
+            "type": "boolean",
+            "description": "true to mute the channel for yourself, false to unmute"
+          }
+        },
+        "required": [
+          "channel_id",
+          "muted"
+        ],
+        "additionalProperties": false
+      },
+      "name": "set_channel_mute"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Set your own Do Not Disturb (dnd) status, optionally until a given time. Parameters: end_time (optional ISO 8601 timestamp).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "end_time": {
+            "type": "string",
+            "description": "Optional ISO 8601 / RFC3339 time when Do Not Disturb should end; omit for indefinite,format=date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "set_dnd"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Set yourself a reminder about a post at a given time. Parameters: post_id (required), remind_at (required, future ISO 8601 timestamp).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to be reminded about,minLength=26,maxLength=26"
+          },
+          "remind_at": {
+            "type": "string",
+            "description": "When to be reminded (ISO 8601 / RFC3339 timestamp, must be in the future),format=date-time"
+          }
+        },
+        "required": [
+          "post_id",
+          "remind_at"
+        ],
+        "additionalProperties": false
+      },
+      "name": "set_post_reminder"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Set your own presence: online, away, offline, or do not disturb (dnd). Parameters: status (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Your presence status,enum=online,enum=away,enum=offline,enum=dnd"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "name": "set_status"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Follow or unfollow a thread. Parameters: team_id (required), thread_id (root post ID, required), follow (true/false).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team the thread belongs to,minLength=26,maxLength=26"
+          },
+          "thread_id": {
+            "type": "string",
+            "description": "The root post ID of the thread,minLength=26,maxLength=26"
+          },
+          "follow": {
+            "type": "boolean",
+            "description": "true to follow the thread, false to unfollow"
+          }
+        },
+        "required": [
+          "team_id",
+          "thread_id",
+          "follow"
+        ],
+        "additionalProperties": false
+      },
+      "name": "set_thread_follow"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Unpin a post from its channel. Parameters: post_id (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to unpin,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "post_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "unpin_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Update a channel's display name, URL name, header, or purpose. Parameters: channel_id (required), plus any of display_name, name, header, purpose.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to update,minLength=26,maxLength=26"
+          },
+          "display_name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New display name (optional)"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New URL name (optional)"
+          },
+          "header": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New channel header (optional)"
+          },
+          "purpose": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New channel purpose (optional)"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "update_channel"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Edit a channel bookmark (name, link, or emoji). Parameters: channel_id (required), bookmark_id (required), plus any of display_name, link_url, emoji.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel the bookmark belongs to,minLength=26,maxLength=26"
+          },
+          "bookmark_id": {
+            "type": "string",
+            "description": "The bookmark to update,minLength=26,maxLength=26"
+          },
+          "display_name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New display name (optional)"
+          },
+          "link_url": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New link URL (optional)"
+          },
+          "emoji": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New emoji (optional)"
+          }
+        },
+        "required": [
+          "channel_id",
+          "bookmark_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "update_channel_bookmark"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Promote or demote a channel member (e.g. channel admin). Parameters: channel_id (required), user_id (required), admin (true/false).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The member to promote/demote,minLength=26,maxLength=26"
+          },
+          "admin": {
+            "type": "boolean",
+            "description": "true to make the member a channel admin, false for a regular member"
+          }
+        },
+        "required": [
+          "channel_id",
+          "user_id",
+          "admin"
+        ],
+        "additionalProperties": false
+      },
+      "name": "update_channel_member_roles"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Set your per-channel notifications (desktop/push level, and unread/mute level). Parameters: channel_id (required), desktop, push, mark_unread.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel,minLength=26,maxLength=26"
+          },
+          "desktop": {
+            "type": "string",
+            "description": "Desktop notification level,enum=default,enum=all,enum=mention,enum=none"
+          },
+          "push": {
+            "type": "string",
+            "description": "Mobile push notification level,enum=default,enum=all,enum=mention,enum=none"
+          },
+          "mark_unread": {
+            "type": "string",
+            "description": "Unread level,enum=all,enum=mention"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "update_channel_notify_props"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Edit the message text of an existing post. Parameters: post_id (required), message (required). Returns the updated post.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_id": {
+            "type": "string",
+            "description": "The ID of the post to edit,minLength=26,maxLength=26"
+          },
+          "message": {
+            "type": "string",
+            "description": "The new message content,minLength=1"
+          }
+        },
+        "required": [
+          "post_id",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "name": "update_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Change a pending scheduled post's text or send time. Parameters: scheduled_post_id (required), channel_id (required), message (optional), scheduled_at (optional). Unspecified fields keep their current values.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scheduled_post_id": {
+            "type": "string",
+            "description": "The ID of the pending scheduled post,minLength=26,maxLength=26"
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "The ID of the channel the scheduled post belongs to,minLength=26,maxLength=26"
+          },
+          "message": {
+            "type": "string",
+            "description": "New message content (optional)"
+          },
+          "scheduled_at": {
+            "type": "string",
+            "description": "New send time (ISO 8601 / RFC3339 timestamp, optional),format=date-time"
+          }
+        },
+        "required": [
+          "scheduled_post_id",
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "update_scheduled_post"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Update team fields (display name, description, open-invite setting). Parameters: team_id (required), plus any of display_name, description, allow_open_invite.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team to update,minLength=26,maxLength=26"
+          },
+          "display_name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New display name (optional)"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New description (optional)"
+          },
+          "allow_open_invite": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Whether anyone can join without an invite (optional)"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "update_team"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Promote or demote a team member (e.g. team admin). Parameters: team_id (required), user_id (required), admin (true/false).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "description": "The team,minLength=26,maxLength=26"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The member to promote/demote,minLength=26,maxLength=26"
+          },
+          "admin": {
+            "type": "boolean",
+            "description": "true to make the member a team admin, false for a regular member"
+          }
+        },
+        "required": [
+          "team_id",
+          "user_id",
+          "admin"
+        ],
+        "additionalProperties": false
+      },
+      "name": "update_team_member_roles"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Update profile fields (nickname, first name, last name, position). Parameters: user_id (optional, defaults to you), plus any of nickname, first_name, last_name, position.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "The user to update; omit for yourself,maxLength=26"
+          },
+          "nickname": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New nickname (optional)"
+          },
+          "first_name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New first name (optional)"
+          },
+          "last_name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New last name (optional)"
+          },
+          "position": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "New position/title (optional)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "name": "update_user"
+    },
+    {
+      "annotations": {
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Upload a file from a local path or URL to a channel and return its File ID. Local access only. Parameters: channel_id (required), path (required).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "The channel to upload the file to,minLength=26,maxLength=26"
+          }
+        },
+        "required": [
+          "channel_id"
+        ],
+        "additionalProperties": false
+      },
+      "name": "upload_file"
+    }
+  ]
+}
