@@ -51,3 +51,22 @@ export async function writeTraceEvidence(dir: string): Promise<void> {
     writeEvidence(dir, "stub-trace-all.json", `recorder not readable: ${(err as Error).name}\n`);
   }
 }
+
+/**
+ * Sends the run's real values for fixture placeholders ("{{bind:NAME}}"). The stub replaces the whole set. Values are ids
+ * and labels; they are not secrets and the stub does not log them.
+ */
+export async function setStubBindings(values: Record<string, string>): Promise<void> {
+  const res = await fetch(`${STUB_HOST_URL}/__bindings`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(values),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`stub bindings PUT returned HTTP ${res.status}`);
+}
+
+export async function clearStubBindings(): Promise<void> {
+  const res = await fetch(`${STUB_HOST_URL}/__bindings`, { method: "DELETE", signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`stub bindings DELETE returned HTTP ${res.status}`);
+}
