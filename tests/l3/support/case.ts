@@ -51,6 +51,8 @@ export const TRIAL_SPACING_MS = 60_000;
 
 const runMode = (): RunMode => (process.env["P4_LLM_MODE"] === "nightly" ? "nightly" : "stub");
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+/** Provider errors that mean the model never answered (LiteLLM and Gemini wording). */
+export const PROVIDER_UNAVAILABLE = /UNAVAILABLE|high demand|overloaded|did not answer/i;
 
 /** P4_MEASURED_K: trials per measured case in nightly mode. Unset means the master plan's default. Anything else out of range throws. */
 export function measuredTrials(raw: string | undefined = process.env["P4_MEASURED_K"]): number {
@@ -153,9 +155,11 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
       reason = total.detail;
     } catch (err) {
       // A rate limit that is still there is a partial trial (quota, not a fail). Anything else is an infrastructure error.
-      if (!isRateLimited((err as Error).message)) throw err;
+      // A rate limit, or a provider that did not answer (high demand, UNAVAILABLE), is partial: the model never ran the turn.
+      const msg = (err as Error).message;
+      if (!isRateLimited(msg) && !PROVIDER_UNAVAILABLE.test(msg)) throw err;
       status = "partial";
-      reason = "quota: rate limited during the trial; not a fail";
+      reason = isRateLimited(msg) ? "quota: rate limited during the trial; not a fail" : "provider unavailable: no model answer for the trial; not a fail";
     } finally {
       trialVerdicts.push({ trial, verdicts, notes });
     }
