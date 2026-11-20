@@ -59,3 +59,24 @@ Counts are from the CI run named in the report (see the PR). Labels follow the r
 ## Not built
 
 APPR-002, META-013, META-002, META-004, META-008 and META-011 are out of scope until harness v0.6.7 (`allowAlways`).
+
+## Harness note: the owner's Mail account id is not stable between runs
+
+Not a product bug. The cause is not confirmed; it may be harness retries in `configureMailIdentity` (it deletes stale Mail accounts
+and creates new ones, and v0.6.8 adds a wait before that call). Observed owner account ids:
+
+| CI run | Harness | Owner Mail account id |
+|---|---|---|
+| 44590431418 | v0.6.6 | (setup failed before listing: HTTP 404, the route race) |
+| 44591815424 | v0.6.6 | 1 |
+| 44604176433 | v0.6.6 | (setup failed before listing: HTTP 404) |
+| 44691283731 | v0.6.8 | 2 |
+
+Harness request: keep the owner's account id fixed for each run (for example, create it once, with a documented id), or export it
+from the adapter. Until then the cases read the id from the Mail API at setup and pass it with a `[var:owner_account_id=<id>]`
+marker (see `docs/stub-markers.md`), so no fixture depends on the number.
+
+## Mail setup race on v0.6.6 (fixed in v0.6.8)
+
+On v0.6.6 the owner's Mail accounts list returned HTTP 404 a few seconds after `app:enable mail` in 2 of 3 runs. On v0.6.8 the mail
+setup ran through in every run since the pin bump (44691283731 and later).

@@ -8,6 +8,7 @@ import {
   loadFixture,
   type Fixture,
 } from "./fixtures.js";
+import { parseVarMarkers, substituteVars, VarInvalidError, VarMissingError } from "./vars.js";
 
 /** One recorded chat request, secrets-free: what the stub was asked and what it answered. */
 export interface TraceEntry {
@@ -167,6 +168,32 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     return;
   }
 
+  // Run-time values (`[var:name=value]`) come from the latest user message, like the fixture id. A tool-call turn uses them
+  // to fill its `{{name}}` placeholders. A marker that no placeholder uses is refused, so a typo cannot pass silently.
+  let toolCalls = turn.tool_calls;
+  if (toolCalls !== undefined) {
+    const latest = [...messages].reverse().find((m) => m["role"] === "user");
+    let vars: Record<string, string>;
+    try {
+      vars = parseVarMarkers(latest === undefined ? "" : messageText(latest));
+      const used = new Set<string>();
+      toolCalls = toolCalls.map((call) => {
+        const r = substituteVars(call.arguments, vars);
+        for (const name of r.used) used.add(name);
+        return { ...call, arguments: r.args as Record<string, unknown> };
+      });
+      const unused = Object.keys(vars).filter((name) => !used.has(name));
+      if (unused.length > 0) throw new VarInvalidError(`var marker(s) not used by fixture ${id}: ${unused.join(", ")}`);
+    } catch (err) {
+      if (err instanceof VarInvalidError || err instanceof VarMissingError) {
+        console.error(err.message);
+        sendJson(res, 400, { error: { message: err.message } });
+        return;
+      }
+      throw err;
+    }
+  }
+
   const promptText = messages.map((m) => messageText(m)).join("\n");
   const promptHits = [...watched].filter(([value]) => promptText.includes(value)).map(([, label]) => label);
   const toolResults = messages.filter((m) => m["role"] === "tool").map((m) => messageText(m).slice(0, MAX_TOOL_RESULT_CHARS));
@@ -193,7 +220,7 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     return;
   }
 
-  const callList = (turn.tool_calls ?? []).map((call, i) => ({
+  const callList = (toolCalls ?? []).map((call, i) => ({
     id: `call_${id}_${turnIndex}_${i}`,
     name: call.name,
     args: canonicalJson(call.arguments),
@@ -205,7 +232,7 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     toolsOffered: toolNames(body.tools),
     stream: body.stream === true,
     toolResults,
-    toolCalls: (turn.tool_calls ?? []).map((call) => ({ name: call.name, arguments: call.arguments })),
+    toolCalls: (toolCalls ?? []).map((call) => ({ name: call.name, arguments: call.arguments })),
     content: turn.content ?? null,
     error: null,
     promptHits,

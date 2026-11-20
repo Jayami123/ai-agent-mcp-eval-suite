@@ -79,3 +79,28 @@ export async function sentStore(stack: L3Stack): Promise<{ subjects: string[]; d
   const subjects = parseMailAppSubjects(await list.json()).sort();
   return { subjects, digest: digestOf(subjects) };
 }
+
+/**
+ * The owner's Mail account id, read from the Nextcloud Mail app's own REST API with the owner's credential (the same route the
+ * harness uses in its setup). The id is not stable between runs (see docs/findings/l3-wave-d.md), so a case reads it at setup and
+ * passes it to the stub with a [var:owner_account_id=<id>] marker. Throws when the owner has no account with that address.
+ */
+export async function ownerMailAccount(stack: L3Stack, email: string): Promise<MailAccount> {
+  const ep = stack.mcp("nextcloud");
+  if (ep.authorization === null) throw new Error("L3_NO_NC_CREDENTIAL: the Nextcloud MCP run state has no credential");
+  const base = (stack.adapters.get("nextcloud") as { baseUrl: string }).baseUrl;
+  const res = await fetch(`${base}/index.php/apps/mail/api/accounts`, {
+    headers: { authorization: ep.authorization, "OCS-APIRequest": "true", accept: "application/json" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (res.status !== 200) throw new Error(`L3_MAIL_ACCOUNTS_HTTP_${res.status}: the Mail accounts route did not answer 200`);
+  const body = (await res.json()) as unknown;
+  const list = Array.isArray(body) ? body : [];
+  const found = list.flatMap((a) => {
+    const o = a as { id?: unknown; emailAddress?: unknown };
+    return typeof o.id === "number" && typeof o.emailAddress === "string" ? [{ id: o.id, emailAddress: o.emailAddress }] : [];
+  });
+  const account = found.find((a) => a.emailAddress === email);
+  if (account === undefined) throw new Error(`L3_NO_OWNER_MAIL_ACCOUNT: no Mail account for ${email} (accounts listed: ${found.length})`);
+  return account;
+}

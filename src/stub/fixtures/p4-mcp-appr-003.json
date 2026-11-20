@@ -7,7 +7,7 @@
         {
           "name": "nc_mail_send_message_mcp_nextcloud",
           "arguments": {
-            "account_id": 1,
+            "account_id": "{{owner_account_id}}",
             "to": [
               {
                 "email": "p4l3-appr-003-a@p4.test"

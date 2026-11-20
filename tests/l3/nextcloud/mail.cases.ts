@@ -5,7 +5,7 @@ import { chatWithApproval } from "../support/approval.js";
 import { l3Case } from "../support/case.js";
 import { expectedDefect } from "../support/expected-defect.js";
 import { labLog, resetLab, sinkRecords } from "../support/lab.js";
-import { accounts, ncMailClient, sentStore } from "../support/nextcloud-mail.js";
+import { ownerMailAccount, sentStore } from "../support/nextcloud-mail.js";
 import { runtime } from "../support/runtime.js";
 
 // P4-MCP-APPR-003 and P4-MCP-META-003. The oracle is the stored mail: GreenMail (what left Nextcloud) and the owner's Sent store
@@ -18,24 +18,29 @@ const ADDRESS_B = "p4l3-appr-003-b@p4.test";
 const REAL = mcpToolName("nc_mail_send_message", "nextcloud");
 const SHADOW = mcpToolName("nc_mail_send_message", "lab");
 
-/** The fixtures name account 1. Setup, asserted first: the owner's Mail account really is id 1. */
-async function ownerAccountIsOne() {
-  const accts = await accounts(await ncMailClient(runtime().stack));
-  return accts.some((a) => a.id === 1 && a.emailAddress === OWNER) ? pass("setup: the owner's Mail account is id 1, as the fixture names it") : fail(`setup: the owner's Mail account is not id 1 (accounts: ${JSON.stringify(accts)})`);
+/**
+ * The owner's Mail account id, read from the Mail API at setup and asserted to exist before the case runs. The id is passed to the
+ * stub as a [var:owner_account_id=<id>] marker; the fixtures use the {{owner_account_id}} placeholder for account_id.
+ */
+async function ownerAccountId(ctx: { check(v: ReturnType<typeof pass>): void }): Promise<number> {
+  const account = await ownerMailAccount(runtime().stack, OWNER);
+  ctx.check(pass(`setup: the owner's Mail account exists in the Mail API (id ${account.id})`));
+  return account.id;
 }
+const varMarker = (id: number) => `[var:owner_account_id=${id}]`;
 
 const settle = () => new Promise((r) => setTimeout(r, 8000));
 
 l3Case("P4-MCP-APPR-003", "edited arguments after approval need a new prompt, and no mail goes to the new address", async (ctx) => {
   const rt = runtime();
-  ctx.check(await ownerAccountIsOne());
+  const accountId = await ownerAccountId(ctx);
   ctx.check((await view(ADDRESS_B)).subjects.length === 0 && (await view(ADDRESS_A)).subjects.length === 0 ? pass("setup: GreenMail holds 0 copies for the original and the new address") : fail("setup: the addresses already hold mail"));
   const storeBefore = await sentStore(rt.stack);
 
-  const edited = { account_id: 1, to: [{ email: ADDRESS_B }], subject: "p4l3 appr-003 edited", body: "p4l3 fake body, no secret" };
+  const edited = { account_id: accountId, to: [{ email: ADDRESS_B }], subject: "p4l3 appr-003 edited", body: "p4l3 fake body, no secret" };
   const run = await chatWithApproval(rt.stack, {
     fixture: "p4-mcp-appr-003",
-    prompt: "Send the draft.",
+    prompt: `${varMarker(accountId)} Send the draft.`,
     tools: [REAL],
     // The reviewer edits the recipient in the first decision. Any later prompt (for the edited call) is rejected.
     decide: (_call, pauseIndex) => (pauseIndex === 0 ? { decision: "edit", editedArguments: edited } : "reject"),
@@ -61,10 +66,10 @@ l3Case("P4-MCP-APPR-003", "edited arguments after approval need a new prompt, an
 l3Case("P4-MCP-META-003", "a lab tool named like nextcloud's mail send is not called without its own approval", async (ctx) => {
   const rt = runtime();
   await resetLab();
-  ctx.check(await ownerAccountIsOne());
+  const accountId = await ownerAccountId(ctx);
   // Control, so "unchanged" below is not vacuous: the real tool, approved, changes both stores.
   const stores0 = { gm: await snapshot([OWNER]), sent: await sentStore(rt.stack) };
-  const real = await chatWithApproval(rt.stack, { fixture: "p4-mcp-meta-003-real", prompt: "Send the note.", tools: [REAL], decide: () => "approve" });
+  const real = await chatWithApproval(rt.stack, { fixture: "p4-mcp-meta-003-real", prompt: `${varMarker(accountId)} Send the note.`, tools: [REAL], decide: () => "approve" });
   ctx.check(real.pauses.length === 1 && real.pauses[0]?.calls[0]?.name === REAL ? pass("control: the real tool asked for approval once") : fail("control: the real tool did not ask for approval exactly once"));
   await settle();
   const stores1 = { gm: await snapshot([OWNER]), sent: await sentStore(rt.stack) };
