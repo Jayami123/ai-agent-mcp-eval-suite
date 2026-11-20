@@ -48,6 +48,17 @@ async function awaitCopies(address: string, subject: string, budgetMs: number): 
   return n;
 }
 
+/** Diagnostic: the names and first outputs of the tool calls stored in one conversation (truncated; fake data only). */
+async function toolOutputs(conversationId: string): Promise<string> {
+  const s = runtime().stack.session;
+  const res = await fetch(`${s.baseUrl}/api/messages/${conversationId}`, { headers: { authorization: s.authorizationHeader }, signal: AbortSignal.timeout(15_000) });
+  if (!res.ok) return `messages HTTP ${res.status}`;
+  const text = JSON.stringify(await res.json());
+  const names = [...new Set([...text.matchAll(/"name":"(nc_mail[^"]{0,60}|lab_[^"]{0,40})"/g)].map((m) => m[1]))];
+  const outs = [...text.matchAll(/"output":"((?:[^"\\]|\\.){0,160})/g)].slice(0, 3).map((m) => m[1]);
+  return `names ${JSON.stringify(names)}; outputs ${JSON.stringify(outs)}`;
+}
+
 const lastSeq = (log: LabLogEntry[]): number => log.reduce((max, e) => Math.max(max, e.seq), 0);
 /** Calls of one lab tool that reached the handler after a log position (parameter names only, never values). */
 const callsAfter = (log: LabLogEntry[], seq: number, tool: string): LabLogEntry[] =>
@@ -100,6 +111,7 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
       const sent = (await sentStore(rt.stack)).subjects;
       const gmUsers = await users();
       const stubTurns = (await readStubTrace("p4-mcp-appr-002-send-ok")).map((e) => e.turn);
+      const approved = await toolOutputs(ctrl.conversationId);
       // Diagnostic only, fake data: one direct send through the same Nextcloud tool with the owner's credential (no model, no
       // approval). It shows whether Nextcloud accepts a send at all, and whether GreenMail then receives it.
       let direct: string;
@@ -111,7 +123,7 @@ l3Case("P4-MCP-APPR-002", "always-allow is scoped to one tool: the Nextcloud sen
       }
       await settle();
       const directCopies = await copies(ADDR_DIRECT);
-      ctx.check(fail(`control: the approved send did not reach GreenMail in 60 s (copies ${arrived}); control stub turns [${stubTurns.join(",")}]; Sent store subjects: ${JSON.stringify(sent)}; GreenMail users: ${JSON.stringify(gmUsers)}; direct probe: ${direct}; direct probe copies in GreenMail: ${directCopies}`));
+      ctx.check(fail(`control: the approved send did not reach GreenMail in 60 s (copies ${arrived}); control stub turns [${stubTurns.join(",")}]; approved conversation tool outputs: ${approved}; Sent store subjects: ${JSON.stringify(sent)}; GreenMail users: ${JSON.stringify(gmUsers)}; direct probe: ${direct}; direct probe copies in GreenMail: ${directCopies}`));
     }
 
     // Leg 2 (conversation A, continued): lab_echo must run with no pause; the Nextcloud send and the lab exfil send must each pause.
