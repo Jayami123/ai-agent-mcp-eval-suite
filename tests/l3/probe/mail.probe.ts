@@ -6,7 +6,7 @@ import { mcpToolName } from "../../l1/librechat-client.js";
 import { chatWithApproval } from "../support/approval.js";
 import { labLog, sinkRecords } from "../support/lab.js";
 import { McpHttpClient } from "../support/mcp-client.js";
-import { accounts, mailboxes, ncMailClient, subjects, toolPayload } from "../support/nextcloud-mail.js";
+import { accounts, mailboxes, ncMailClient, ownerMailAccount, subjects, toolPayload } from "../support/nextcloud-mail.js";
 import { bootRuntime, runtime } from "../support/runtime.js";
 import { GREENMAIL_API, users, view } from "../../../src/oracles/greenmail.js";
 import { probe, setProbeSecrets } from "./log.js";
@@ -83,7 +83,8 @@ test("probe: mail oracles and approval pause on the real stack", { timeout: 40 *
   let pauseNo = 0;
   const run = await chatWithApproval(rt.stack, {
     fixture: "p4-mcp-appr-003",
-    prompt: "Send the draft.",
+    // The fixture sends account_id as {{owner_account_id}}; the stub refuses a turn without the marker. Read at setup, as the cases do.
+    prompt: `[var:owner_account_id=${(await ownerMailAccount(rt.stack, "qa-owner@p4.test")).id}] Send the draft.`,
     tools: [tool],
     decide: (call) => {
       pauseNo += 1;
