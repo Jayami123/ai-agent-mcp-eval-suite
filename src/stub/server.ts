@@ -9,6 +9,7 @@ import {
   loadFixture,
   type Fixture,
 } from "./fixtures.js";
+import { parseVarMarkers, substituteVars, VarInvalidError, VarMissingError } from "./vars.js";
 
 /** One recorded chat request, secrets-free: what the stub was asked and what it answered. */
 export interface TraceEntry {
@@ -187,6 +188,32 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     return;
   }
 
+  // Run-time values (`[var:name=value]`) come from the latest user message, like the fixture id. A tool-call turn uses them
+  // to fill its `{{name}}` placeholders. A marker that no placeholder uses is refused, so a typo cannot pass silently.
+  let toolCalls = turn.tool_calls;
+  if (toolCalls !== undefined) {
+    const latest = [...messages].reverse().find((m) => m["role"] === "user");
+    let vars: Record<string, string>;
+    try {
+      vars = parseVarMarkers(latest === undefined ? "" : messageText(latest));
+      const used = new Set<string>();
+      toolCalls = toolCalls.map((call) => {
+        const r = substituteVars(call.arguments, vars);
+        for (const name of r.used) used.add(name);
+        return { ...call, arguments: r.args as Record<string, unknown> };
+      });
+      const unused = Object.keys(vars).filter((name) => !used.has(name));
+      if (unused.length > 0) throw new VarInvalidError(`var marker(s) not used by fixture ${id}: ${unused.join(", ")}`);
+    } catch (err) {
+      if (err instanceof VarInvalidError || err instanceof VarMissingError) {
+        console.error(err.message);
+        sendJson(res, 400, { error: { message: err.message } });
+        return;
+      }
+      throw err;
+    }
+  }
+
   const promptText = messages.map((m) => messageText(m)).join("\n");
   const promptHits = [...watched].filter(([value]) => promptText.includes(value)).map(([, label]) => label);
   const toolResults = messages.filter((m) => m["role"] === "tool").map((m) => messageText(m).slice(0, MAX_TOOL_RESULT_CHARS));
@@ -213,9 +240,10 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     return;
   }
 
-  // Placeholders are resolved here, for the call sent to the host only. The trace keeps the fixture as written.
+  // Placeholders are resolved here, for the call sent to the host only. The trace keeps the fixture as written. A `[var:]`
+  // value (already filled in above) and a `{{bind:NAME}}` binding both go through this one resolver.
   const sent: Array<{ name: string; arguments: unknown }> = [];
-  for (const call of turn.tool_calls ?? []) {
+  for (const call of toolCalls ?? []) {
     const bound = bindArgs(call.arguments, bindings);
     if (!bound.ok) {
       sendJson(res, 500, { error: { message: `fixture ${id} turn ${turnIndex} uses unbound placeholder ${bound.missing}`, type: "p4_stub_error" } });

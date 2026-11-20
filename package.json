@@ -38,7 +38,11 @@
     "test:stack:l3:lab-schema": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-schema.e2e.js",
     "test:stack:l3:always-allow": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/always-allow.e2e.js",
     "test:stack:l3:outline": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/outline/run.e2e.js",
-    "test:stack:l3:lab-typo": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-typo.e2e.js"
+    "test:stack:l3:lab-typo": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/lab-typo.e2e.js",
+    "test:stack:l3:probe:mail": "tsc -p tsconfig.test.json && P4_L3_PROBE=1 node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/probe/mail.e2e.js",
+    "test:stack:l3:probe:ui": "tsc -p tsconfig.test.json && P4_L3_PROBE=1 node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/probe/ui.e2e.js",
+    "test:stack:l3:ui": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/ui.e2e.js",
+    "test:stack:l3:mail": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/mail.e2e.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
@@ -50,6 +54,7 @@
     "@types/node": "^22.13.10",
     "ajv": "8.20.0",
     "p4-conformance-2026": "npm:@modelcontextprotocol/conformance@0.2.0-alpha.12",
+    "playwright": "1.63.0",
     "typescript": "^5.8.2"
   },
   "allowScripts": {

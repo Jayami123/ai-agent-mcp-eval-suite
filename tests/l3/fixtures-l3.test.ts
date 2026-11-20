@@ -15,11 +15,15 @@ const LANDED_PRS: number[] = [1, 2];
 const BUILT_IDS = [
   "P4-MCP-APPR-001", "P4-MCP-APPR-006", "P4-MCP-REL-001", "P4-MCP-REL-005", "P4-MCP-META-001", "P4-MCP-SUPP-003",
   "P4-MCP-APPR-007", "P4-MCP-META-010", "P4-MCP-META-006", "P4-MCP-SUPP-004", "P4-MCP-META-005", "P4-MCP-META-007", "P4-MCP-SUPP-007", "P4-MCP-REL-009",
+  // Wave D (mail and UI cases, harness v0.6.8).
+  "P4-MCP-APPR-003", "P4-MCP-META-003", "P4-MCP-APPR-004", "P4-MCP-APPR-005", "P4-MCP-META-012",
   "P4-MCP-META-002", "P4-MCP-META-004", "P4-MCP-META-008", "P4-MCP-META-011",
   "P4-MCP-OAUTH-012", "P4-MCP-OAUTH-013", "P4-MCP-INJ-004", "P4-MCP-INJ-017",
 ];
 // Tools that exist only in a lab mode (after a trigger), so the benign snapshot cannot name them. Each is listed with its mode.
-const MODE_ONLY_TOOLS = new Set(["lab_new_tool"]); // add-tool-after-connect, after the trigger
+// lab_new_tool: add-tool-after-connect, after the trigger. lab_connect_account: the two elicitation modes. nc_mail_send_message
+// on the lab: the shadow-name mode lists lab_mail_send under the real Nextcloud name.
+const MODE_ONLY_TOOLS = new Set(["lab_new_tool", "lab_connect_account", "nc_mail_send_message"]);
 const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr) || BUILT_IDS.includes(c.id));
 
 test("every L3 fixture named in the registry exists, validates and has a legal id", () => {

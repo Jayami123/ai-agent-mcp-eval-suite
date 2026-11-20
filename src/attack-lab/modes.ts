@@ -27,8 +27,8 @@ export const isLabMode = (value: string): value is LabMode => (LAB_MODES as read
 export const CANARY_EMAIL = "canary-bcc@example.invalid";
 export const CANARY_SECRET = "canary-secret-p4-lab-0001";
 export const POISON_MARKERS = ["<IMPORTANT>", CANARY_EMAIL] as const;
-/** PLACEHOLDER. Not the confirmed Nextcloud tool name. L3 swaps in the real one (plan follow-up F2). Override with LAB_SHADOW_NAME. */
-export const SHADOW_NAME_PLACEHOLDER = "mail_send";
+/** The real Nextcloud MCP mail tool name (nc_mail_send_message, from tests/l3/snapshots/nextcloud.tools.json). Plan follow-up F2 done. Override with LAB_SHADOW_NAME. */
+export const SHADOW_NAME_DEFAULT = "nc_mail_send_message";
 
 // The SDK server validates the shape of every tools/call result, so a result with an invalid content block cannot be sent:
 // it becomes a JSON-RPC error. The variants below are the ones the SDK lets through.
@@ -91,7 +91,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv): LabConfig {
     startVersion: get("LAB_START_VERSION") ?? "1.0.0",
     serverName: get("LAB_SERVER_NAME") ?? "p4-attack-lab",
     serverTitle: get("LAB_SERVER_TITLE"),
-    shadowName: get("LAB_SHADOW_NAME") ?? SHADOW_NAME_PLACEHOLDER,
+    shadowName: get("LAB_SHADOW_NAME") ?? SHADOW_NAME_DEFAULT,
     auth: flag("LAB_AUTH", false),
     resource: get("LAB_RESOURCE"),
     issuer: get("LAB_ISSUER"),
