@@ -15,6 +15,10 @@ const LANDED_PRS: number[] = [1, 2];
 const BUILT_IDS = [
   // Approval wave B (PR 1, Twenty).
   "P4-MCP-INJ-005", "P4-MCP-INJ-006", "P4-MCP-TOOL-006", "P4-MCP-TOOL-009",
+  // Approval wave B (PR 1, Mattermost and Outline with Twenty).
+  "P4-MCP-FLOW-001", "P4-MCP-FLOW-010", "P4-MCP-FLOW-004",
+  "P4-MCP-SUPP-006",
+  "P4-MCP-FLOW-007",
   "P4-MCP-APPR-001", "P4-MCP-APPR-006", "P4-MCP-REL-001", "P4-MCP-REL-005", "P4-MCP-META-001", "P4-MCP-SUPP-003",
   "P4-MCP-APPR-007", "P4-MCP-META-010", "P4-MCP-META-006", "P4-MCP-SUPP-004", "P4-MCP-META-005", "P4-MCP-META-007", "P4-MCP-SUPP-007", "P4-MCP-REL-009",
   // Wave D (mail and UI cases, harness v0.6.8).
