@@ -5,9 +5,14 @@
 // UNAVAILABLE is matched in capitals only (the Vertex status); lowercase "unavailable" in ordinary text is not an outage.
 const UNAVAILABLE_STATUS = /\bUNAVAILABLE\b/;
 const OUTAGE_WORDS = /high demand|overloaded|service unavailable|\b503\b|did not answer/i;
+// LiteLLM's own class names for an upstream 503, 502 and 500, as its OpenAI-compatible mapping writes them (litellm v1.110.0,
+// litellm/litellm_core_utils/exception_mapping_utils.py _map_openai_exception, and the prefixes in litellm/exceptions.py).
+// DeepSeek goes through that mapping. Only LiteLLM writes these prefixes, so our own stack's "Internal Server Error" text is
+// not matched. A 429 is NOT here: LiteLLM's RateLimitError is a rate limit, which stays partial (gemma-classify.ts).
+const LITELLM_UPSTREAM_OUTAGE = /\blitellm\.(ServiceUnavailableError|BadGatewayError|InternalServerError)\b/;
 
 export function isProviderOutage(text: string): boolean {
-  return UNAVAILABLE_STATUS.test(text) || OUTAGE_WORDS.test(text);
+  return UNAVAILABLE_STATUS.test(text) || OUTAGE_WORDS.test(text) || LITELLM_UPSTREAM_OUTAGE.test(text);
 }
 
 /**
