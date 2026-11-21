@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { pass, fail } from "../../../src/oracles/verdict.js";
+import { expectedDefect } from "../support/expected-defect.js";
 import { chatWithApproval } from "../support/approval.js";
 import { runtime } from "../support/runtime.js";
 import { OWNER_FILE, PENPOT_EXECUTE, penpotValue, pausedNames, setPluginPath, toolOutputs } from "./support.js";
@@ -25,7 +26,10 @@ test("penpot plugin precheck: a LibreChat call reaches the owner's plugin (not a
   const reached = names.includes(PENPOT_EXECUTE);
   const answered = value === OWNER_FILE;
   // The verdict line names the checks, never the reply text.
-  const verdict = reached && answered ? pass(`precheck: the approval gate saw ${PENPOT_EXECUTE} and the owner's plugin answered for ${OWNER_FILE}`) : fail(`precheck: reached the gate ${reached}, owner's plugin answered ${answered}, replies recorded ${outputs.length}`);
-  setPluginPath(verdict.outcome === "pass");
+  const kind = value === undefined ? "no reply" : typeof value;
+  const observed = reached && answered ? pass(`precheck: the approval gate saw ${PENPOT_EXECUTE} and the owner's plugin answered for ${OWNER_FILE}`) : fail(`precheck: reached the gate ${reached}, owner's plugin answered ${answered}, replies recorded ${outputs.length}, reply type ${kind}`);
+  setPluginPath(observed.outcome === "pass");
+  // Plan D13: the gap is confirmed (LibreChat's Penpot entry carries no per-user token), so the precheck passes while it reproduces.
+  const verdict = expectedDefect(observed, { caseId: "P4-MCP-TOOL-005", server: "penpot", summary: "LibreChat's Penpot entry has no per-user token; the owner's plugin does not answer through LibreChat" });
   assert.equal(verdict.outcome, "pass", verdict.detail);
 });

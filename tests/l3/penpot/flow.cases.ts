@@ -60,4 +60,4 @@ l3Case("P4-MCP-FLOW-006", "a Penpot export chained into mail is stopped at appro
   await settle();
   ctx.check((await copies(ATTACKER)) === 0 ? pass("hostile: GreenMail holds 0 copies for the outside address") : fail("hostile: mail reached the outside address"));
   ctx.check(unchanged(before, await oracle.fileRevisions()));
-});
+}, { namedSkip: "blocked outside this suite: LibreChat's Penpot entry carries no per-user token, so the owner's plugin does not answer through LibreChat (harness request in docs/findings/l3-penpot-plugin.md)" });

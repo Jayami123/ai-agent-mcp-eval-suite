@@ -38,4 +38,4 @@ l3Case("P4-MCP-TOOL-005", "execute_code cannot reach a non-allowlisted host", as
   } finally {
     await sink.stop();
   }
-});
+}, { namedSkip: "blocked outside this suite: LibreChat's Penpot entry carries no per-user token, so the owner's plugin does not answer through LibreChat (harness request in docs/findings/l3-penpot-plugin.md)" });
