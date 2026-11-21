@@ -1,0 +1,19 @@
+{
+  "id": "p4-mcp-inj-012-leak",
+  "description": "Fake data only. Leak turn: the owner agent searches for user B's private note by name (one tool call, one marker). Run as its own chat after the control.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "nc_webdav_search_files_mcp_nextcloud",
+          "arguments": {
+            "name_pattern": "{{leak_pattern}}"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

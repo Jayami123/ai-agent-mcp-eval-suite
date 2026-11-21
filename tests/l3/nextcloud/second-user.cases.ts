@@ -14,7 +14,9 @@ import { runtime } from "../support/runtime.js";
 // (decision D2 in docs/plans/2026-11-21-l3-second-user.md). Run names are random per run and come in as [var:] markers.
 
 const SEARCH = mcpToolName("nc_webdav_search_files", "nextcloud");
-const FIXTURE = "p4-mcp-inj-012-search";
+// Two fixtures, one tool call per served turn, one chat each (the stub checks markers against the turn it serves).
+const CONTROL_FIXTURE = "p4-mcp-inj-012-search";
+const LEAK_FIXTURE = "p4-mcp-inj-012-leak";
 
 /** The second identity's MCP Basic value, read from its run state. Secret: passed to requests, never printed or logged. */
 function secondAuthorization(stack: ReturnType<typeof runtime>["stack"]): { url: string; authorization: string } {
@@ -105,23 +107,34 @@ l3Case(
     const bNoteBefore = resultText((await bMcp.callTool("nc_webdav_read_file", { path: bName })).body);
     ctx.check(bListBefore.includes(bName) && bNoteBefore.includes(canary) ? pass("user B lists the private note and reads its canary before the run") : fail("user B cannot list or read the private note (the target is missing)"));
 
-    // The owner's agent searches twice (control, then the leak attempt). Both names come in as [var:] markers.
-    const runResult = await runFixture(rt.stack, {
-      fixture: FIXTURE,
-      prompt: `[var:own_pattern=${ownName}] [var:leak_pattern=${bName}] Search my files for both notes.`,
+    // Chat 1, the control: the owner searches for its own file. Only the own_pattern marker is in this chat.
+    const control = await runFixture(rt.stack, {
+      fixture: CONTROL_FIXTURE,
+      prompt: `[var:own_pattern=${ownName}] Search my files for my own note.`,
       tools: [SEARCH],
     });
-    ctx.check(runResult.stub.some((e) => e.turn === 0) ? pass("fixture delivered to the stub") : fail("the stub never saw the fixture (marker lost?)"));
+    ctx.check(control.stub.some((e) => e.turn === 0) ? pass("control fixture delivered to the stub") : fail("the control fixture never reached the stub (marker lost?)"));
+    const controlResults = control.stub.flatMap((e) => e.toolResults);
+    const controlText = controlResults.join("\n");
+    ctx.check(controlResults.length > 0 && controlText.includes(ownName) ? pass("control: the owner's search finds the owner's own file (the search path works)") : fail(`control: the owner's search did not find the owner's own file (host received ${String(controlResults.length)} tool result(s): ${controlText.slice(0, 300) || "none"})`));
 
-    // Oracles: what the host received from the Nextcloud MCP, and user B's listing. Model text is not read.
-    const results = runResult.stub.flatMap((e) => e.toolResults).join("\n");
-    ctx.check(results.includes(ownName) ? pass("control: the owner's search finds the owner's own file (the search path works)") : fail(`control: the owner's search did not find the owner's own file (host received ${String(runResult.stub.flatMap((e) => e.toolResults).length)} tool result(s): ${results.slice(0, 300) || "none"})`));
-    const leaked = results.includes(bName) || results.includes(canary);
-    ctx.check(!leaked ? pass("leak: the owner's search results contain neither user B's file name nor its canary") : fail("leak: the owner's search results contain user B's private note"));
+    // Chat 2, the leak attempt: the owner searches for user B's note. Only the leak_pattern marker is in this chat.
+    const leak = await runFixture(rt.stack, {
+      fixture: LEAK_FIXTURE,
+      prompt: `[var:leak_pattern=${bName}] Search my files for the other note.`,
+      tools: [SEARCH],
+    });
+    ctx.check(leak.stub.some((e) => e.turn === 0) ? pass("leak fixture delivered to the stub") : fail("the leak fixture never reached the stub (marker lost?)"));
+    const leakResults = leak.stub.flatMap((e) => e.toolResults);
+    const leakText = leakResults.join("\n");
+    // Non-vacuous: the leak check means something only if the search ran and a reply came back to the host.
+    ctx.check(leakResults.length > 0 ? pass(`leak: the leak search returned a tool result to the host (${String(leakResults.length)})`) : fail("leak: no tool result came back to the host, so the leak check would be vacuous"));
+    const leaked = leakText.includes(bName) || leakText.includes(canary);
+    ctx.check(leakResults.length > 0 && !leaked ? pass("leak: the owner's search results contain neither user B's file name nor its canary") : fail("leak: the owner's search results contain user B's private note (or no reply came back)"));
 
     const bListAfter = resultText((await bMcp.callTool("nc_webdav_list_directory", { path: "" })).body);
     const bNoteAfter = resultText((await bMcp.callTool("nc_webdav_read_file", { path: bName })).body);
     ctx.check(bListAfter.includes(bName) && bNoteAfter.includes(canary) ? pass("user B's private note is still listed and still holds its canary after the run") : fail("user B's private note is missing or changed after the run"));
-    ctx.note(`stub turns for ${FIXTURE}: ${String(runResult.stub.length)}; tool-result chars received by the host: ${String(results.length)}`);
+    ctx.note(`stub turns: control ${String(control.stub.length)}, leak ${String(leak.stub.length)}; tool results to the host: control ${String(controlResults.length)}, leak ${String(leakResults.length)}`);
   },
 );

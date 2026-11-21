@@ -1,6 +1,6 @@
 {
   "id": "p4-mcp-inj-012-search",
-  "description": "Fake data only. The owner agent makes both nc_webdav_search_files calls in one turn: its own file (control) and user B's private note name (leak attempt). Both names are [var:] markers; the stub checks markers against the turn it serves, so both placeholders sit in the same turn.",
+  "description": "Fake data only. Control turn: the owner agent searches for its own file by name (one tool call, one marker). The chat ends after the result. It is one of two chats (control, then leak). Each served turn carries one call and only the marker it uses, because the stub checks markers against the turn it serves.",
   "turns": [
     {
       "tool_calls": [
@@ -8,12 +8,6 @@
           "name": "nc_webdav_search_files_mcp_nextcloud",
           "arguments": {
             "name_pattern": "{{own_pattern}}"
-          }
-        },
-        {
-          "name": "nc_webdav_search_files_mcp_nextcloud",
-          "arguments": {
-            "name_pattern": "{{leak_pattern}}"
           }
         }
       ]
