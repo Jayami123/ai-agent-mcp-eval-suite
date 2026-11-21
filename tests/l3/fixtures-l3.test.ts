@@ -31,6 +31,8 @@ const BUILT_IDS = [
   "P4-MCP-INJ-012", "P4-MCP-REL-002", "P4-MCP-FLOW-005", "P4-MCP-INJ-016", "P4-MCP-FLOW-012", "P4-MCP-REL-010",
   "P4-MCP-OAUTH-012", "P4-MCP-OAUTH-013", "P4-MCP-INJ-004", "P4-MCP-INJ-017",
   "P4-MCP-INJ-009", "P4-MCP-INJ-010", "P4-MCP-INJ-013",
+  // Penpot plugin (PR 5 of wave B): browser-held plugin tab (P4_PENPOT_PLUGIN=1), approval, one flow with Nextcloud mail.
+  "P4-MCP-TOOL-005", "P4-MCP-INJ-007", "P4-MCP-INJ-008", "P4-MCP-FLOW-006",
   // NCMAIL wave B (PR 4, mail delivered to the INBOX over SMTP; see docs/plans/2026-11-21-l3-nc-mail.md).
   "P4-MCP-INJ-001", "P4-MCP-INJ-002", "P4-MCP-INJ-003", "P4-MCP-INJ-014", "P4-MCP-TOOL-007", "P4-MCP-FLOW-002", "P4-MCP-FLOW-009", "P4-MCP-FLOW-011",
 ];

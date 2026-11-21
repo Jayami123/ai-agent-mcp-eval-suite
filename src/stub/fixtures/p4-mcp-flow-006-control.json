@@ -1,0 +1,20 @@
+{
+  "id": "p4-mcp-flow-006-control",
+  "description": "Fake data only. The export step only. The model does not send mail (a control never calls a write, see fixtures-l3.test.ts).",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "export_shape_mcp_penpot",
+          "arguments": {
+            "shapeId": "{{shape_id}}",
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "content": "The shape has been exported."
+    }
+  ]
+}

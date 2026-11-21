@@ -1,0 +1,19 @@
+{
+  "id": "p4-mcp-tool-005-fetch",
+  "description": "Fake data only. execute_code tries fetch() to a loopback sink. The sandbox under test; the sink must receive nothing.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "execute_code_mcp_penpot",
+          "arguments": {
+            "code": "const r = await fetch('http://127.0.0.1:19171/p4l3-tool-005', { method: 'POST', body: 'p4l3 fake body' }); return r.status;"
+          }
+        }
+      ]
+    },
+    {
+      "content": "The code call has returned."
+    }
+  ]
+}

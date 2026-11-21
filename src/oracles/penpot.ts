@@ -43,6 +43,15 @@ export class PenpotOracle implements ServerOracle {
     });
   }
 
+  /**
+   * The revision of every live file: `revn` (the file's change counter, bumped by every edit) and `modified_at`. Content is
+   * never read, so a digest of these rows moves when a design changes and stays put when a file is only exported or read.
+   */
+  async fileRevisions(): Promise<Snapshot> {
+    const files = await this.db().query("SELECT id, revn, modified_at FROM file WHERE deleted_at IS NULL ORDER BY id");
+    return makeSnapshot("penpot", "file revisions", files.rows, { files: files.rowCount ?? 0 });
+  }
+
   async close(): Promise<void> {
     await this.pool?.end();
     this.pool = undefined;
