@@ -81,20 +81,42 @@ async function workspaceLogins(baseUrl: string): Promise<WorkspaceLogin[]> {
   return data.signIn?.availableWorkspaces?.availableWorkspacesForSignIn ?? [];
 }
 
-/** The admin's token for one workspace (login token, then the exchange the harness also uses). */
+/** The workspace a bearer token belongs to (core API currentWorkspace). Used to check which workspace a token is for. */
+async function tokenWorkspaceId(baseUrl: string, token: string): Promise<string | undefined> {
+  const data = (await postJson(`${baseUrl}/graphql`, { query: "query { currentWorkspace { id } }" }, token)) as { currentWorkspace?: { id?: unknown } };
+  return typeof data.currentWorkspace?.id === "string" ? data.currentWorkspace.id : undefined;
+}
+
+/**
+ * The admin's token for one workspace. Workspace A comes from the harness's own authenticate() (a path the stack already
+ * proves) when the token is for A; any other workspace uses the login-token exchange, trying each origin the harness could
+ * use. A failure names the origins tried, never a token.
+ */
 export async function twentyWorkspaceClient(adapter: ProductAdapter, workspaceId: string): Promise<TwentyWorkspaceClient> {
   const baseUrl = adapter.baseUrl.replace(/\/$/, "");
+  const session = await adapter.authenticate();
+  const harnessToken = session.authorizationHeader.replace(/^Bearer /, "");
+  if ((await tokenWorkspaceId(baseUrl, harnessToken)) === workspaceId) return new TwentyWorkspaceClient(baseUrl, workspaceId, harnessToken);
+
   const ws = (await workspaceLogins(baseUrl)).find((w) => w.id === workspaceId);
   if (ws === undefined) throw new Error(`TWENTY_TW1_NO_MEMBERSHIP: the admin is not a member of workspace ${workspaceId} (check the dev seed)`);
-  // Same rule as the harness (selectWorkspaceOrigin): the first NON-EMPTY of subdomain, custom, then the base URL.
   const pick = (v: string | undefined): string | undefined => (v === undefined || v.trim() === "" ? undefined : v.trim().replace(/\/$/, ""));
-  const origin = pick(ws.workspaceUrls?.subdomainUrl) ?? pick(ws.workspaceUrls?.customUrl) ?? baseUrl;
-  const exchanged = (await postJson(`${baseUrl}/metadata`, { query: EXCHANGE, variables: { loginToken: ws.loginToken, origin } })) as {
-    getAuthTokensFromLoginToken?: { tokens?: { accessOrWorkspaceAgnosticToken?: { token?: string } } };
-  };
-  const token = exchanged.getAuthTokensFromLoginToken?.tokens?.accessOrWorkspaceAgnosticToken?.token;
-  if (typeof token !== "string") throw new Error("TWENTY_TW1_NO_TOKEN: the token exchange returned no access token");
-  return new TwentyWorkspaceClient(baseUrl, workspaceId, token);
+  const origins = [...new Set([pick(ws.workspaceUrls?.subdomainUrl), pick(ws.workspaceUrls?.customUrl), baseUrl].filter((o): o is string => o !== undefined))];
+  const failures: string[] = [];
+  for (const origin of origins) {
+    try {
+      const exchanged = (await postJson(`${baseUrl}/metadata`, { query: EXCHANGE, variables: { loginToken: ws.loginToken, origin } })) as {
+        getAuthTokensFromLoginToken?: { tokens?: { accessOrWorkspaceAgnosticToken?: { token?: string } } };
+      };
+      const token = exchanged.getAuthTokensFromLoginToken?.tokens?.accessOrWorkspaceAgnosticToken?.token;
+      if (typeof token !== "string") throw new Error("no access token");
+      if ((await tokenWorkspaceId(baseUrl, token)) !== workspaceId) throw new Error("token is for another workspace");
+      return new TwentyWorkspaceClient(baseUrl, workspaceId, token);
+    } catch (err) {
+      failures.push(`origin ${origin.replace(/^https?:\/\//, "")}: ${(err as Error).message}`);
+    }
+  }
+  throw new Error(`TWENTY_TW1_NO_TOKEN: no origin gave a token for workspace ${workspaceId} (${failures.join("; ")})`);
 }
 
 /** Deletes every P4L3 row in both workspaces (notes first, then links, then companies and opportunities). */
