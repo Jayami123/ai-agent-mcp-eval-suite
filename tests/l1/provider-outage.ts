@@ -39,15 +39,29 @@ const CHAT_CALL = /POST \/v1\/chat\/completions/;
 const CHAT_COMPLETED = /POST \/v1\/chat\/completions HTTP\/1\.1" 200/;
 
 function stampOf(line: string): string | undefined {
-  return /^(\d{2}:\d{2}:\d{2})/.exec(line)?.[1];
+  // A docker-timestamped line quotes its RFC3339 time; a bare LiteLLM line quotes its own HH:MM:SS.
+  return DOCKER_STAMP.exec(line)?.[1] ?? /^(\d{2}:\d{2}:\d{2})/.exec(line)?.[1];
 }
 
-/** The log lines written during one trial. `before` is the log read at the trial's start; the window is what came after it. */
-export function logWindow(before: string, after: string): string {
-  const last = before.split("\n").filter((l) => l.trim() !== "").pop();
-  if (last === undefined) return after;
-  const at = after.lastIndexOf(last);
-  return at >= 0 ? after.slice(at + last.length) : after;
+/** A docker --timestamps prefix: the RFC3339 time the line was written, then a space. */
+const DOCKER_STAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s/;
+
+/**
+ * The log lines written between sinceIso and untilIso (inclusive), by their own timestamps. Lines without a docker timestamp
+ * are dropped: the window is read with --timestamps, so every line has one. No text matching against earlier output.
+ */
+export function windowLines(log: string, sinceIso: string, untilIso: string): string {
+  const since = Date.parse(sinceIso);
+  const until = Date.parse(untilIso);
+  return log
+    .split("\n")
+    .filter((l) => {
+      const m = DOCKER_STAMP.exec(l);
+      if (m === null) return false;
+      const t = Date.parse((m[1] ?? "").replace(/\.(\d{3})\d*Z$/, ".$1Z"));
+      return t >= since && t <= until;
+    })
+    .join("\n");
 }
 
 export function classifyStall(window: string): StallVerdict {

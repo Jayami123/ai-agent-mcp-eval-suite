@@ -117,6 +117,14 @@ Evidence for run `44885137771` (head `2d46468`, artifact `14700585198`, LiteLLM 
 
 Unit tests: `tests/l1/stall-classify.test.ts` (outage, content returned, no upstream call).
 
+### How a trial's LiteLLM window is read
+
+Each measured trial records its start time before it runs, and its end time when it fails. The LiteLLM log for that trial is read with `docker logs --since <start> --until <end> --timestamps` (`containerLogWindow` in `tests/l1/evidence.ts`), then filtered by each line's own timestamp (`windowLines` in `tests/l1/provider-outage.ts`). No text is matched against earlier output.
+
+This replaces a text-anchored window, which failed on run `44891286019`. Trial 1's window was taken from the last line of trial 0's log, and that traceback line repeats in every error, so the search matched trial 1's own copy and the window started after the outage line. The guard then called the empty answer "no upstream call" (red) when the log showed `10:04:29 - LiteLLM Proxy:ERROR: ... UNAVAILABLE`, which belonged to trial 1's window.
+
+Regression tests: `tests/l1/trial-window.test.ts` (a repeated traceback across trials, an outage line inside the window, an outage line just outside it, and lines with no timestamp).
+
 ### Pacing
 
 Trials are at least one minute apart (`TRIAL_SPACING_MS` in `tests/l3/support/case.ts`). The lanes run one after another, so two lanes never share the 16K tokens-per-minute limit.

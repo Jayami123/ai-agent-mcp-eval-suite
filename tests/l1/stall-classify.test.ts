@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyStall, isProviderOutage, isStreamTimeout, logWindow } from "./provider-outage.js";
+import { classifyStall, isProviderOutage, isStreamTimeout } from "./provider-outage.js";
 
 const CALL = 'INFO:     172.18.0.4:52526 - "POST /v1/chat/completions HTTP/1.1" 200 OK';
 const CALL_NO_ANSWER = 'INFO:     172.18.0.4:52526 - "POST /v1/chat/completions HTTP/1.1" 503 Service Unavailable';
@@ -28,13 +28,6 @@ test("no upstream call in the window: infra fail", () => {
   const v = classifyStall("22:14:02 - LiteLLM Proxy: health check ok");
   assert.equal(v.verdict, "infra");
   assert.match(v.reason, /no upstream call to the provider/);
-});
-
-test("log window: only the lines written after the trial started", () => {
-  const before = "line one\nline two";
-  const after = "line one\nline two\n23:00:00 new line";
-  assert.equal(logWindow(before, after), "\n23:00:00 new line");
-  assert.equal(logWindow("", after), after);
 });
 
 test("stream timeout: a TimeoutError or AbortError is a stream timeout; an ordinary error is not", () => {

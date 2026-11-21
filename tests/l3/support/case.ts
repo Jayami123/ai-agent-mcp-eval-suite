@@ -8,8 +8,8 @@ import { DEFAULT_K } from "../../../src/stats/thresholds.js";
 import { type TrialStatus } from "../../../src/stats/status.js";
 import { writeEvidence } from "../../l1/evidence.js";
 import { isRateLimited } from "../../l1/gemma-classify.js";
-import { classifyEmptyAnswer, classifyStall, EmptyAnswerError, isProviderOutage, isStreamTimeout, logWindow } from "../../l1/provider-outage.js";
-import { containerLogText } from "../../l1/evidence.js";
+import { classifyEmptyAnswer, classifyStall, EmptyAnswerError, isProviderOutage, isStreamTimeout, windowLines } from "../../l1/provider-outage.js";
+import { containerLogWindow } from "../../l1/evidence.js";
 import { APPROVAL_TIMEOUT_MS } from "./approval.js";
 import { servedModelFromModelInfo } from "../../l1/gemma-record.js";
 import { caseDef } from "./registry.js";
@@ -159,8 +159,12 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
       toolCalls: (c) => void (calls = c),
     };
     const started = Date.now();
-    // The LiteLLM log at the trial's start: a stream timeout is judged by the lines written after it.
-    const logBefore = containerLogText("litellm", providerSecrets());
+    // The trial's own LiteLLM window: from its start to the moment it fails. Read by time, not by matching text.
+    const startIso = new Date().toISOString();
+    const windowNow = (): string => {
+      const endIso = new Date().toISOString();
+      return windowLines(containerLogWindow("litellm", providerSecrets(), startIso, endIso), startIso, endIso);
+    };
     let status: TrialStatus;
     let reason: string;
     try {
@@ -171,7 +175,7 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
     } catch (err) {
       if (err instanceof EmptyAnswerError) {
         // An empty answer: an upstream error line in the window is inconclusive (quoted); anything else is a red failure.
-        const judged = classifyEmptyAnswer(logWindow(logBefore, containerLogText("litellm", providerSecrets())));
+        const judged = classifyEmptyAnswer(windowNow());
         if (judged.verdict === "infra") throw new Error(judged.reason);
         status = "partial";
         reason = judged.reason;
@@ -179,7 +183,7 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
       } else if (isStreamTimeout(err as Error)) {
         // A stream that timed out with no answer: the LiteLLM log decides. The provider answered: our timeout (infra, red).
         // The provider stalled, errored or is still pending: inconclusive, quoted. No retries, no new timeout value.
-        const stall = classifyStall(logWindow(logBefore, containerLogText("litellm", providerSecrets())));
+        const stall = classifyStall(windowNow());
         if (stall.verdict === "infra") throw new Error(`INFRA: stream timed out after ${APPROVAL_TIMEOUT_MS} ms with no answer; ${stall.reason}`);
         status = "partial";
         reason = stall.reason;
