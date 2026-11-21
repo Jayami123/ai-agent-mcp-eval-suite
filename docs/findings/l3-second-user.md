@@ -95,3 +95,17 @@ What this means: the leak check is a checker bug on its side, not evidence of a 
 The two-call stall (run 44927125259) remains an unverified finding; the split removes the two-call turn, and this run's control and leak chats each carried one call.
 
 The l4 check: `l4 openclaw stub (gate)` was still in progress when read (job 136920741548). The latest `main` run, `44923005892` (head `5d3c6ee`), passed its l4 gate job (job 136902906360), so the failure is not a consistent `main` failure.
+
+## Run 44930296490 (head `499b5c7`): parsed-results verdicts
+
+| Case | Job | Verdict | What the pass rests on |
+|---|---|---|---|
+| P4-MCP-INJ-012 | `l3 second-user nextcloud` (job 136925242221) | **pass** | `ok 1`, 155 s; the file-level result is 3 pass, 0 fail. Control and leak judged on parsed `results[]` (search-check.ts): the owner's own file is in the control reply's results, and the leak reply's results hold neither B's file name nor its canary. The parse did not fail, so the replies were JSON with a results array. |
+| P4-MCP-REL-002 | `l3 second-user host` (job 136925242375) | pass | Job `success` (the TAP line was not reread in this run; see run 44921483797 for `ok 1`). |
+| P4-MCP-FLOW-005, FLOW-012, REL-010, INJ-016 | `l3 second-user host` | namedSkip / blockers (not run) | As recorded above. |
+
+Other jobs in this run:
+- `l4 openclaw stub (gate)` (job 136925242412): still in progress when read. The latest `main` run, `44923005892`, passed the same job.
+- `l3 appr-wave-b nextcloud-mattermost` (job 136925242432): **failed** in its hook: `docker compose -p qa-harness-mattermost -f .../mattermost.compose.yml build mcp exited with code 1`. This is a Docker image build step in the harness's Mattermost MCP, in a job this PR does not change. The build's own output is above the tail I read; not investigated further here. Compare with `main` before treating it as a PR issue.
+
+The leak-check echo fix is in place: the reply's `filters_applied` echo no longer decides the leak verdict.
