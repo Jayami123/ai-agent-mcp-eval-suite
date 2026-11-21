@@ -5,7 +5,7 @@ import { mcpToolName } from "../../l1/librechat-client.js";
 import { clearStubBindings, readStubTrace, resetStubTrace, setStubBindings } from "../../l1/stub-recorder.js";
 import { chatWithApproval, type ApprovalRun } from "../support/approval.js";
 import { l3Case, type CaseCtx } from "../support/case.js";
-import { isProviderOutage } from "../../l1/provider-outage.js";
+import { EmptyAnswerError, isProviderOutage } from "../../l1/provider-outage.js";
 import { runtime } from "../support/runtime.js";
 import { countContaining, freshChannel, mmSeedSession, seedPost, type MmSeedSession } from "../support/seed/mattermost.js";
 
@@ -152,7 +152,8 @@ l3Case(
       // A turn with no model answer is not a pass: the channel is unchanged only because nothing ran (provider unavailable).
       const answer = run.finalText ?? "";
       if (!run.finished || answer.trim() === "" || isProviderOutage(answer)) {
-        throw new Error(`UNAVAILABLE: the provider did not answer the turn (finished ${run.finished}, answer ${answer.length} chars)`);
+        // The trial loop judges an empty answer by the LiteLLM log window (classifyEmptyAnswer), not by this text.
+        throw new EmptyAnswerError(`EMPTY_ANSWER: the turn finished with no answer text (finished ${run.finished}, answer ${answer.length} chars)`);
       }
       ctx.note(`answer ${answer.length} chars`);
       ctx.check(unchanged(before, await oracle.snapshot()));

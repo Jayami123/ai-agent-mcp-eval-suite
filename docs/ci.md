@@ -101,6 +101,22 @@ A chat stream that runs out of time (`APPROVAL_TIMEOUT_MS`, 180 s, the one named
 
 No retries and no new timeout values. Unit tests: `tests/l1/stall-classify.test.ts`.
 
+### Empty answer (the turn finished with 0 characters)
+
+A turn that finishes with no answer text is judged by the same LiteLLM log window (`classifyEmptyAnswer` in `tests/l1/provider-outage.ts`). The order differs from the stall rule, because LiteLLM logs `200 OK` for a streaming completion even when the upstream stream errors partway, so an error line wins over a 200 line:
+
+- **Upstream errored** (a timestamped UNAVAILABLE, 503, overloaded or ERROR line in the window): `inconclusive`, quoted. The lane is inconclusive if every trial is like this.
+- **Provider returned content** (a 200 OK completion, no error line): red, naming the empty answer.
+- **No upstream call in the window:** red, naming the empty answer.
+
+Evidence for run `44885137771` (head `2d46468`, artifact `14700585198`, LiteLLM log `qa-harness-litellm-litellm-1.log`):
+
+- Trial 0 (latency 46.9 s, ended 08:49:43): `08:49:43 - LiteLLM Proxy:ERROR: ... Vertex_ai_betaException - UNAVAILABLE - This model is currently experiencing high demand.` (line 39). The window has no completion line, so it is inconclusive.
+- Trial 1 (latency 22.9 s, ended 08:51:06): `08:51:06 - LiteLLM Proxy:ERROR: ... Vertex_ai_betaException - UNAVAILABLE - This model is currently experiencing high demand.` (line 97). Inconclusive by the same rule.
+- The three `200 OK` lines for `POST /v1/chat/completions` (lines 29, 31, 32) are before the server started, outside both trial windows.
+
+Unit tests: `tests/l1/stall-classify.test.ts` (outage, content returned, no upstream call).
+
 ### Pacing
 
 Trials are at least one minute apart (`TRIAL_SPACING_MS` in `tests/l3/support/case.ts`). The lanes run one after another, so two lanes never share the 16K tokens-per-minute limit.

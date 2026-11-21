@@ -70,3 +70,29 @@ export function classifyStall(window: string): StallVerdict {
 export function isStreamTimeout(err: { name?: string; message?: string }): boolean {
   return err.name === "TimeoutError" || err.name === "AbortError" || /timeout|timed out|aborted/i.test(err.message ?? "");
 }
+
+// ---- Empty answer (the turn finished with 0 characters). The same evidence guard as the stall path, in the other order. ----
+// LiteLLM logs "200 OK" for a streaming completion even when the upstream stream errors partway, so an error line in the
+// window wins over a 200 line:
+//   errored         a timestamped upstream outage or error line in the window: inconclusive (quoted)
+//   returned        a 200 OK completion with no error line: the provider returned content, so the empty answer is ours (red)
+//   no upstream     no POST /v1/chat/completions in the window: nothing reached the provider (red)
+
+export class EmptyAnswerError extends Error {
+  override name = "EmptyAnswerError";
+}
+
+export function classifyEmptyAnswer(window: string): StallVerdict {
+  const lines = window.split("\n");
+  const errored = lines.find((l) => stampOf(l) !== undefined && (isProviderOutage(l) || /ERROR|Timeout|timed out/i.test(l)));
+  if (errored !== undefined) {
+    return { verdict: "inconclusive", reason: `INCONCLUSIVE: provider errored on the empty answer (LiteLLM log at ${stampOf(errored)}: ${errored.trim().slice(0, 200)})` };
+  }
+  if (lines.some((l) => CHAT_COMPLETED.test(l))) {
+    return { verdict: "infra", reason: "empty answer although the provider returned a 200 OK completion with no error in the LiteLLM log" };
+  }
+  if (!lines.some((l) => CHAT_CALL.test(l))) {
+    return { verdict: "infra", reason: "empty answer and no upstream call to the provider in this trial's LiteLLM log window" };
+  }
+  return { verdict: "infra", reason: "empty answer: an upstream call with no completion and no error in the LiteLLM log" };
+}
