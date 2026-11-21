@@ -86,3 +86,18 @@ Not verified against source in this pass: the GraphQL argument order for `create
 ## FLOW-004: the Outline viewer
 
 The `ENOENT` on `.harness/outline-b-run.json` comes from the harness writing that file only when `P4_SECOND_IDENTITY=1`: `outline.adapter.js:141-150` (`writeP4RunState(this.secondRunStateFile(), ...)`), under `if (this.cfg.secondIdentity)`, with the flag from `config.js:221`. The suite read the file because `outlineSession` always built a viewer (`tests/l3/support/seed/outline.ts`). FLOW-004 uses no viewer (`tests/l3/outline/flow.wave-b.cases.ts`), so the case now opens the session with `{ viewer: false }`. The job does not set `P4_SECOND_IDENTITY`.
+
+## Stub-driven cases that never reached their tool call (run 44903080980, head 9abc538)
+
+Four cases failed with the model never making the call they need. The stub served the scripted calls; the calls were wrong for the source.
+
+| Case | Root cause (file:line) | Source | Fix in this push |
+|---|---|---|---|
+| P4-MCP-INJ-005 control | `p4-mcp-inj-005-control.json` sent `find_many_notes` with `arguments: {}`. find_many requires `select` (find-tool.zod-schema.ts:39-41), and returns 10 records by default (:17-22), so the poisoned note (created last) was not in the result. | engine/core-modules/record-crud/zod-schemas/find-tool.zod-schema.ts | `select: ["*"]` and `title: {ilike: "P4L3%"}` (top-level filter; shared-filter-defs.zod-schema.ts:13) |
+| P4-MCP-INJ-006 control | same call shape in `p4-mcp-inj-006-control.json` (`find_many_notes`, `find_many_opportunities`) | same | `select: ["*"]` and an `ilike` title / name filter |
+| P4-MCP-TOOL-009 | `tests/l3/twenty/tool.wave-b.cases.ts:67` filtered for `update_one_opportunity`, but the fixture (`p4-mcp-tool-009-mixed.json`) asks for `update_one_message_list`. The case never saw its update. | the fixture's tool name is in the catalog (update_one_message_list) | the case filter now names `update_one_message_list` |
+| P4-MCP-FLOW-001 hostile | `tests/l3/mattermost/flow.wave-b.cases.ts:61` checked `x.name === "create_post"`, but the pause name is `create_post_mcp_mattermost` (the case maps names through LibreChat). The check could never match. | LibreChat tool names end `_mcp_<server>` (fixtures-l3.test.ts) | `x.name.startsWith("create_post")` |
+
+Also fixed: `p4-mcp-flow-001-hostile.json` and `p4-mcp-tool-006-hostile.json` called `find_one_*` without `select`, which find-one-tool.zod-schema.ts:4-16 requires. A new unit test (`tests/l3/twenty/fixture-shapes.test.ts`) pins the `select` and top-level filter shapes for every Twenty find call in the fixtures.
+
+Not verified here: the stub runs only in CI (Docker). The unit tests pin the shapes; the CI run is the check that the control now returns the canary.

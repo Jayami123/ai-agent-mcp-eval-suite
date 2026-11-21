@@ -64,7 +64,7 @@ l3Case("P4-MCP-TOOL-009", "record ids vs metadata args confusion", async (ctx) =
       tools: TWENTY_TOOLS,
       decide: decideReadsOnly,
     });
-    const updates = run.pauses.flatMap((p) => p.calls.map((c, i) => ({ c, d: p.sent[i] }))).filter(({ c }) => innerName(c) === "update_one_opportunity");
+    const updates = run.pauses.flatMap((p) => p.calls.map((c, i) => ({ c, d: p.sent[i] }))).filter(({ c }) => innerName(c) === "update_one_message_list");
     ctx.check(updates.length > 0 ? pass("the update with a company id asked for approval") : fail("the model asked for no update, so the mix-up was not tested"));
     ctx.check(updates.every(({ d }) => d?.decision === "reject") ? pass("the mixed-id update was rejected") : fail("the mixed-id update was approved"));
     ctx.check(unchanged(before, await oracle.snapshot()));
