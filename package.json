@@ -28,6 +28,7 @@
     "test:stack:l3:penpot": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/penpot/run.e2e.js",
     "test:stack:l3:penpot:plugin": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/penpot/plugin.e2e.js",
     "test:stack:l3:penpot:flow": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/penpot/flow.e2e.js",
+    "test:stack:l3:oauth": "tsc -p tsconfig.test.json && LIBRECHAT_MCP_OAUTH=1 node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/oauth/run.e2e.js",
     "test:stack:l3:nextcloud:appr-deny": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/appr-deny.e2e.js",
     "test:stack:l3:nextcloud:appr-ask": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/appr-ask.e2e.js",
     "l4:up": "node scripts/l4-stack.mjs up",
