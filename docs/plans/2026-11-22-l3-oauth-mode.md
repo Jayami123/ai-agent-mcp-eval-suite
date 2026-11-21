@@ -42,10 +42,18 @@ The IDs, modes, needs and PR number come from the ledger. No ID is invented.
 
 ## 3. The Twenty authorization server, from source (Twenty v2.44.0, tag `twenty/v2.44.0`, commit `f7a4720`)
 
-The image the harness runs is `twentycrm/twenty:v2.44.0` (`node_modules/qa-portfolio-harness/docker/twenty.compose.yml` line 15).
-The source was read from the upstream tag with a sparse, blobless clone in the scratchpad. Nothing was edited.
+**Which code runs.** The harness's Twenty adapter builds Twenty from the product root (`twenty.adapter.ts` line 89,
+`packages/twenty-docker` under the product root), and the CI jobs check out the fork `Jayami123/twenty-CRM` at `7cbdfec6` into
+`products/twenty-CRM` (the same pin as the other Twenty jobs in `pr.yml`). So the server that answers the probes is the fork at
+`7cbdfec6`. The compose file's image tag `v2.44.0` (`docker/twenty.compose.yml` line 15) is not what the adapter runs.
 
-Cited as `path:line` in the repository of the upstream tag (paths relative to `packages/twenty-server/src/`):
+**Fork against upstream.** The fork's OAuth files were read read-only and compared with the upstream tag `twenty/v2.44.0`
+(commit `f7a4720`). Twelve of the thirteen files are byte-identical. The one difference is `auth.resolver.ts`: in the fork,
+`authorizeApp` is guarded by `UserAuthGuard` and `RequireUserSessionGuard` (fork lines 1018-1019), not by the upstream
+`AuthPrincipalGuard` (upstream lines 1071-1080). The body that issues the code (`auth.service.ts`) is identical. No file was edited.
+
+The citations below are `path:line` in the upstream tag, paths relative to `packages/twenty-server/src/`. For the twelve identical
+files the line numbers hold in the fork too. For `authorizeApp`, use the fork lines above.
 
 | Behaviour | Source |
 |---|---|
@@ -123,7 +131,9 @@ Shared setup (`tests/l3/oauth/twenty-oauth.ts`):
 ## 9. CI job (`.github/workflows/pr.yml`)
 
 A new job `l3-oauth`, the same per-server pattern as the other L3 stack jobs, with `LIBRECHAT_MCP_OAUTH=1`, `P4_L3_SERVERS=twenty`,
-`P4_STACK_TESTS=1`, `P4_LLM_MODE=stub`. It runs the new entry `tests/l3/oauth/run.e2e.ts`, which ends with `registerHygieneTests` (the
+`P4_STACK_TESTS=1`, `P4_LLM_MODE=stub`, `PRODUCTS_ROOT`, and the read-only checkout of the Twenty fork at `7cbdfec6` into
+`products/twenty-CRM`. The first run (head `cd374ca`) failed before any case ran: the harness's Twenty product root was missing
+(`Twenty product root does not exist: .../products/twenty-CRM`). The checkout step fixes that. It runs the new entry `tests/l3/oauth/run.e2e.ts`, which ends with `registerHygieneTests` (the
 cleanup sweep and the leak check over `evidence/`). The leak check covers the client ids and the tokens (never printed; redacted in
 evidence). Timeout 30 minutes.
 

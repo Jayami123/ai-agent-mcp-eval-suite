@@ -1045,10 +1045,22 @@ jobs:
       P4_STACK_TESTS: "1"
       P4_L3_SERVERS: twenty
       LIBRECHAT_MCP_OAUTH: "1"
+      PRODUCTS_ROOT: ${{ github.workspace }}/products
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+
+      # Twenty fork, read-only, pinned to the commit the harness Twenty adapter builds (7cbdfec6). Never modified. The OAuth
+      # probes read this source's behaviour, so the running server is this commit.
+      - name: Checkout Twenty fork (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Jayami123/twenty-CRM
+          ref: 7cbdfec6f346b43715bc2056932f4fad5886f733
+          path: products/twenty-CRM
+          fetch-depth: 1
           persist-credentials: false
 
       - name: Free runner disk space
