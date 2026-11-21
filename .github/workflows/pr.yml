@@ -917,6 +917,121 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # L3 Penpot plugin cases (TOOL-005, INJ-007, INJ-008): the harness runs the Penpot MCP in multi-user mode with a browser tab per
+  # profile (P4_PENPOT_PLUGIN=1, which needs P4_SECOND_IDENTITY=1). The plugin tab is a browser, so Chromium is installed. Stub mode
+  # only (no secrets, safe for fork PRs). Plan: docs/plans/2026-11-21-l3-penpot-plugin.md. Advisory until stable (docs/branch-protection.md).
+  l3-penpot-plugin:
+    name: l3 penpot plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: penpot
+      P4_PENPOT_PLUGIN: "1"
+      P4_SECOND_IDENTITY: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Chromium for the Penpot plugin tab
+        run: npx playwright install --with-deps chromium
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 penpot plugin stack tests (precheck, then cases)
+        run: npm run test:stack:l3:penpot:plugin
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-penpot-plugin-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # L3 Penpot flow case (FLOW-006): Penpot in plugin mode and Nextcloud with Mail and GreenMail (P4_MAIL=1, set by the entry file).
+  # Stub mode only. Plan: docs/plans/2026-11-21-l3-penpot-plugin.md (section 9). Advisory until stable (docs/branch-protection.md).
+  l3-penpot-flow:
+    name: l3 penpot flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: penpot,nextcloud
+      P4_PENPOT_PLUGIN: "1"
+      P4_SECOND_IDENTITY: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Chromium for the Penpot plugin tab
+        run: npx playwright install --with-deps chromium
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 penpot flow stack tests (precheck, then the case)
+        run: npm run test:stack:l3:penpot:flow
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-penpot-flow-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
   # L3 lab-only cases: the attack-lab as a container on qa-harness-p4 (the same bring-up as the L2 job), then the host cases
   # that read its published loopback ports. No model, no secrets, stub mode only. Advisory until stable (docs/branch-protection.md).
   l3-lab:
