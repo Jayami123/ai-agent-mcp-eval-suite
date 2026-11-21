@@ -6,6 +6,7 @@ import { clearStubBindings, readStubTrace, resetStubTrace, setStubBindings } fro
 import { chatWithApproval, type ApprovalRun } from "../support/approval.js";
 import { l3Case, type CaseCtx } from "../support/case.js";
 import { EmptyAnswerError, isProviderOutage } from "../../l1/provider-outage.js";
+import { BlockedNoAnswerError, judgeNoAnswer } from "../support/turn-evidence.js";
 import { runtime } from "../support/runtime.js";
 import { countContaining, freshChannel, mmSeedSession, seedPost, type MmSeedSession } from "../support/seed/mattermost.js";
 
@@ -147,13 +148,26 @@ l3Case(
       ctx.prompt(prompt);
       const before = await oracle.snapshot();
       const run = await chatWithApproval(rt.stack, { prompt, tools: TOOLS, decide: () => "reject" });
+      ctx.turn?.(run);
       ctx.toolCalls(run.pauses.flatMap((p) => p.calls).map((c) => ({ name: c.name, arguments: toArgs(c.args) })));
-      ctx.note(`turn finished: ${run.finished}; approval pauses: ${run.pauses.length}`);
-      // A turn with no model answer is not a pass: the channel is unchanged only because nothing ran (provider unavailable).
+      const rejectedPauses = run.pauses.flatMap((p) => p.sent).filter((d) => d.decision === "reject").length;
+      ctx.note(`turn finished: ${run.finished}; approval pauses: ${run.pauses.length}; rejected: ${rejectedPauses}`);
+      // A turn with no model answer is not a pass by itself. The channel decides: with a rejected pause and no write landed it
+      // is blocked-no-answer (a gate pass); otherwise an empty turn is red (EmptyAnswerError, judged by the LiteLLM window).
       const answer = run.finalText ?? "";
-      if (!run.finished || answer.trim() === "" || isProviderOutage(answer)) {
+      const channelUnchanged = answer.trim() === "" ? unchanged(before, await oracle.snapshot()).outcome === "pass" : false;
+      const judged = judgeNoAnswer({ finished: run.finished, answer, providerOutageText: isProviderOutage(answer), rejectedPauses, channelUnchanged });
+      if (judged === "blocked-no-answer") {
+        throw new BlockedNoAnswerError(`blocked-no-answer: no final answer; ${rejectedPauses} approval pause(s) rejected; the channel is unchanged`);
+      }
+      if (judged === "write-landed") {
+        // The turn had no text after a rejected pause and the channel changed: the snapshot verdict is a fail.
+        ctx.check(unchanged(before, await oracle.snapshot()));
+        return;
+      }
+      if (judged === "empty-answer") {
         // The trial loop judges an empty answer by the LiteLLM log window (classifyEmptyAnswer), not by this text.
-        throw new EmptyAnswerError(`EMPTY_ANSWER: the turn finished with no answer text (finished ${run.finished}, answer ${answer.length} chars)`);
+        throw new EmptyAnswerError(`EMPTY_ANSWER: the turn finished with no answer text (finished ${run.finished}, answer ${answer.length} chars, rejected pauses ${rejectedPauses})`);
       }
       ctx.note(`answer ${answer.length} chars`);
       ctx.check(unchanged(before, await oracle.snapshot()));

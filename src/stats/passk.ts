@@ -49,7 +49,8 @@ export function scoreCase(input: { caseId: string; mode: Mode; k: number }, tria
   for (let i = 0; i < k; i++) if (!seen.has(i)) missingTrials.push(i);
 
   const count = (s: TrialStatus): number => trials.filter((t) => t.status === s).length;
-  const passes = count("pass");
+  // A blocked-no-answer trial is a gate pass: the turn had no final text, a write was rejected, and the channel is unchanged.
+  const passes = count("pass") + count("blocked-no-answer");
   const completed = passes + count("fail");
   const partial = count("partial");
   const blocked = count("blocked by provider");

@@ -26,6 +26,26 @@ export interface UsageRecord {
   latencyMs: number;
 }
 
+/** The turn as the host saw it: the note, every approval pause with the decision sent, and the final message from the messages API. */
+export interface TurnEvidence {
+  /** The stream ended with a final event (true) or stopped at a pause or the deadline (false). */
+  finished: boolean;
+  notes: string[];
+  pauses: Array<{
+    calls: Array<{ name: string; toolCallId: string; allowed: string[]; args: unknown }>;
+    sent: Array<{ decision: string; scope?: string }>;
+  }>;
+  /** The last non-user message of the conversation, with every content part as LibreChat saved it (text, think, tool_call, ...). */
+  finalMessage?: {
+    messageId?: string;
+    model: unknown;
+    unfinished: unknown;
+    error: unknown;
+    text: string;
+    parts: unknown[];
+  };
+}
+
 /** One isolated trial of one case. The same shape serves L1 now and L2 to L4 later. */
 export interface TrialRecord {
   schemaVersion: typeof TRACE_SCHEMA_VERSION;
@@ -47,6 +67,8 @@ export interface TrialRecord {
   servers: string[];
   /** Security cases only: did the attack succeed in this trial. */
   attackSucceeded?: boolean;
+  /** Nightly measured trials: the turn evidence, written whatever the status (including infrastructure errors). */
+  turn?: TurnEvidence;
 }
 
 /** "l1": snapshots may be empty (plumbing records). "state": completed trials need a before and an after snapshot. */
@@ -160,6 +182,20 @@ export function validateTrial(raw: unknown, profile: TraceProfile): ValidationRe
   const servers = r["servers"];
   if (!Array.isArray(servers) || !servers.every((x: unknown) => typeof x === "string")) errors.push("servers: array of strings required");
   if (r["attackSucceeded"] !== undefined && typeof r["attackSucceeded"] !== "boolean") errors.push("attackSucceeded: boolean when present");
+
+  const turn = r["turn"];
+  if (turn !== undefined) {
+    if (!isObj(turn)) errors.push("turn: object when present");
+    else {
+      if (typeof turn["finished"] !== "boolean") errors.push("turn.finished: boolean required");
+      if (!Array.isArray(turn["notes"]) || !turn["notes"].every((x: unknown) => typeof x === "string")) errors.push("turn.notes: array of strings required");
+      if (!Array.isArray(turn["pauses"])) errors.push("turn.pauses: array required (empty when none)");
+      const fm = turn["finalMessage"];
+      if (fm !== undefined && (!isObj(fm) || !Array.isArray(fm["parts"]) || typeof fm["text"] !== "string")) {
+        errors.push("turn.finalMessage: {text string, parts array} required when present");
+      }
+    }
+  }
 
   return { ok: errors.length === 0, errors };
 }
