@@ -33,6 +33,8 @@ const BUILT_IDS = [
   "P4-MCP-INJ-009", "P4-MCP-INJ-010", "P4-MCP-INJ-013",
   // Penpot plugin (PR 5 of wave B): browser-held plugin tab (P4_PENPOT_PLUGIN=1), approval, one flow with Nextcloud mail.
   "P4-MCP-TOOL-005", "P4-MCP-INJ-007", "P4-MCP-INJ-008", "P4-MCP-FLOW-006",
+  // NCMAIL wave B (PR 4, mail delivered to the INBOX over SMTP; see docs/plans/2026-11-21-l3-nc-mail.md).
+  "P4-MCP-INJ-001", "P4-MCP-INJ-002", "P4-MCP-INJ-003", "P4-MCP-INJ-014", "P4-MCP-TOOL-007", "P4-MCP-FLOW-002", "P4-MCP-FLOW-009", "P4-MCP-FLOW-011",
 ];
 // Tools that exist only in a lab mode (after a trigger), so the benign snapshot cannot name them. Each is listed with its mode.
 // lab_new_tool: add-tool-after-connect, after the trigger. lab_connect_account: the two elicitation modes. nc_mail_send_message

@@ -1402,6 +1402,204 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # NCMAIL wave B (PR 4). L3 NCMAIL injection cases (INJ-001, INJ-002, INJ-003, INJ-014, TOOL-007). Stub mode only: no model, no secrets, safe for fork PRs. Mail is delivered over SMTP into the owner's
+  # INBOX (not the Mail app outbox). Own job, 30-minute budget.
+  l3-nc-mail-injection:
+    name: l3 nc mail injection
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 NCMAIL injection cases (INJ-001, INJ-002, INJ-003, INJ-014, TOOL-007)
+        run: npm run test:stack:l3:nc-mail:injection
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      # Secret-shaped text in the evidence fails the job (keys, bearer tokens). Runs before the upload.
+      - name: Leak check on the evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -d evidence ] && grep -r -l -E "sk-[A-Za-z0-9_-]{16,}|Bearer [A-Za-z0-9._-]{16,}|AIza[0-9A-Za-z_-]{20,}" evidence/; then
+            echo "::error::secret-shaped text found in evidence (files listed above)"
+            exit 1
+          fi
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-nc-mail-injection-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # NCMAIL wave B (PR 4). L3 NCMAIL Mattermost flow cases (FLOW-002, FLOW-011; INJ-015 registered). Stub mode only: no model, no secrets, safe for fork PRs. Mail is delivered over SMTP into the owner's
+  # INBOX (not the Mail app outbox). Own job, 30-minute budget.
+  l3-nc-mail-flow:
+    name: l3 nc mail flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: nextcloud,mattermost
+      P4_SECOND_IDENTITY: "1"
+      P4_SECOND_POSTS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 NCMAIL Mattermost flow cases (FLOW-002, FLOW-011; INJ-015 registered)
+        run: npm run test:stack:l3:nc-mail:flow
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      # Secret-shaped text in the evidence fails the job (keys, bearer tokens). Runs before the upload.
+      - name: Leak check on the evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -d evidence ] && grep -r -l -E "sk-[A-Za-z0-9_-]{16,}|Bearer [A-Za-z0-9._-]{16,}|AIza[0-9A-Za-z_-]{20,}" evidence/; then
+            echo "::error::secret-shaped text found in evidence (files listed above)"
+            exit 1
+          fi
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-nc-mail-flow-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # NCMAIL wave B (PR 4). L3 NCMAIL Outline and Twenty flow case (FLOW-009). Stub mode only: no model, no secrets, safe for fork PRs. Mail is delivered over SMTP into the owner's
+  # INBOX (not the Mail app outbox). Own job, 30-minute budget.
+  l3-nc-mail-outline:
+    name: l3 nc mail outline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: outline,twenty,nextcloud
+      PRODUCTS_ROOT: ${{ github.workspace }}/products
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Twenty fork, read-only, pinned to the commit the harness Twenty adapter uses (7cbdfec6, dev seeder). Never modified.
+      - name: Checkout Twenty fork (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Jayami123/twenty-CRM
+          ref: 7cbdfec6f346b43715bc2056932f4fad5886f733
+          path: products/twenty-CRM
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 NCMAIL Outline and Twenty flow case (FLOW-009)
+        run: npm run test:stack:l3:nc-mail:outline
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      # Secret-shaped text in the evidence fails the job (keys, bearer tokens). Runs before the upload.
+      - name: Leak check on the evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -d evidence ] && grep -r -l -E "sk-[A-Za-z0-9_-]{16,}|Bearer [A-Za-z0-9._-]{16,}|AIza[0-9A-Za-z_-]{20,}" evidence/; then
+            echo "::error::secret-shaped text found in evidence (files listed above)"
+            exit 1
+          fi
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-nc-mail-outline-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
   # L3 wave D, UI cases: LibreChat's own UI driven by Playwright (Chromium), against the attack-lab in URL-elicitation mode with
   # a look-alike display title. Stub mode only. Advisory until stable.
   l3-ui:
