@@ -9,7 +9,7 @@ export function isApprovedModel(servedId: string, approved: readonly string[] = 
 }
 
 /** The nightly slice. L3 and L4 add their measured IDs here by PR. Only IDs from the ledger. */
-export const GOLDEN_SET: readonly string[] = ["P4-MCP-REL-006"];
+export const GOLDEN_SET: readonly string[] = ["P4-MCP-REL-006", "P4-MCP-INJ-013"];
 
 /** Measured cases: a failed trial there is a measured result, not a failed gate. */
-export const MEASURED_IDS: ReadonlySet<string> = new Set(["P4-MCP-REL-006"]);
+export const MEASURED_IDS: ReadonlySet<string> = new Set(["P4-MCP-REL-006", "P4-MCP-INJ-013"]);

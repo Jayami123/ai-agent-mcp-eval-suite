@@ -5,6 +5,7 @@ import { OC_WORKSPACE, createOcOracle, type FileFact, type OcOracle, type OpenCl
 import { OWNER, type InboundSpec, type MockUser } from "../../../src/mock-channel/types.js";
 import { redact, runId, writeEvidence } from "../../l1/evidence.js";
 import { skipReason, type Need } from "./env.js";
+import { scopeSkip } from "../gate.js";
 import { MockChannelClient, MOCK_CHANNEL_URL } from "./mock-channel-client.js";
 import { isDenied, marker } from "./tool-names.js";
 import { clearWatch, requireStubContainer, resetStubTrace, traceAll, watchPrompt, type L4TraceEntry } from "./stub-trace.js";
@@ -155,7 +156,8 @@ async function quiet(mc: MockChannelClient, quietMs: number, capMs: number): Pro
 class SkipSignal extends Error {}
 
 export function l4Case(spec: CaseSpec): void {
-  const reason = spec.skip ?? skipReason(spec.needs ?? ["stack"]);
+  // scopeSkip and skipReason return false when nothing applies, so this is `||`, not `??`.
+  const reason = spec.skip ?? (scopeSkip(spec.id) || skipReason(spec.needs ?? ["stack"]));
   test(`${spec.id}: ${spec.kind}${spec.measured === true ? " (measured, stub plumbing)" : ""}`, { skip: reason, timeout: 15 * 60_000 }, async (t) => {
     process.env["P4_LLM_MODE"] = process.env["P4_LLM_MODE"] ?? "stub";
     delete process.env["GEMINI_API_KEY"]; // a PR gate never has a key

@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "30 9 * * *"   # 09:30 UTC = 01:30 PST or 02:30 PDT, after Pacific midnight
   workflow_dispatch:
+    inputs:
+      measured_k:
+        description: "Trials per measured case (P4_MEASURED_K). The schedule uses 10."
+        required: false
+        default: "10"
+        type: string
 
 permissions:
   contents: read
@@ -12,7 +18,58 @@ concurrency:
   group: nightly-gemma
   cancel-in-progress: false
 
+# Lanes. The Gemma lanes share one 16K tokens-per-minute free-tier limit, so they run one at a time (each waits for the one
+# before it). The stub lane uses no key and runs beside them. See docs/ci.md for what each lane measures and what is not wired.
 jobs:
+  # Full L4 OpenClaw set (62 cases), stub model. No key, no secrets. This is the set the PR gate no longer runs in full.
+  l4-openclaw-full:
+    name: l4 openclaw full (stub)
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      P4_LLM_MODE: stub
+      P4_L4_SCOPE: full
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: Start LiteLLM, OpenClaw and the mock channel
+        run: npm run l4:up
+
+      - name: L4 cases (full set)
+        run: npm run test:stack:l4
+
+      - name: Stop the L4 stack and the stub
+        if: always()
+        run: |
+          npm run l4:down
+          npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l4-openclaw-full-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
   gemma:
     name: gemma l1 smoke
     runs-on: ubuntu-latest
@@ -85,6 +142,89 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+  # Measured Gemma lane 1 of 1 so far: L3 Mattermost INJ-013 (a poisoned thread; the real model reads it). Runs after the L1
+  # smoke, never beside it (shared 16K TPM). P4-MCP-INJ-013 is the only case with a nightly branch in the L3 Mattermost entry.
+  # The measured L4 cases are not in this lane: their bodies read the stub's request log (docs/ci.md, "Not wired").
+  gemma-measured-mattermost:
+    name: gemma measured l3 mattermost (INJ-013)
+    needs: gemma
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    environment: nightly-gemma
+    env:
+      P4_LLM_MODE: nightly
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: mattermost
+      P4_SECOND_IDENTITY: "1"
+      P4_MEASURED_K: ${{ inputs.measured_k || '10' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Require GEMINI_API_KEY (fail closed)
+        run: |
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "GEMINI_API_KEY is not set in the nightly-gemma environment. Refusing to run; no other model will be used." >&2
+            exit 1
+          fi
+          echo "GEMINI_API_KEY is present (value not printed)."
+
+      - name: Generate per-run LiteLLM master key
+        run: |
+          key="sk-p4-$(openssl rand -hex 24)"
+          echo "::add-mask::${key}"
+          echo "LITELLM_MASTER_KEY=${key}" >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Assert LiteLLM digest matches the harness pin
+        run: |
+          set -euo pipefail
+          expected="ghcr.io/berriai/litellm:v1.110.0@sha256:4295b064b22eb88f9530e616afc812edd47048891ba64896bfc3fa74e2b883c3"
+          grep -F "${expected}" node_modules/qa-portfolio-harness/dist/adapters/litellm-env.js
+          echo "LiteLLM image pin matches the harness."
+
+      - name: L3 Mattermost measured lane (INJ-013, real model)
+        run: npm run test:stack:l3:mattermost:measured
+
+      # Statuses only (case, trial, status). No reason text, no verdict detail, no secret.
+      - name: Print the trial statuses
+        if: always()
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in evidence/nightly/*/trial-*.json; do
+            node -e 'const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); console.log(`${r.caseId} trial ${r.trial}/${r.k}: ${r.status}`)' "$f"
+          done
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nightly-l3-mattermost-measured-evidence-${{ github.run_id }}
           path: evidence/
           if-no-files-found: warn
           retention-days: 14

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getAdapter, type AuthSession } from "qa-portfolio-harness";
-import { collectContainerLogs, redact, runId, writeEvidence } from "./evidence.js";
+import { collectContainerLogs, containerLogText, redact, runId, writeEvidence } from "./evidence.js";
 import { lcChat, lcCreateAgent, mcpToolName, type LcChatOutcome } from "./librechat-client.js";
 import { classifyGemmaOutcome, isRateLimited, type GemmaStatus } from "./gemma-classify.js";
 import { servedModelFromModelInfo, sumUsage, usageFromMessage, type ServedModel, type UsageFields } from "./gemma-record.js";
@@ -144,12 +144,15 @@ test(
 
       // The outcome rules live in gemma-classify.ts and are unit tested. Only partial (429 or RESOURCE_EXHAUSTED after
       // all retries) and blocked by provider (safety refusal) end without failing the test. Everything else fails.
-      const verdict = classifyGemmaOutcome({ outcome, toolName, attempts: rec.attempts, maxAttempts: MAX_ATTEMPTS });
+      const providerLog = containerLogText("litellm", secrets());
+      const verdict = classifyGemmaOutcome({ outcome, toolName, attempts: rec.attempts, maxAttempts: MAX_ATTEMPTS, providerLog });
       rec.status = verdict.status;
       rec.reason = verdict.reason;
       if (verdict.stateCheck !== undefined) rec.stateCheck = verdict.stateCheck;
       writeRecord();
       if (verdict.status === "fail") assert.fail(`${verdict.reason}${rec.errorExcerpt ? `: ${rec.errorExcerpt}` : ""}`);
+      // An outage is never a pass: the job fails and names it.
+      if (verdict.status === "inconclusive") assert.fail(verdict.reason);
     } catch (err) {
       if (rec.reason === DID_NOT_COMPLETE) {
         rec.reason = `run error before completion: ${redact((err as Error).message, secrets())}`;
