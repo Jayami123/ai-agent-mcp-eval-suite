@@ -598,6 +598,112 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # L3 host design: MCP Apps tool approval (APPR-008). The lab starts in app-tool mode, so the app tool is in the list LibreChat connects to. Stub mode only.
+  l3-host-design-appr:
+    name: l3 host-design appr
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: Start the attack-lab container (app-tool mode)
+        env:
+          LAB_MODE: app-tool
+        run: npm run lab:up
+
+      - name: L3 host design, MCP Apps approval (APPR-008)
+        run: npm run test:stack:l3:host-design:appr
+
+      - name: Stop the attack-lab container
+        if: always()
+        run: npm run lab:down
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-host-design-appr-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # L3 host design: cancel (REL-003) and retry cap (REL-004). The lab starts in slow-task mode, and REL-004 switches it to always-fail. Stub mode only.
+  l3-host-design-rel:
+    name: l3 host-design rel
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: Start the attack-lab container (slow-task mode)
+        env:
+          LAB_MODE: slow-task
+        run: npm run lab:up
+
+      - name: L3 host design, cancel and retry cap (REL-003, REL-004)
+        run: npm run test:stack:l3:host-design:rel
+
+      - name: Stop the attack-lab container
+        if: always()
+        run: npm run lab:down
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-host-design-rel-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
   # L3 stack job for Nextcloud: the L3 cases through LibreChat against the real Nextcloud MCP, stub mode only (no secrets, safe for
   # fork PRs). Advisory until stable (docs/branch-protection.md).
   l3-nextcloud:
