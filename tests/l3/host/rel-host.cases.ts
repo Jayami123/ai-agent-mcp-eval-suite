@@ -21,7 +21,13 @@ export const PLAN_RETRY_CAP = 3;
 
 /** Stop observation window: the slow call would finish SLOW_MS_DEFAULT after it started. Waiting past that point is the
  *  observation that no late write happens; it is not a retry to hide a failure. */
-const LATE_WRITE_WINDOW_MS = SLOW_MS_DEFAULT + 5_000;
+/**
+ *  Margin past the slow call's own finish time. The lab writes after its wait (setTimeout, so it fires late by a few
+ *  milliseconds on a busy runner), and the write is then recorded in the sink. 5 s covers both with room to spare, and is far
+ *  shorter than the wait itself, so the window stays a short observation.
+ */
+const LATE_WRITE_MARGIN_MS = 5_000;
+const LATE_WRITE_WINDOW_MS = SLOW_MS_DEFAULT + LATE_WRITE_MARGIN_MS;
 const POLL_MS = 500;
 
 const SLOW = mcpToolName("lab_slow_task", "lab");

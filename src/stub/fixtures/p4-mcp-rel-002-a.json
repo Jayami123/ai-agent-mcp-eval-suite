@@ -1,0 +1,20 @@
+{
+  "id": "p4-mcp-rel-002-a",
+  "description": "Fake data only. The lab tool call that creates user A's task. The case drives the MCP protocol directly (two sessions), so this fixture is documentary and is not run through LibreChat.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_add_mcp_lab",
+          "arguments": {
+            "a": 1,
+            "b": 2
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

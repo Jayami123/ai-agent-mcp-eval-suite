@@ -50,6 +50,8 @@ const BUILT_IDS = [
   "P4-MCP-APPR-004", "P4-MCP-APPR-005", "P4-MCP-META-012", "P4-MCP-APPR-003", "P4-MCP-META-003",
   // Host design (PR 2 of wave B): MCP Apps approval, cancel, retry cap.
   "P4-MCP-APPR-008", "P4-MCP-REL-003", "P4-MCP-REL-004",
+  // Second identity (PR 3 of wave B): USR2 cases; the Twenty ones are skips or blockers with reasons.
+  "P4-MCP-INJ-012", "P4-MCP-REL-002", "P4-MCP-FLOW-005", "P4-MCP-INJ-016", "P4-MCP-FLOW-012", "P4-MCP-REL-010",
 ];
 
 test("every landed case has an l3Case test", async () => {
