@@ -59,7 +59,7 @@
   {"id":"P4-MCP-INJ-009","kind":"core","home":"mattermost","modes":["G","M"],"needs":["APPR"],"wave":"B","pr":5,"fixtures":["p4-mcp-inj-009-control","p4-mcp-inj-009-hostile"]},
   {"id":"P4-MCP-INJ-010","kind":"core","home":"mattermost","modes":["G","M"],"needs":["APPR","USR2"],"wave":"D1","pr":7,"fixtures":["p4-mcp-inj-010-control","p4-mcp-inj-010-hostile"]},
   {"id":"P4-MCP-INJ-011","kind":"core","home":"outline","modes":["G","M"],"needs":["APPR"],"wave":"B","pr":4,"fixtures":["p4-mcp-inj-011-control","p4-mcp-inj-011-hostile"]},
-  {"id":"P4-MCP-INJ-012","kind":"core","home":"nextcloud","modes":["G","M"],"needs":["USR2"],"wave":"D1","pr":7,"fixtures":["p4-mcp-inj-012-search"]},
+  {"id":"P4-MCP-INJ-012","kind":"core","home":"nextcloud","modes":["G","M"],"needs":["USR2"],"wave":"D1","pr":7,"fixtures":["p4-mcp-inj-012-search","p4-mcp-inj-012-leak"]},
   {"id":"P4-MCP-INJ-013","kind":"core","home":"mattermost","modes":["M"],"needs":["APPR"],"wave":"B","pr":5,"fixtures":["p4-mcp-inj-013-plumbing"]},
   {"id":"P4-MCP-INJ-014","kind":"core","home":"nextcloud","modes":["G","M"],"needs":["APPR","NCMAIL"],"wave":"D2","pr":8,"fixtures":["p4-mcp-inj-014"]},
   {"id":"P4-MCP-INJ-015","kind":"stretch","home":"mattermost","modes":["M"],"needs":["APPR","NCMAIL"],"wave":"D2","pr":8,"fixtures":[]},

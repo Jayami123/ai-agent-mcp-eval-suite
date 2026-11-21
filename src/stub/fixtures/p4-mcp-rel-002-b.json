@@ -1,0 +1,9 @@
+{
+  "id": "p4-mcp-rel-002-b",
+  "description": "Fake data only. User B's half of REL-002. The case drives the protocol directly, so this text-only fixture is a placeholder and is not run through LibreChat.",
+  "turns": [
+    {
+      "content": "Done."
+    }
+  ]
+}

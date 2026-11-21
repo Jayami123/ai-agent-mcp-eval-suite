@@ -1,0 +1,37 @@
+{
+  "id": "p4-mcp-flow-005-pivot",
+  "description": "Fake data only. Skipped core case (namedSkip, workspace B). Designed call: learn the find-one tool, then find a workspace B record id. Not run.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "learn_tools_mcp_twenty",
+          "arguments": {
+            "toolNames": [
+              "find_one_opportunity"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "execute_tool_mcp_twenty",
+          "arguments": {
+            "toolName": "find_one_opportunity",
+            "arguments": {
+              "id": "{{workspace_b_record_id}}",
+              "select": [
+                "*"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import {
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { audienceAndIssuerOk, createTokenKey, resourceMetadata, verifyToken } from "./auth.js";
+import { InMemoryTaskStore, type TaskStore } from "@modelcontextprotocol/sdk/experimental/tasks/index.js";
 import { cancelledRequestId } from "./cancel.js";
 import { createControlServer } from "./control.js";
 import { toolsHash } from "./hash.js";
@@ -28,6 +29,8 @@ export type ListenHost = "127.0.0.1" | "0.0.0.0";
 export interface LabRuntime {
   state: LabState;
   sink: Sink;
+  /** One store for every session. The SDK scopes each lookup by session id, so a session cannot read another session's task. */
+  taskStore: TaskStore;
   tokenKey: Buffer;
   controlToken: string;
   servers: Set<Server>;
@@ -37,12 +40,16 @@ export interface LabRuntime {
 export function createRuntime(config: LabConfig, controlToken: string): LabRuntime {
   const state = new LabState(config);
   const sink = createSink();
+  const taskStore: TaskStore = new InMemoryTaskStore();
   const servers = new Set<Server>();
 
   const makeServer = (): Server => {
     const server = new Server(
       { name: config.serverName, version: state.version, ...(config.serverTitle !== undefined ? { title: config.serverTitle } : {}) },
-      { capabilities: { tools: { listChanged: true }, resources: {} } },
+      {
+        capabilities: { tools: { listChanged: true }, resources: {}, tasks: { list: {}, cancel: {}, requests: { tools: { call: {} } } } },
+        taskStore,
+      },
     );
     server.setRequestHandler(ListToolsRequestSchema, () => {
       const tools = buildTools(state);
@@ -59,6 +66,23 @@ export function createRuntime(config: LabConfig, controlToken: string): LabRunti
     });
     server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const elicitation = server.getClientCapabilities()?.elicitation;
+      const taskParams = (request.params as { task?: { ttl?: number } }).task;
+      if (taskParams !== undefined) {
+        // Task-augmented call: return the task at once, run the tool in the background, store its result on the task.
+        const task = await taskStore.createTask({ ttl: taskParams.ttl, pollInterval: 200 }, extra.requestId, request, extra.sessionId);
+        state.record("task_created", { tool: request.params.name });
+        void callTool(state, request.params.name, request.params.arguments, {
+          sink,
+          signal: new AbortController().signal,
+          clientElicitation: { url: false, form: false },
+          elicit: undefined,
+        })
+          .then((result) => taskStore.storeTaskResult(task.taskId, "completed", result as never, extra.sessionId))
+          .catch((err: unknown) =>
+            taskStore.storeTaskResult(task.taskId, "failed", { content: [{ type: "text", text: err instanceof Error ? err.message : "tool failed" }], isError: true } as never, extra.sessionId),
+          );
+        return { task } as never;
+      }
       try {
         const result = await callTool(state, request.params.name, request.params.arguments, {
           sink,
@@ -93,7 +117,7 @@ export function createRuntime(config: LabConfig, controlToken: string): LabRunti
   state.onToolsChanged = () => {
     for (const server of servers) void server.sendToolListChanged().catch(() => undefined);
   };
-  return { state, sink, tokenKey: createTokenKey(), controlToken, servers, makeServer };
+  return { state, sink, taskStore, tokenKey: createTokenKey(), controlToken, servers, makeServer };
 }
 
 function listen(server: HttpServer, host: string, port: number): Promise<number> {

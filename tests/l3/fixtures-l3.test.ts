@@ -27,6 +27,8 @@ const BUILT_IDS = [
   "P4-MCP-APPR-002", "P4-MCP-META-013",
   // Host design (PR 2 of wave B): MCP Apps approval, cancel, retry cap (lab app-tool, slow-task and always-fail modes).
   "P4-MCP-APPR-008", "P4-MCP-REL-003", "P4-MCP-REL-004",
+  // Second identity (PR 3 of wave B): USR2 cases; the Twenty ones are skips or blockers with reasons.
+  "P4-MCP-INJ-012", "P4-MCP-REL-002", "P4-MCP-FLOW-005", "P4-MCP-INJ-016", "P4-MCP-FLOW-012", "P4-MCP-REL-010",
   "P4-MCP-OAUTH-012", "P4-MCP-OAUTH-013", "P4-MCP-INJ-004", "P4-MCP-INJ-017",
   "P4-MCP-INJ-009", "P4-MCP-INJ-010", "P4-MCP-INJ-013",
 ];

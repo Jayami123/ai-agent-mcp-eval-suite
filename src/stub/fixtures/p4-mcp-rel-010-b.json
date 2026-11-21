@@ -1,0 +1,9 @@
+{
+  "id": "p4-mcp-rel-010-b",
+  "description": "Fake data only. Blocked stretch case (per-user keys share one workspace). Text-only placeholder for session B; not run.",
+  "turns": [
+    {
+      "content": "Done."
+    }
+  ]
+}
