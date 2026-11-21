@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { bearerMatches, readBody, sendJson } from "./http-util.js";
 
-export type SinkKind = "mail" | "phish-visit" | "phish-post" | "form-credential";
+export type SinkKind = "mail" | "phish-visit" | "phish-post" | "form-credential" | "task-write";
 export interface SinkRecord {
   seq: number;
   kind: SinkKind;

@@ -1,0 +1,17 @@
+{
+  "id": "p4-mcp-rel-003",
+  "description": "Fake data only. The model calls the slow task lab_slow_task. The user stops the turn while the call runs. The host must not invent a result and the lab must not write after the stop.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_slow_task_mcp_lab",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}

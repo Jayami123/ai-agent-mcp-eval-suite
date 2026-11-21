@@ -1,0 +1,25 @@
+{
+  "id": "p4-mcp-appr-008",
+  "description": "Fake data only. The model calls the MCP Apps tool lab_app_view twice. The host must pause the first call (rejected: it never runs) and the second (approved: it runs once). Negative and positive control in one chat.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lab_app_view_mcp_lab",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lab_app_view_mcp_lab",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "content": "Done."
+    }
+  ]
+}
