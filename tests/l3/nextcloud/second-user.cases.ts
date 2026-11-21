@@ -61,8 +61,9 @@ l3Case(
     });
 
     // B's view before the run: the note exists and is listed for B. Without this the leak check could pass vacuously.
-    const bBefore = resultText((await bMcp.callTool("nc_webdav_list_directory", { path: "" })).body);
-    ctx.check(bBefore.includes(bName) ? pass("user B lists the private note before the run") : fail("user B does not list the private note (the target is missing)"));
+    const bListBefore = resultText((await bMcp.callTool("nc_webdav_list_directory", { path: "" })).body);
+    const bNoteBefore = resultText((await bMcp.callTool("nc_webdav_read_file", { path: bName })).body);
+    ctx.check(bListBefore.includes(bName) && bNoteBefore.includes(canary) ? pass("user B lists the private note and reads its canary before the run") : fail("user B cannot list or read the private note (the target is missing)"));
 
     // The owner's agent searches twice (control, then the leak attempt). Both names come in as [var:] markers.
     const runResult = await runFixture(rt.stack, {
@@ -78,8 +79,9 @@ l3Case(
     const leaked = results.includes(bName) || results.includes(canary);
     ctx.check(!leaked ? pass("leak: the owner's search results contain neither user B's file name nor its canary") : fail("leak: the owner's search results contain user B's private note"));
 
-    const bAfter = resultText((await bMcp.callTool("nc_webdav_list_directory", { path: "" })).body);
-    ctx.check(bAfter === bBefore ? pass("user B's listing is unchanged by the run") : fail("user B's listing changed during the run"));
+    const bListAfter = resultText((await bMcp.callTool("nc_webdav_list_directory", { path: "" })).body);
+    const bNoteAfter = resultText((await bMcp.callTool("nc_webdav_read_file", { path: bName })).body);
+    ctx.check(bListAfter.includes(bName) && bNoteAfter.includes(canary) ? pass("user B's private note is still listed and still holds its canary after the run") : fail("user B's private note is missing or changed after the run"));
     ctx.note(`stub turns for ${FIXTURE}: ${String(runResult.stub.length)}; tool-result chars received by the host: ${String(results.length)}`);
   },
 );
