@@ -60,7 +60,7 @@ l3Case("P4-MCP-TOOL-009", "record ids vs metadata args confusion", async (ctx) =
     await resetStubTrace();
     const run = await chatWithApproval(runtime().stack, {
       fixture: "p4-mcp-tool-009-mixed",
-      prompt: "Update the opportunity.",
+      prompt: "Update the message list named by the id you were given, with the company id.",
       tools: TWENTY_TOOLS,
       decide: decideReadsOnly,
     });
