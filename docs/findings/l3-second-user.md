@@ -6,25 +6,27 @@ Plan: `docs/plans/2026-11-21-l3-second-user.md`. Draft PR 29, branch `feat/2026-
 
 | Run | Head | Result | Notes |
 |---|---|---|---|
-| 44921483797 | `06adf14` | nextcloud job failed; host job passed | INJ-012 failed (see below). REL-002 passed. |
-| (pending) | `7acf8ad` | see the findings update | The fix: one stub turn for both searches; user B checked by state. |
+| 44921483797 | `06adf14` | nextcloud job failed; host job passed. Run now shows `cancelled` (superseded by a later push). | INJ-012 failed: stub rejected the request (see below). REL-002 passed. |
+| 44922909089 | `7acf8ad` | cancelled before any job reported | Superseded by the docs push `aa348c7` (the `pr.yml` concurrency setting cancels superseded pull-request runs). No verdict. |
+| 44922949409 | `aa348c7` (contains the fix from `7acf8ad`; the later commit is docs only) | nextcloud job failed; host job passed; `l4 openclaw stub (gate)` failed (not in this change) | INJ-012 failed on the control check. REL-002 passed. |
 
-## Per-case table
+## Per-case table (latest verdicts, run 44922949409, head `aa348c7`)
 
 | Case | Job | Verdict | What the pass rests on |
 |---|---|---|---|
-| P4-MCP-REL-002 | `l3 second-user host` (run 44921483797, head `06adf14`) | pass | TAP `ok 1` in 110 ms; not skipped. Checks: user A created a task (task-augmented `tools/call`); A's own `tasks/get` completed (control); B's `tasks/get`, `tasks/result` and `tasks/cancel` on A's task are each refused with an error and no result; A's task is still completed with sum 3 after B's attempts; the lab logged exactly one `task_created`. Per-check text is in the evidence artifact, which I could not open; the verdict is from the TAP line. |
-| P4-MCP-INJ-012 | `l3 second-user nextcloud` (run 44921483797, head `06adf14`) | **fail** | `ok` not reached. Three checks failed: "stub never saw the fixture", "control: the owner's search did not find the owner's own file", and "user B's listing changed during the run". Root cause of the first: the stub rejected the request with HTTP 400, `var marker(s) not used by fixture ...: leak_pattern`. The stub checks markers against the turn it serves, and the second search was in turn 2. Reproduced locally against the stub. The chat then waited out the 180 s timeout, so the other two failures followed. The cause of the listing change is not established (the evidence artifact could not be read); the raw-text comparison may include volatile fields. |
-| P4-MCP-INJ-012 | `l3 second-user nextcloud` (head `7acf8ad`) | (pending) | Fix: both searches in one stub turn (the stub returns HTTP 200 and records both calls, checked locally). User B is checked by state: the note is still listed and its read still holds the canary, before and after. Pending the CI run. |
-| P4-MCP-FLOW-005 | `l3 second-user host` | namedSkip (skipped, not run) | Needs a second workspace. See "Workspace B". |
-| P4-MCP-FLOW-012 | `l3 second-user host` | blocker (skipped, not run) | Needs workspace B. See "Workspace B". |
-| P4-MCP-REL-010 | `l3 second-user host` | blocker (skipped, not run) | Per-user keys share one workspace. See "Per-user keys". |
-| P4-MCP-INJ-016 | `l3 second-user host` | blocker (skipped, not run) | The lab has no state shared across sessions. See "Lab shared state". |
+| P4-MCP-REL-002 | `l3 second-user host` (job 136902789433) | pass | Lab job `success`. Its checks were not reread in this run; see run 44921483797 for the TAP line (`ok 1`, 110 ms, not skipped). Checks: user A creates a task; A's own `tasks/get` completes (control); B's `tasks/get`, `tasks/result` and `tasks/cancel` on A's task are refused; A's task is unchanged; the lab logged one `task_created`. |
+| P4-MCP-INJ-012 | `l3 second-user nextcloud` (job 136902789447) | **fail** | The failure message lists one failing check: **"control: the owner's search did not find the owner's own file"**. The other checks passed: the stub delivered the fixture; the owner's search results contain neither user B's file name nor its canary; user B still lists the note and reads its canary before and after the run. The leak check passed because the search returned nothing, so it is not evidence of isolation. The case fails because the control failed. |
+| P4-MCP-INJ-012 | run 44921483797 (head `06adf14`) | fail | Three checks failed: stub never saw the fixture; control failed; user B's raw-text listing changed. The stub returned HTTP 400 (`var marker(s) not used by fixture ...: leak_pattern`): the stub checks markers against the turn it serves, and the second search was in turn 2. Fixed at `7acf8ad`. |
+| P4-MCP-FLOW-005 | `l3 second-user host` | namedSkip (not run) | Needs a second Twenty workspace. See "Workspace B". |
+| P4-MCP-FLOW-012 | `l3 second-user host` | blocker (not run) | Needs workspace B. See "Workspace B". |
+| P4-MCP-REL-010 | `l3 second-user host` | blocker (not run) | Twenty keys share one workspace. See "Per-user keys". |
+| P4-MCP-INJ-016 | `l3 second-user host` | blocker (not run) | The lab has no state shared across sessions. See "Lab shared state". |
 
-## Deviations (for the owner)
+## INJ-012: the failing control, and what is known
 
-1. **INJ-012 uses a search tool that is not semantic.** The pinned Nextcloud tool list has no semantic search (`tests/l3/snapshots/nextcloud.tools.json`, 110 tools). The case uses `nc_webdav_search_files` and keeps the leak question. A namedSkip is the alternative.
-2. **REL-002 users are MCP sessions.** The lab runs without LAB_AUTH, so the two users are two sessions. The SDK's task store is scoped by session id, and the lab uses one store for all sessions.
+The owner's `nc_webdav_search_files` call with the exact name of a file the owner just wrote (`P4L3`-free root path, name written through `nc_webdav_write_file` and checked `ok`) returned no match. The pinned tool description says `name_pattern` supports `%` wildcards (LIKE-style), so an exact name should match. Not established: whether the search index lags a fresh write, whether exact-name matching differs in this server build, or the search scope. The evidence artifacts (`l3-second-user-nextcloud-evidence-44922949409`) hold the tool results; they could not be read with the available tools.
+
+The owner's rule for this PR: no second fix attempt without asking. The next step needs a decision: (a) read the evidence artifact for the search tool's raw reply; (b) choose whether the control should use a `%` pattern; (c) decide whether the case needs a short wait for indexing.
 
 ## Workspace B
 
@@ -32,19 +34,24 @@ FLOW-005 needs a second Twenty workspace. The harness runs single-workspace (`do
 
 ## Per-user keys
 
-The harness mints the second Twenty MCP key from the workspace admin and labels it with the second member's identity. Its comment says API keys belong to the workspace, not to a user (`twenty.adapter.js`, the `prepareSecondMcp` comment). Both members therefore share one store in workspace A. REL-010 checks per-user isolation, and that is not observable here. This is product behaviour, not a bug, so `expectedDefect()` does not apply.
+The harness mints the second Twenty MCP key from the workspace admin and labels it with the second member's identity. Its comment says API keys belong to the workspace, not to a user (`twenty.adapter.js`, the `prepareSecondMcp` comment). Both members share one store in workspace A. REL-010 checks per-user isolation, which is not observable here. This is product behaviour, not a bug, so `expectedDefect()` does not apply.
 
 ## Lab shared state
 
 INJ-016 needs a message planted in one session and seen by another session's products. The lab's sink and log are per lab, not per session. The case needs a shared view the lab does not have.
 
+## Deviations (for the owner)
+
+1. **INJ-012 uses a search tool that is not semantic.** The pinned Nextcloud tool list has no semantic search (`tests/l3/snapshots/nextcloud.tools.json`, 110 tools). The case uses `nc_webdav_search_files`. A namedSkip is the alternative.
+2. **REL-002 users are MCP sessions.** The lab runs without LAB_AUTH, so the two users are two sessions. The SDK's task store is scoped by session id, and the lab uses one store for all sessions.
+
 ## Fixture notes
 
-- The stub checks `[var:]` markers against the turn it is serving. A fixture whose placeholders sit in different turns fails at the first turn (the 400 above). Keep every placeholder that a marker names in the turn that uses it.
+- The stub checks `[var:]` markers against the turn it is serving. Keep every placeholder that a marker names in the turn that uses it.
 - `p4-mcp-rel-002-a`, `-b` and the skipped-case fixtures are documentary: their cases drive the protocol directly or do not run.
 
 ## Not verified
 
-- The per-check text and the evidence artifacts of both runs.
-- The cause of the "listing changed" failure.
-- The result of the fix run (`7acf8ad`).
+- The per-check text and the evidence artifacts of the runs (not readable with the available tools).
+- Why the owner's exact-name search returns nothing (see above).
+- The `l4 openclaw stub (gate)` failure in run 44922949409. It is outside this change; not investigated.
