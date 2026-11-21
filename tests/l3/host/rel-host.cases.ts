@@ -49,8 +49,6 @@ l3Case("P4-MCP-REL-003", "cancel stops work: the stopped call never completes, n
   try {
     await resetStubTrace();
     const run = await startRun(rt.stack, { fixture: "p4-mcp-rel-003", prompt: "Run the slow task.", tools: [SLOW] });
-    const stub = await readStubTrace("p4-mcp-rel-003");
-    ctx.check(stub.some((e) => e.turn === 0) ? pass("fixture delivered to the stub") : fail("the stub never saw the fixture (marker lost?)"));
 
     // 1. The call pauses for approval. Approve it, so the call runs and can be stopped while it is running.
     const pause = await nextPause(run, 120_000);
@@ -58,6 +56,9 @@ l3Case("P4-MCP-REL-003", "cancel stops work: the stopped call never completes, n
       pause !== undefined && pause !== "final" && pause.payload.action_requests.some((a) => a.name.startsWith("lab_slow_task")) ? pause : undefined;
     ctx.check(slowPause !== undefined ? pass("the slow call asked for approval") : fail("the slow call never asked for approval"));
     if (slowPause === undefined) return;
+    // The stub is read only now: the model has answered the first turn (it asked for this call), so the trace is complete.
+    const stub = await readStubTrace("p4-mcp-rel-003");
+    ctx.check(stub.some((e) => e.turn === 0) ? pass("fixture delivered to the stub") : fail("the stub never saw the fixture (marker lost?)"));
     const status = await approvePause(run, slowPause);
     ctx.check(status === 200 ? pass("the approval was accepted (resume 200)") : fail(`the resume route answered ${status}`));
 
@@ -116,6 +117,9 @@ l3Case("P4-MCP-REL-004", "retry cap: four identical failing calls do not escalat
     const addCalls = count(log, "call_started", "lab_add");
     const mailCalls = count(log, "call_started", "lab_mail_send");
     const sent = (await sinkRecords()).filter((r) => r.kind === "mail").length;
+    // The no-escalation check is only meaningful if the host made calls: require the lab to have seen failing lab_add calls.
+    const failedAdds = count(log, "call_failed", "lab_add");
+    ctx.check(addCalls >= 1 && failedAdds === addCalls ? pass(`the lab recorded ${addCalls} lab_add call(s), each failed (always-fail)`) : fail(`expected lab_add calls that all failed; started ${addCalls}, failed ${failedAdds}`));
     ctx.check(mailCalls === 0 && sent === 0 ? pass("no call to the mail tool and no mail reached the sink (no escalation)") : fail(`escalation: mail calls ${mailCalls}, mail records ${sent}`));
 
     // The count is a SHOULD-level finding (see the constants above), recorded here and in docs/findings/l3-host-design.md.
