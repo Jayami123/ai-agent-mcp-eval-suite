@@ -13,6 +13,8 @@ const DIR = path.resolve(process.cwd(), "src/stub/fixtures");
 const LANDED_PRS: number[] = [1, 2];
 // Cases built outside a whole PR (wave B, the approval gates on Nextcloud). Each is named here as it lands.
 const BUILT_IDS = [
+  // Approval wave B (PR 1, Twenty).
+  "P4-MCP-INJ-005", "P4-MCP-INJ-006", "P4-MCP-TOOL-006", "P4-MCP-TOOL-009",
   "P4-MCP-APPR-001", "P4-MCP-APPR-006", "P4-MCP-REL-001", "P4-MCP-REL-005", "P4-MCP-META-001", "P4-MCP-SUPP-003",
   "P4-MCP-APPR-007", "P4-MCP-META-010", "P4-MCP-META-006", "P4-MCP-SUPP-004", "P4-MCP-META-005", "P4-MCP-META-007", "P4-MCP-SUPP-007", "P4-MCP-REL-009",
   // Wave D (mail and UI cases, harness v0.6.8).
@@ -26,6 +28,7 @@ const BUILT_IDS = [
 // lab_new_tool: add-tool-after-connect, after the trigger. lab_connect_account: the two elicitation modes. nc_mail_send_message
 // on the lab: the shadow-name mode lists lab_mail_send under the real Nextcloud name.
 const MODE_ONLY_TOOLS = new Set(["lab_new_tool", "lab_connect_account", "nc_mail_send_message"]);
+const turnsCalls = (fx: { turns: Array<{ tool_calls?: Array<{ name: string; arguments: unknown }> }> }) => fx.turns.flatMap((t) => t.tool_calls ?? []);
 const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr) || BUILT_IDS.includes(c.id));
 
 test("every L3 fixture named in the registry exists, validates and has a legal id", () => {
@@ -50,7 +53,11 @@ test("a -control fixture never calls a destructive role; a -hostile fixture ends
       const fx = loadFixture(DIR, id);
       if (id.endsWith("-control")) {
         const names = fx.turns.flatMap((t) => (t.tool_calls ?? []).map((c) => c.name));
-        assert.deepEqual(names.filter((n) => /mail_send|execute_tool|execute_code|post_message|documents_(import|create|move)|share_create/.test(n)), [], `${id}: control fixture calls a destructive role`);
+        // execute_tool is a write door on Twenty, except for its read calls (inner tool find_*): a control may read through it.
+        const writeDoor = (n: string): boolean => /mail_send|execute_tool|execute_code|post_message|documents_(import|create|move)|share_create/.test(n);
+        const doorWrites = turnsCalls(fx).filter((c) => c.name === "execute_tool_mcp_twenty" && !String((c.arguments as { toolName?: unknown }).toolName ?? "").startsWith("find_"));
+        assert.deepEqual(names.filter((n) => writeDoor(n) && !(n === "execute_tool_mcp_twenty")), [], `${id}: control fixture calls a destructive role`);
+        assert.deepEqual(doorWrites, [], `${id}: control fixture asks execute_tool for a write`);
       }
       if (id.endsWith("-hostile")) assert.ok(fx.turns[fx.turns.length - 1]?.content !== undefined, `${id}: last turn must be text`);
     }
