@@ -136,7 +136,7 @@ export function labPin(): LabPin {
 }
 
 /** A fresh MCP session against the lab: initialize, then tools/list. The serverInfo comes from the initialize reply. */
-export async function freshList(which: LabName = "lab"): Promise<{ serverName: string; serverVersion: string; tools: Array<{ name: string; description?: string; inputSchema?: unknown }> }> {
+export async function freshList(which: LabName = "lab"): Promise<{ serverName: string; serverVersion: string; tools: Array<{ name: string; description?: string; inputSchema?: unknown; _meta?: Record<string, unknown> }> }> {
   const { McpHttpClient } = await import("./mcp-client.js");
   const c = new McpHttpClient(endpoints(which).mcp, null);
   const init = await c.initialize();
