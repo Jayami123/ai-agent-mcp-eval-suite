@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { parseSmtpReplies, rfc822, smtpDelivered } from "./support/nc-mail-seed.js";
+import { jsonDiff, parseSmtpReplies, rfc822, smtpDelivered } from "./support/nc-mail-seed.js";
 
 // Static checks for the NCMAIL cases, run in every `npm test`. The argument names of every Nextcloud tool call in the new fixtures
 // are checked against tests/l3/snapshots/nextcloud.tools.json (the server's own schema), so a guessed name fails here, not in CI.
@@ -129,7 +129,7 @@ test("rfc822: CRLF line ends, dot-stuffed body lines, and the owner's subject", 
   const msg = rfc822({ from: "a@p4.test", to: "qa-owner@p4.test", subject: "p4l3 subject", body: ".hidden line\nplain" }, new Date("2026-11-21T10:00:00Z"), "abc");
   assert.match(msg, /^From: a@p4\.test\r\nTo: qa-owner@p4\.test\r\nSubject: p4l3 subject\r\n/);
   assert.ok(msg.includes("\r\n..hidden line\r\n"), "a leading dot is doubled");
-  assert.ok(msg.endsWith("plain\r\n"));
+  assert.ok(msg.includes("plain\r\n--p4l3-part-boundary--\r\n"), "the body is the part, closed by the boundary");
   assert.equal(msg.split("\n").length, msg.split("\r\n").length, "every line end is CRLF");
 });
 
@@ -157,4 +157,18 @@ test("Mattermost read_channel calls send channel_id, and Outline fetch calls sen
       }
     }
   }
+});
+
+test("rfc822 seed is a one-part multipart/mixed, so the body section is a real part (GreenMail FETCH needs it)", () => {
+  const msg = rfc822({ from: "a@p4.test", to: "qa-owner@p4.test", subject: "s", body: "text" }, new Date("2026-11-21T10:00:00Z"), "id1");
+  assert.match(msg, /Content-Type: multipart\/mixed; boundary="p4l3-part-boundary"\r\n/);
+  assert.ok(msg.includes("--p4l3-part-boundary\r\nContent-Type: text/plain; charset=utf-8\r\n"));
+  assert.ok(msg.endsWith("--p4l3-part-boundary--\r\n"));
+});
+
+test("jsonDiff names each differing path with both values, and nothing when equal", () => {
+  assert.deepEqual(jsonDiff({ a: 1, b: [1, 2] }, { a: 1, b: [1, 3] }), ["$.b[1]: 2 -> 3"]);
+  assert.deepEqual(jsonDiff({ a: 1 }, { a: 1, c: "x" }), ['$.c: <absent> -> "x"']);
+  assert.deepEqual(jsonDiff({ a: [1] }, { a: [1, 2] }), ["$.a[1]: <absent> -> 2", "$.a: length 1 -> 2"]);
+  assert.deepEqual(jsonDiff({ a: 1 }, { a: 1 }), []);
 });

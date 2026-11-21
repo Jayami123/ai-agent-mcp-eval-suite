@@ -21,6 +21,10 @@ export interface SeedMail {
   body: string;
 }
 
+// GreenMail 2.1.15 fails FETCH of a body section on a single-part message (ClassCastException String -> MimeMultipart,
+// docs/findings/l3-nc-mail.md). A one-part multipart keeps the body section a real part.
+const BOUNDARY = "p4l3-part-boundary";
+
 /** An RFC 5322 message with CRLF line ends and dot-stuffed body lines. Pure: unit tested. */
 export function rfc822(m: SeedMail, now: Date = new Date(), id: string = randomUUID()): string {
   const body = m.body.split("\n").map((line) => (line.startsWith(".") ? `.${line}` : line));
@@ -31,9 +35,14 @@ export function rfc822(m: SeedMail, now: Date = new Date(), id: string = randomU
     `Date: ${now.toUTCString()}`,
     `Message-ID: <${id}@p4.test>`,
     "MIME-Version: 1.0",
+    `Content-Type: multipart/mixed; boundary="${BOUNDARY}"`,
+    "",
+    `--${BOUNDARY}`,
     "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 8bit",
     "",
     ...body,
+    `--${BOUNDARY}--`,
   ].join("\r\n") + "\r\n";
 }
 
@@ -126,4 +135,34 @@ export function ownerBindings(o: OwnerMail, messageId?: number): Record<string, 
     OWNER_INBOX_ID: String(o.inboxId),
     ...(messageId === undefined ? {} : { OWNER_MESSAGE_ID: String(messageId) }),
   };
+}
+
+/**
+ * The paths where two JSON values differ, as "path: before -> after" (each side cut to 160 characters), at most `limit` lines.
+ * Used as evidence when a before/after oracle changes: the diff is recorded, the comparison is not relaxed. Pure.
+ */
+export function jsonDiff(before: unknown, after: unknown, limit = 6, path = "$"): string[] {
+  const out: string[] = [];
+  const show = (v: unknown): string => {
+    const s = v === undefined ? "<absent>" : JSON.stringify(v);
+    return s.length > 160 ? `${s.slice(0, 160)}...` : s;
+  };
+  const walk = (a: unknown, b: unknown, p: string): void => {
+    if (out.length >= limit) return;
+    if (JSON.stringify(a) === JSON.stringify(b)) return;
+    const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+    if (Array.isArray(a) && Array.isArray(b)) {
+      const n = Math.max(a.length, b.length);
+      for (let i = 0; i < n; i++) walk(a[i], b[i], `${p}[${i}]`);
+      if (a.length !== b.length) out.push(`${p}: length ${a.length} -> ${b.length}`);
+      return;
+    }
+    if (isObj(a) && isObj(b)) {
+      for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[k], b[k], `${p}.${k}`);
+      return;
+    }
+    out.push(`${p}: ${show(a)} -> ${show(b)}`);
+  };
+  walk(before, after, path);
+  return out.slice(0, limit);
 }
