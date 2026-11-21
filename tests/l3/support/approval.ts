@@ -52,6 +52,11 @@ export interface ApprovalRun {
   finalText?: string;
   /** The agent the run used (reuse it when continuing the conversation). */
   agentId: string;
+  /**
+   * The last non-user message of the conversation as LibreChat's messages API returns it (every content part, the model
+   * field, the unfinished and error flags). Read whether or not the run finished. Undefined when the read failed.
+   */
+  finalMessage?: Record<string, unknown>;
 }
 
 export interface PauseEvent {
@@ -152,7 +157,22 @@ export async function chatWithApproval(
     run.messageId = last?.messageId;
     run.finalText = last?.text;
   }
+  run.finalMessage = await lastAssistantMessage(s.baseUrl, s.authorizationHeader, run.conversationId);
   return run;
+}
+
+/** The last non-user message of a conversation, raw. One read, no polling. Undefined when there is none or the read fails. */
+async function lastAssistantMessage(baseUrl: string, authorization: string, conversationId: string): Promise<Record<string, unknown> | undefined> {
+  try {
+    const res = await fetch(`${baseUrl}/api/messages/${conversationId}`, { headers: { authorization }, signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return undefined;
+    const list = (await res.json()) as unknown;
+    if (!Array.isArray(list)) return undefined;
+    const assistant = list.filter((m): m is Record<string, unknown> => typeof m === "object" && m !== null && (m as Record<string, unknown>)["isCreatedByUser"] !== true);
+    return assistant[assistant.length - 1];
+  } catch {
+    return undefined;
+  }
 }
 
 function safeParse(raw: string): unknown {

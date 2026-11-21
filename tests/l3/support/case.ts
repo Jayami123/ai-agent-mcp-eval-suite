@@ -4,13 +4,14 @@ import assert from "node:assert/strict";
 import { getAdapter } from "qa-portfolio-harness";
 import { combine, type Verdict } from "../../../src/oracles/verdict.js";
 import { validateTrial, type ToolCallRecord, type TrialRecord } from "../../../src/stats/schema.js";
+import { approvalRecords, BlockedNoAnswerError, toTurnEvidence } from "./turn-evidence.js";
 import { DEFAULT_K } from "../../../src/stats/thresholds.js";
 import { type TrialStatus } from "../../../src/stats/status.js";
 import { writeEvidence } from "../../l1/evidence.js";
 import { isRateLimited } from "../../l1/gemma-classify.js";
 import { classifyEmptyAnswer, classifyStall, EmptyAnswerError, isProviderOutage, isStreamTimeout, windowLines } from "../../l1/provider-outage.js";
-import { containerLogWindow } from "../../l1/evidence.js";
-import { APPROVAL_TIMEOUT_MS } from "./approval.js";
+import { containerLogWindow, redact } from "../../l1/evidence.js";
+import { APPROVAL_TIMEOUT_MS, type ApprovalRun } from "./approval.js";
 import { servedModelFromModelInfo } from "../../l1/gemma-record.js";
 import { caseDef } from "./registry.js";
 import { laneVerdict } from "./lane-verdict.js";
@@ -32,6 +33,8 @@ export interface CaseCtx {
   prompt(text: string): void;
   /** Nightly only: the tool calls the model made in this trial, as the record stores them (names and argument objects). */
   toolCalls(calls: ToolCallRecord[]): void;
+  /** Nightly only: the finished or stopped turn (pauses, decisions, LibreChat's final message). Written to the trial record. */
+  turn?: (run: ApprovalRun) => void;
 }
 
 /** A case with a nightly branch: the body runs against the real model (p4-nightly) with no stub fixture. */
@@ -151,6 +154,7 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
     const notes: string[] = [];
     let promptText = "";
     let calls: ToolCallRecord[] = [];
+    let turnRun: ApprovalRun | undefined;
     const ctx: CaseCtx = {
       id,
       mode: "nightly",
@@ -160,6 +164,7 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
       note: (l) => void notes.push(l),
       prompt: (t) => void (promptText = t),
       toolCalls: (c) => void (calls = c),
+      turn: (r) => void (turnRun = r),
     };
     const started = Date.now();
     // The trial's own LiteLLM window: from its start to the moment it fails. Read by time, not by matching text.
@@ -170,35 +175,56 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
     };
     let status: TrialStatus;
     let reason: string;
+    // An infrastructure error is not a measured result: the record is written as partial, then the test is red (rethrown below).
+    let infra: Error | undefined;
     try {
       await body(ctx);
       const total = combine(verdicts);
       status = total.outcome === "pass" ? "pass" : "fail";
       reason = total.detail;
     } catch (err) {
-      if (err instanceof EmptyAnswerError) {
+      if (err instanceof BlockedNoAnswerError) {
+        // No final text, a rejected write, and the channel unchanged: a gate pass with its own status (see passk.ts).
+        status = "blocked-no-answer";
+        reason = err.message;
+      } else if (err instanceof EmptyAnswerError) {
         // An empty answer: an upstream error line in the window is inconclusive (quoted); anything else is a red failure.
         const judged = classifyEmptyAnswer(windowNow());
-        if (judged.verdict === "infra") throw new Error(judged.reason);
-        status = "partial";
-        reason = judged.reason;
-        partialReasons.push(reason);
+        if (judged.verdict === "infra") {
+          infra = new Error(judged.reason);
+          status = "partial";
+          reason = `INFRA: ${judged.reason}`;
+        } else {
+          status = "partial";
+          reason = judged.reason;
+          partialReasons.push(reason);
+        }
       } else if (isStreamTimeout(err as Error)) {
         // A stream that timed out with no answer: the LiteLLM log decides. The provider answered: our timeout (infra, red).
         // The provider stalled, errored or is still pending: inconclusive, quoted. No retries, no new timeout value.
         const stall = classifyStall(windowNow());
-        if (stall.verdict === "infra") throw new Error(`INFRA: stream timed out after ${APPROVAL_TIMEOUT_MS} ms with no answer; ${stall.reason}`);
-        status = "partial";
-        reason = stall.reason;
-        partialReasons.push(reason);
+        if (stall.verdict === "infra") {
+          infra = new Error(`INFRA: stream timed out after ${APPROVAL_TIMEOUT_MS} ms with no answer; ${stall.reason}`);
+          status = "partial";
+          reason = infra.message;
+        } else {
+          status = "partial";
+          reason = stall.reason;
+          partialReasons.push(reason);
+        }
       } else {
         // A rate limit that is still there is a partial trial (quota, not a fail). Anything else is an infrastructure error.
         // A rate limit, or a provider that did not answer (high demand, UNAVAILABLE), is partial: the model never ran the turn.
         const msg = (err as Error).message;
-        if (!isRateLimited(msg) && !isProviderOutage(msg)) throw err;
-        status = "partial";
-        reason = isRateLimited(msg) ? "quota: rate limited during the trial; not a fail" : `provider unavailable: ${msg.slice(0, 200)}`;
-        partialReasons.push(reason);
+        if (!isRateLimited(msg) && !isProviderOutage(msg)) {
+          infra = err as Error;
+          status = "partial";
+          reason = `INFRA: ${msg.slice(0, 200)}`;
+        } else {
+          status = "partial";
+          reason = isRateLimited(msg) ? "quota: rate limited during the trial; not a fail" : `provider unavailable: ${msg.slice(0, 200)}`;
+          partialReasons.push(reason);
+        }
       }
     } finally {
       trialVerdicts.push({ trial, verdicts, notes });
@@ -215,15 +241,18 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
       model: { alias: "p4-nightly", servedId: status === "partial" ? "" : served },
       promptSha256: createHash("sha256").update(promptText).digest("hex"),
       toolCalls: calls,
-      approvals: [],
+      approvals: turnRun === undefined ? [] : approvalRecords(turnRun),
       snapshots: [],
       usage: { promptTokens: 0, completionTokens: 0, latencyMs: Date.now() - started },
       servers: nightly.servers,
       ...(nightly.failMeansAttack ? { attackSucceeded: status === "fail" } : {}),
+      ...(turnRun === undefined ? {} : { turn: toTurnEvidence(turnRun, notes) }),
     };
     const check = validateTrial(record, "l1");
     if (!check.ok) throw new Error(`TRIAL_RECORD_INVALID: ${id} trial ${trial}: ${check.errors.join("; ")}`);
-    writeEvidence(`nightly/${id}`, `trial-${trial}.json`, `${JSON.stringify(record, null, 2)}\n`);
+    // Written for every status, infrastructure errors included. Redacted with the same secret list as the logs.
+    writeEvidence(`nightly/${id}`, `trial-${trial}.json`, redact(`${JSON.stringify(record, null, 2)}\n`, providerSecrets()));
+    if (infra !== undefined) throw infra;
     statuses.push(status);
   }
   writeEvidence(`traces/${id}`, "verdicts.json", `${JSON.stringify({ id, mode: "nightly", k, trials: trialVerdicts }, null, 2)}\n`);

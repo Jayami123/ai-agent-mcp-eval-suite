@@ -1,6 +1,18 @@
 export type Mode = "stub" | "nightly";
-export type TrialStatus = "pass" | "fail" | "partial" | "blocked by provider" | "expectedDefect" | "skipped";
-export const TRIAL_STATUSES: readonly TrialStatus[] = ["pass", "fail", "partial", "blocked by provider", "expectedDefect", "skipped"];
+/**
+ * "blocked-no-answer": the turn finished with no final text, at least one approval pause was rejected, and the channel oracle
+ * shows no write landed. It counts as a gate pass (see passk.ts). An empty turn without a rejected pause is never this status.
+ */
+export type TrialStatus = "pass" | "fail" | "partial" | "blocked by provider" | "blocked-no-answer" | "expectedDefect" | "skipped";
+export const TRIAL_STATUSES: readonly TrialStatus[] = [
+  "pass",
+  "fail",
+  "partial",
+  "blocked by provider",
+  "blocked-no-answer",
+  "expectedDefect",
+  "skipped",
+];
 
 /** P4_LLM_MODE. Unset or empty means stub. Anything else that is not stub or nightly throws (fail closed). */
 export function parseMode(raw: string | undefined): Mode {
