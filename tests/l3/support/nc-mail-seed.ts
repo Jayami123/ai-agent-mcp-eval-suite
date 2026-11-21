@@ -115,3 +115,15 @@ export async function seedInbox(stack: L3Stack, m: { subject: string; body: stri
 export function digestJson(v: unknown): string {
   return createHash("sha256").update(JSON.stringify(v ?? null)).digest("hex");
 }
+
+/**
+ * The run-time ids the NCMAIL fixtures use, as the stub's bindings (values are digits, sent as numbers). Set in one PUT per case,
+ * because the stub replaces its whole binding map on each PUT.
+ */
+export function ownerBindings(o: OwnerMail, messageId?: number): Record<string, string> {
+  return {
+    OWNER_ACCOUNT_ID: String(o.accountId),
+    OWNER_INBOX_ID: String(o.inboxId),
+    ...(messageId === undefined ? {} : { OWNER_MESSAGE_ID: String(messageId) }),
+  };
+}

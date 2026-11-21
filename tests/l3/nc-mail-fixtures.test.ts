@@ -91,12 +91,36 @@ test("mail recipients are objects with an email, as the send tool's MailRecipien
   }
 });
 
-test("placeholders only use the markers the cases pass (owner_account_id, owner_inbox_id, owner_message_id, bind names)", () => {
-  const allowed = new Set(["owner_account_id", "owner_inbox_id", "owner_message_id"]);
+test("no fixture uses [var:] markers (a var must be used by every turn; run-time ids are bindings)", () => {
   for (const id of FIXTURES) {
     const text = fs.readFileSync(path.join(ROOT, "src", "stub", "fixtures", `${id}.json`), "utf8");
-    for (const m of text.matchAll(/\{\{([a-z_]+)\}\}/g)) {
-      assert.ok(allowed.has(m[1] ?? ""), `${id}: unknown var placeholder ${m[1]}`);
+    assert.ok(!text.includes("{{owner_"), `${id}: old var placeholder`);
+  }
+});
+
+test("every {{bind:NAME}} placeholder in the new fixtures is set by a test source (no fixture points at an unset binding)", () => {
+  const sources = fs
+    .readdirSync(path.join(ROOT, "tests", "l3"), { recursive: true, withFileTypes: false })
+    .map((p) => String(p))
+    .filter((p) => p.endsWith(".ts") && !p.endsWith(".test.ts"))
+    .map((p) => fs.readFileSync(path.join(ROOT, "tests", "l3", p), "utf8"))
+    .join("\n");
+  for (const id of FIXTURES) {
+    const text = fs.readFileSync(path.join(ROOT, "src", "stub", "fixtures", `${id}.json`), "utf8");
+    for (const m of text.matchAll(/\{\{bind:([A-Z][A-Z0-9_]*)\}\}/g)) {
+      assert.ok(sources.includes(m[1] ?? "@"), `${id}: binding ${m[1]} is never set by a test`);
+    }
+  }
+});
+
+test("nc_calendar_list_events needs calendar_name or search_all_calendars: true (the server refuses otherwise)", () => {
+  for (const id of FIXTURES) {
+    for (const turn of loadFixture(id).turns) {
+      for (const call of turn.tool_calls ?? []) {
+        if (call.name !== "nc_calendar_list_events_mcp_nextcloud") continue;
+        const ok = typeof call.arguments["calendar_name"] === "string" || call.arguments["search_all_calendars"] === true;
+        assert.ok(ok, `${id}: nc_calendar_list_events has neither calendar_name nor search_all_calendars`);
+      }
     }
   }
 });
@@ -117,4 +141,20 @@ test("parseSmtpReplies reads the codes, and smtpDelivered needs every step's rep
   assert.equal(smtpDelivered({ ...r, rcpt: "550" }), false, "a refused recipient is not delivered");
   assert.equal(smtpDelivered({ ...r, end: "554" }), false, "a rejected body is not delivered");
   assert.deepEqual(parseSmtpReplies("connect failed\n"), {});
+});
+
+test("Mattermost read_channel calls send channel_id, and Outline fetch calls send resource and id (as the passing fixtures do)", () => {
+  for (const id of FIXTURES) {
+    for (const turn of loadFixture(id).turns) {
+      for (const call of turn.tool_calls ?? []) {
+        if (call.name === "read_channel_mcp_mattermost") {
+          assert.equal(typeof call.arguments["channel_id"], "string", `${id}: read_channel needs channel_id`);
+        }
+        if (call.name === "fetch_mcp_outline") {
+          assert.equal(call.arguments["resource"], "document", `${id}: fetch needs resource "document"`);
+          assert.equal(typeof call.arguments["id"], "string", `${id}: fetch needs id`);
+        }
+      }
+    }
+  }
 });

