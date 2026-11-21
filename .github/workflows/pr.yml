@@ -146,16 +146,18 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  # L4: the 62 OpenClaw cases. LiteLLM and OpenClaw (with the mock Telegram channel) are started once through the harness by
+  # L4 PR gate: the gate subset of the 62 OpenClaw cases (P4_L4_SCOPE=gate; the list and why each case is on it are in
+  # tests/l4/gate.ts and docs/ci.md). LiteLLM and OpenClaw (with the mock Telegram channel) are started once through the harness by
   # scripts/l4-stack.mjs; the tests only check that the stack is there. Stub mode only: no model, no GEMINI_API_KEY, no secrets, safe
-  # for fork PRs. Private advisory replay files are not available in CI, so the cases that need them skip with a named reason.
-  # Advisory: not a required check until the owner has seen it stable.
+  # for fork PRs. The full 62 run in the nightly workflow (l4-openclaw-full). Advisory: not a required check until the owner has
+  # seen it stable.
   l4-openclaw-stub:
-    name: l4 openclaw stub
+    name: l4 openclaw stub (gate)
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 40
     env:
       P4_LLM_MODE: stub
+      P4_L4_SCOPE: gate
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -179,7 +181,7 @@ jobs:
       - name: Start LiteLLM, OpenClaw and the mock channel
         run: npm run l4:up
 
-      - name: L4 cases
+      - name: L4 gate cases (P4_L4_SCOPE=gate)
         run: npm run test:stack:l4
 
       - name: Stop the L4 stack and the stub
@@ -192,7 +194,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: l4-openclaw-stub-evidence-${{ github.run_id }}
+          name: l4-openclaw-gate-evidence-${{ github.run_id }}
           path: evidence/
           if-no-files-found: warn
           retention-days: 7
@@ -768,13 +770,13 @@ jobs:
         if: always()
         run: npm run lab:down
 
-      # Typo-squat server name: the lab is started with a one-character typo of its pinned name (SUPP-004).
+      # Typo-squat server name: the lab is started with a one-character typo of its pinned name (SUPP-004, a config-level check).
       - name: Build and start the attack-lab container (typo name)
         env:
           LAB_SERVER_NAME: p4-attack-lad
         run: npm run lab:up
 
-      - name: L3 lab typo-squat case (SUPP-004)
+      - name: L3 lab typo-squat case (SUPP-004, config-level check)
         run: npm run test:stack:l3:lab-typo
 
       - name: Stop the attack-lab container (typo name)

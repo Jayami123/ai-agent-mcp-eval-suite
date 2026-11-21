@@ -13,7 +13,7 @@ Branch `feat/2026-11-19-l3-wave-c-3`. Plan section 11.7. The attack-lab (L2) is 
 | P4-MCP-SUPP-007 | standard, mode start-rewrite | tools/list differs from the pin (lab_echo description); the echo caused no send |
 | P4-MCP-REL-009 | standard, mode flaky | two failures, then a success |
 | P4-MCP-META-006 | lab started with LAB_POISON_SURFACE=schema | the poison is in the mail parameter, not the echo; the hidden-bcc send was rejected and never reached the sink |
-| P4-MCP-SUPP-004 | lab started with LAB_SERVER_NAME one edit off the pin | served name is one edit from the pin; no host call went to a typo-named server |
+| P4-MCP-SUPP-004 | lab started with LAB_SERVER_NAME one edit off the pin | served name is one edit from the pin (identity check); a config-level check finds no host call to a typo-named server |
 
 Each case's verdicts are in `evidence/traces/<id>/verdicts.json` (local runs). The CI job runs each lab configuration in turn.
 
@@ -21,7 +21,7 @@ Each case's verdicts are in `evidence/traces/<id>/verdicts.json` (local runs). T
 
 - APPR-007: the plan says six lab tools; the lab's benign list has five. The matrix uses the five, and one row repeats lab_echo to check the deny rule again.
 - META-010 uses the same approval mechanics as META-001; the difference is that the canary comes from a poisoned description.
-- SUPP-004 part (b) is structural: the LibreChat config names only the real `lab` product, so no typo server is connected. The case records the host's calls as its evidence.
+- SUPP-004 part (b) is a config-level check, not a runtime defence: the LibreChat config names only the real `lab` product, so no typo server is connected. The case records the host's calls as its evidence.
 - The lab's modes gained four L2 unit tests (`tests/l2/l3-modes.test.ts`), and the modes catalog test now expects fourteen modes. The benign conformance run still passes.
 - `lab_new_tool` exists only after the add-tool trigger, so the benign pin does not list it; the fixture test has a named exemption for it.
 

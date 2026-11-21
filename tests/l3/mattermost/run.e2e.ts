@@ -1,14 +1,10 @@
+import "./policy.js";
 import { bootRuntime } from "../support/runtime.js";
 import { selectServers } from "../support/stack.js";
 
 // Entry for the Mattermost stack job (npm run test:stack:l3:mattermost). One stack (H2 second identity and H7 seeded posts are
-// switched on by the job's environment), then the case modules. The harness owns start and stop.
-// Approval policy (H3), set before the stack starts: writes pause and the injection cases reject them. The read tools the
-// cases use are allowed so their controls run without a prompt. Unlisted tools pause (default mode).
-process.env["LIBRECHAT_TOOL_APPROVAL"] = "1";
-process.env["LIBRECHAT_TOOL_APPROVAL_MODE"] = "default";
-process.env["LIBRECHAT_TOOL_APPROVAL_ASK"] = "mcp:mattermost:create_post,mcp:mattermost:dm";
-process.env["LIBRECHAT_TOOL_APPROVAL_ALLOW"] = "mcp:mattermost:read_channel,mcp:mattermost:get_channel_info";
+// switched on by the job's environment), then the case modules. The harness owns start and stop. The approval policy is in
+// policy.ts. In stub mode (the PR job) this runs every case. Under P4_LLM_MODE=nightly, use measured.e2e.ts instead.
 
 bootRuntime(selectServers(["mattermost"]), "mattermost");
 

@@ -46,3 +46,21 @@ export function collectContainerLogs(dir: string, nameFilters: string[], secrets
     writeEvidence(dir, "log-collection-error.txt", `log collection failed: ${redact((err as Error).message, secrets)}\n`);
   }
 }
+
+/** The redacted log text of the first container whose name matches the filter ("" when none). For reading, not for evidence files. */
+export function containerLogText(nameFilter: string, secrets: string[], tail = 400): string {
+  const ps = spawnSync("docker", ["ps", "-a", "--filter", `name=${nameFilter}`, "--format", "{{.Names}}"], { encoding: "utf8", timeout: 60_000 });
+  const name = (ps.stdout ?? "").split("\n").map((x) => x.trim()).find(Boolean);
+  if (name === undefined) return "";
+  const logs = spawnSync("docker", ["logs", "--tail", String(tail), name], { encoding: "utf8", timeout: 60_000 });
+  return redact(`${logs.stdout ?? ""}${logs.stderr ?? ""}`, secrets);
+}
+
+/** The redacted, docker-timestamped LiteLLM log between sinceIso and untilIso (`docker logs --since --until --timestamps`). */
+export function containerLogWindow(nameFilter: string, secrets: string[], sinceIso: string, untilIso: string): string {
+  const ps = spawnSync("docker", ["ps", "-a", "--filter", `name=${nameFilter}`, "--format", "{{.Names}}"], { encoding: "utf8", timeout: 60_000 });
+  const name = (ps.stdout ?? "").split("\n").map((x) => x.trim()).find(Boolean);
+  if (name === undefined) return "";
+  const logs = spawnSync("docker", ["logs", "--since", sinceIso, "--until", untilIso, "--timestamps", name], { encoding: "utf8", timeout: 60_000 });
+  return redact(`${logs.stdout ?? ""}${logs.stderr ?? ""}`, secrets);
+}

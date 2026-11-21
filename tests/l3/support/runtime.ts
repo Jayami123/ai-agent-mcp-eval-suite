@@ -32,7 +32,8 @@ export function bootRuntime(servers: StackServer[], label: string): void {
   const businessServers = servers.filter((s): s is BusinessServer => s !== "lab" && s !== "lab2");
   before(
     async () => {
-      await requireStubContainer();
+      // Nightly runs use the real model through LiteLLM and need no stub. Stub runs must have the stub container up.
+      if (process.env["P4_LLM_MODE"] !== "nightly") await requireStubContainer();
       const stack = await startStack(servers, dir);
       for (const s of businessServers) oracles.set(s, oracleFor(s, stack.adapters.get(s) as ProductAdapter));
       current = { stack, servers: businessServers, dir, oracle: (s) => oracles.get(s) as ServerOracle };

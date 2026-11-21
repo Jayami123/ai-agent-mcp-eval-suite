@@ -31,6 +31,9 @@ export interface PausedCall {
   args?: unknown;
 }
 
+/** The turn timeout for a headless chat run (the stream read). The one named constant for it; not retried. */
+export const APPROVAL_TIMEOUT_MS = 180_000;
+
 export interface PauseRecord {
   calls: PausedCall[];
   sent: DecisionChoice[];
@@ -45,6 +48,8 @@ export interface ApprovalRun {
   conversationId: string;
   /** The final assistant message of this run (for the next turn's parentMessageId). Undefined when the run did not finish. */
   messageId?: string;
+  /** The text of that final assistant message. Empty when the provider returned no answer. */
+  finalText?: string;
   /** The agent the run used (reuse it when continuing the conversation). */
   agentId: string;
 }
@@ -60,7 +65,8 @@ interface PauseEvent {
 export async function chatWithApproval(
   stack: L3Stack,
   o: {
-    fixture: string;
+    /** A stub fixture id. Omitted in nightly runs, where the real model answers with no fixture marker. */
+    fixture?: string;
     prompt: string;
     tools: string[];
     /** Answers one pause. `pauseIndex` is 0 for the first pause of the run. */
@@ -78,14 +84,16 @@ export async function chatWithApproval(
 ): Promise<ApprovalRun> {
   const s = o.session ?? stack.session;
   const H = { "content-type": "application/json", authorization: s.authorizationHeader, "user-agent": UA };
+  // Stub runs use the scripted model; nightly runs use the real one through LiteLLM (p4-nightly). Never both in one run.
+  const model = process.env["P4_LLM_MODE"] === "nightly" ? "p4-nightly" : "p4-stub";
   const agentId =
-    o.agentId ?? (await lcCreateAgent(s, { name: `p4-l3-${o.fixture}`.slice(0, 60), model: "p4-stub", tools: o.tools, instructions: "You are a test agent. Use the tools you are given." }));
+    o.agentId ?? (await lcCreateAgent(s, { name: `p4-l3-${o.fixture ?? "measured"}`.slice(0, 60), model, tools: o.tools, instructions: "You are a test agent. Use the tools you are given." }));
   const start = (await (
     await fetch(`${s.baseUrl}/api/agents/chat`, {
       method: "POST",
       headers: H,
       body: JSON.stringify({
-        text: `[fixture:${o.fixture}] ${o.prompt}`,
+        text: o.fixture === undefined ? o.prompt : `[fixture:${o.fixture}] ${o.prompt}`,
         endpoint: "agents",
         agent_id: agentId,
         conversationId: o.conversationId ?? null,
@@ -100,7 +108,7 @@ export async function chatWithApproval(
   const streamId = start.streamId;
   const run: ApprovalRun = { pauses: [], finished: false, conversationId: String(start.conversationId ?? streamId), agentId };
   const maxPauses = o.maxPauses ?? 8;
-  const timeoutMs = o.timeoutMs ?? 180_000;
+  const timeoutMs = o.timeoutMs ?? APPROVAL_TIMEOUT_MS;
 
   let next = await nextPauseOrFinal(s.baseUrl, s.authorizationHeader, streamId, timeoutMs);
   while (next !== undefined && next !== "final" && run.pauses.length < maxPauses) {
@@ -139,7 +147,11 @@ export async function chatWithApproval(
     next = await nextPauseOrFinal(s.baseUrl, s.authorizationHeader, streamId, timeoutMs);
   }
   run.finished = next === "final";
-  if (run.finished) run.messageId = await lastFinishedMessage(s.baseUrl, s.authorizationHeader, run.conversationId);
+  if (run.finished) {
+    const last = await lastFinishedMessage(s.baseUrl, s.authorizationHeader, run.conversationId);
+    run.messageId = last?.messageId;
+    run.finalText = last?.text;
+  }
   return run;
 }
 
@@ -156,14 +168,14 @@ function normalise(d: Decision | DecisionChoice): DecisionChoice {
 }
 
 /** The last finished assistant message of a conversation (the final answer of the latest turn). Polls briefly. */
-async function lastFinishedMessage(baseUrl: string, authorization: string, conversationId: string): Promise<string | undefined> {
+async function lastFinishedMessage(baseUrl: string, authorization: string, conversationId: string): Promise<{ messageId: string; text: string } | undefined> {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     const res = await fetch(`${baseUrl}/api/messages/${conversationId}`, { headers: { authorization }, signal: AbortSignal.timeout(15_000) });
-    const list = res.ok ? ((await res.json()) as Array<{ messageId?: unknown; isCreatedByUser?: unknown; unfinished?: unknown }>) : [];
+    const list = res.ok ? ((await res.json()) as Array<{ messageId?: unknown; text?: unknown; isCreatedByUser?: unknown; unfinished?: unknown }>) : [];
     const done = list.filter((m) => m.isCreatedByUser !== true && m.unfinished !== true && typeof m.messageId === "string");
     const last = done[done.length - 1];
-    if (last !== undefined && typeof last.messageId === "string") return last.messageId;
+    if (last !== undefined && typeof last.messageId === "string") return { messageId: last.messageId, text: typeof last.text === "string" ? last.text : "" };
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   return undefined;
