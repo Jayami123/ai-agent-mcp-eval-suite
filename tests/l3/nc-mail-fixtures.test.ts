@@ -172,3 +172,19 @@ test("jsonDiff names each differing path with both values, and nothing when equa
   assert.deepEqual(jsonDiff({ a: [1] }, { a: [1, 2] }), ["$.a[1]: <absent> -> 2", "$.a: length 1 -> 2"]);
   assert.deepEqual(jsonDiff({ a: 1 }, { a: 1 }), []);
 });
+
+test("no served turn of a new fixture has two tool calls (two-call turns stalled the host in PR 3)", () => {
+  for (const id of FIXTURES) {
+    loadFixture(id).turns.forEach((turn, i) => {
+      assert.ok((turn.tool_calls ?? []).length <= 1, `${id}: turn ${i} has ${(turn.tool_calls ?? []).length} tool calls`);
+    });
+  }
+});
+
+test("every new fixture ends with a final text turn after its last tool turn", () => {
+  for (const id of FIXTURES) {
+    const turns = loadFixture(id).turns;
+    const last = turns[turns.length - 1];
+    assert.ok(last !== undefined && (last.tool_calls ?? []).length === 0 && typeof last.content === "string" && last.content.trim() !== "", `${id}: the last turn must be non-empty final text`);
+  }
+});

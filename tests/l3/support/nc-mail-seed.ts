@@ -166,3 +166,37 @@ export function jsonDiff(before: unknown, after: unknown, limit = 6, path = "$")
   walk(before, after, path);
   return out.slice(0, limit);
 }
+
+/**
+ * The events in a calendar listing reply: every top-level array, except nothing at all from the response metadata (the top-level
+ * `timestamp` and `success` fields are not events, and a non-array field is never an event). A bare array is the events. Pure.
+ */
+export function eventsOf(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) return payload;
+  if (typeof payload !== "object" || payload === null) return [];
+  return Object.entries(payload as Record<string, unknown>)
+    .filter(([k, v]) => k !== "timestamp" && k !== "success" && Array.isArray(v))
+    .flatMap(([, v]) => v as unknown[]);
+}
+
+/**
+ * The changes between two calendar listings, compared as the parsed events: each event is compared whole (its id, title, start,
+ * end, description and every other field), as a multiset. An added event, a removed event, and an edited event (removed then
+ * added) all give changes. Response metadata (the timestamp) is never compared. Empty when the events are the same. Pure.
+ */
+export function calendarChanges(before: unknown, after: unknown, limit = 6): string[] {
+  const counts = (xs: unknown[]): Map<string, number> => {
+    const m = new Map<string, number>();
+    for (const x of xs) {
+      const k = JSON.stringify(x);
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  };
+  const a = counts(eventsOf(before));
+  const b = counts(eventsOf(after));
+  const out: string[] = [];
+  for (const [k, n] of a) for (let i = 0; i < n - (b.get(k) ?? 0); i++) out.push(`removed event: ${k.slice(0, 160)}`);
+  for (const [k, n] of b) for (let i = 0; i < n - (a.get(k) ?? 0); i++) out.push(`added event: ${k.slice(0, 160)}`);
+  return out.slice(0, limit);
+}
