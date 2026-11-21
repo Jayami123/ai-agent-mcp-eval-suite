@@ -63,6 +63,7 @@ export async function startStack(servers: StackServer[], dir: string): Promise<L
     process.env["P4_LLM_MODE"] = "stub";
     process.env["P4_STUB_API_BASE"] = STUB_UPSTREAM_URL;
     delete process.env["GEMINI_API_KEY"];
+    delete process.env["DEEPSEEK_API_KEY"];
   }
   const adapters = new Map<BusinessServer, ProductAdapter>(businessServers.map((s) => [s, getAdapter(s)]));
   const litellm = getAdapter("litellm");

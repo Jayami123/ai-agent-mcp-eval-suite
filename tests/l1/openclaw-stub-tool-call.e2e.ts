@@ -26,6 +26,7 @@ test(
     process.env["P4_STUB_API_BASE"] = STUB_UPSTREAM_URL;
     process.env["OPENCLAW_RESPONSES_API"] = "1";
     delete process.env["GEMINI_API_KEY"];
+    delete process.env["DEEPSEEK_API_KEY"];
 
     await requireStubContainer();
     await resetStubTrace();

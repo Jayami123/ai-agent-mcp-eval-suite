@@ -2,7 +2,7 @@
 
 Cloud builders can build and check this repository. Both setups run `scripts/cloud-setup.sh`, which checks Node >= 22 and runs `npm ci` with install scripts enabled (the `qa-portfolio-harness` git dependency builds its `dist` in its prepare step). The script is idempotent and prints no secrets.
 
-No environment variables or secrets are needed. `GEMINI_API_KEY` lives only in GitHub Actions, in a GitHub Environment.
+No environment variables or secrets are needed. The model keys (`DEEPSEEK_API_KEY` for the nightly DeepSeek lanes, `GEMINI_API_KEY` for the gemma setting) live only in GitHub Actions, in a GitHub Environment.
 
 ## Cursor cloud
 
@@ -25,7 +25,7 @@ Set the network access to a custom allowlist with these hosts:
 - `registry.npmjs.org`
 - `ghcr.io`
 
-Leave the environment variables empty. Do not add `GEMINI_API_KEY`.
+Leave the environment variables empty. Do not add `DEEPSEEK_API_KEY` or `GEMINI_API_KEY`.
 
 ## What runs where
 
@@ -37,4 +37,4 @@ Cloud builders can run:
 These stay in GitHub Actions:
 
 - Docker-based product runs. Cloud builders do not start or stop products; the harness owns that.
-- The nightly Gemma run (`P4_LLM_MODE=nightly`), which needs `GEMINI_API_KEY`.
+- The nightly model run (`P4_LLM_MODE=nightly`, DeepSeek in the workflow), which needs `DEEPSEEK_API_KEY`.

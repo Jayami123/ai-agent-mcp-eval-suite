@@ -18,6 +18,7 @@ process.env.OPENCLAW_CHANNEL_MOCK = "1";
 process.env.OPENCLAW_LOOP_DETECTION = "1";
 process.env.OPENCLAW_WEB_FETCH_ALLOWED_HOSTS = "p4-fixture-pages";
 delete process.env.GEMINI_API_KEY;
+delete process.env.DEEPSEEK_API_KEY;
 
 function docker(args, env = process.env) {
   const r = spawnSync("docker", args, { cwd: root, stdio: "inherit", env });

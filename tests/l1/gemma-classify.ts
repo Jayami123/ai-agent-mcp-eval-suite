@@ -23,8 +23,10 @@ export interface GemmaVerdict {
   stateCheck?: string;
 }
 
+// LiteLLM's RateLimitError is its class for an upstream 429 (exception_mapping_utils.py), so it counts as a rate limit even
+// when the upstream body does not repeat the number.
 export function isRateLimited(text: string): boolean {
-  return /\b429\b|RESOURCE_EXHAUSTED/.test(text);
+  return /\b429\b|RESOURCE_EXHAUSTED|\blitellm\.RateLimitError\b/.test(text);
 }
 
 export function isSafetyRefusal(text: string): boolean {

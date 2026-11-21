@@ -20,12 +20,12 @@ npm run check
 | Mode    | `P4_LLM_MODE` | What runs                                              | Needs a provider key |
 |---------|---------------|--------------------------------------------------------|----------------------|
 | stub    | `stub` (default) | Scripted fake model server, unit tests, determinism checks | No                   |
-| nightly | `nightly`     | Real Gemma through LiteLLM on a schedule, from GitHub Actions only | Yes (`GEMINI_API_KEY`, Actions secret) |
+| nightly | `nightly`     | Real model through LiteLLM on a schedule, from GitHub Actions only (DeepSeek Flash in the workflow; `P4_NIGHTLY_PROVIDER` blank or `gemma` selects Gemma) | Yes (`DEEPSEEK_API_KEY`, or `GEMINI_API_KEY` for gemma; Actions secret) |
 
 CI lanes, and what each measures, are in `docs/ci.md`:
 
 - **PR gate (stub, fast subset):** the L4 OpenClaw job runs the 8-case gate subset (`P4_L4_SCOPE=gate`), listed in `tests/l4/gate.ts`. The other L1 to L3 stack jobs and the unit checks also run on every PR. No model, no secrets.
-- **Nightly:** the full L4 set (62 cases, stub, `l4-openclaw-full`), the L1 Gemma smoke, and one measured Gemma lane after it (`gemma-measured-mattermost`, P4-MCP-INJ-013, `k` trials). The measured lane runs one lane at a time because of the shared 16K tokens-per-minute limit.
+- **Nightly:** the full L4 set (62 cases, stub, `l4-openclaw-full`), the L1 model smoke, and one measured model lane after it (`gemma-measured-mattermost`, P4-MCP-INJ-013, `k` trials). Both model jobs run DeepSeek Flash (`deepseek/deepseek-flash`) through harness v0.6.11, with `P4_NIGHTLY_PROVIDER=deepseek`. The measured lane runs one lane at a time because of the shared 16K tokens-per-minute limit.
 - **Not wired yet:** the seven measured L4 cases. Their bodies read the stub's request log, so they need a recorder that does not depend on the stub. See `docs/ci.md`.
 
 ## Stack tests (L1)
@@ -53,7 +53,7 @@ npm run stub:down
 
 Cases that replay advisories need files kept outside the repo: set `P4_PRIVATE_FIXTURES_DIR` to a directory holding `p4-oc-adv-NNN.json`. Without it those cases skip with a named reason. Findings are in `docs/findings/l4-openclaw.md`. The gate list and the reasons for each case are in `tests/l4/gate.ts` and `docs/ci.md`.
 
-The Gemma test (`npm run test:nightly`) goes LiteLLM, LibreChat, Twenty MCP and runs only in the nightly workflow. See `docs/plans/2026-11-18-suite-l1-gaps.md`.
+The L1 smoke test (`npm run test:nightly`, file `tests/l1/gemma-tool-call.e2e.ts`) goes LiteLLM, LibreChat, Twenty MCP with the model selected by `P4_NIGHTLY_PROVIDER`, and runs only in the nightly workflow. In nightly mode a missing key for the selected provider fails the test; it never skips. See `docs/plans/2026-11-18-suite-l1-gaps.md`.
 
 ## Recorded deviations (L4, OpenClaw lane)
 

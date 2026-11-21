@@ -161,6 +161,7 @@ export function l4Case(spec: CaseSpec): void {
   test(`${spec.id}: ${spec.kind}${spec.measured === true ? " (measured, stub plumbing)" : ""}`, { skip: reason, timeout: 15 * 60_000 }, async (t) => {
     process.env["P4_LLM_MODE"] = process.env["P4_LLM_MODE"] ?? "stub";
     delete process.env["GEMINI_API_KEY"]; // a PR gate never has a key
+    delete process.env["DEEPSEEK_API_KEY"];
     assert.notEqual(process.env["P4_LLM_MODE"], "nightly", "L4 gates run on the stub model only; the nightly slice is not wired in this lane");
     assert.ok(spec.run !== undefined, `${spec.id} has neither run nor skip`);
     const mc = new MockChannelClient();

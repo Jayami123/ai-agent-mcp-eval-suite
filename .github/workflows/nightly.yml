@@ -18,8 +18,9 @@ concurrency:
   group: nightly-gemma
   cancel-in-progress: false
 
-# Lanes. The Gemma lanes share one 16K tokens-per-minute free-tier limit, so they run one at a time (each waits for the one
-# before it). The stub lane uses no key and runs beside them. See docs/ci.md for what each lane measures and what is not wired.
+# Lanes. The model lanes run one at a time (each waits for the one before it), so two model lanes never run together. The
+# model is DeepSeek (P4_NIGHTLY_PROVIDER=deepseek, harness v0.6.11). The stub lane uses no key and runs beside them.
+# See docs/ci.md for what each lane measures and what is not wired.
 jobs:
   # Full L4 OpenClaw set (62 cases), stub model. No key, no secrets. This is the set the PR gate no longer runs in full.
   l4-openclaw-full:
@@ -71,13 +72,14 @@ jobs:
           retention-days: 14
 
   gemma:
-    name: gemma l1 smoke
+    name: model l1 smoke (deepseek)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     environment: nightly-gemma
     env:
       P4_LLM_MODE: nightly
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      P4_NIGHTLY_PROVIDER: deepseek
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       PRODUCTS_ROOT: ${{ github.workspace }}/products
     steps:
       - name: Checkout
@@ -102,13 +104,13 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
           df -h /
 
-      - name: Require GEMINI_API_KEY (fail closed)
+      - name: Require DEEPSEEK_API_KEY (fail closed)
         run: |
-          if [ -z "${GEMINI_API_KEY:-}" ]; then
-            echo "GEMINI_API_KEY is not set in the nightly-gemma environment. Refusing to run; no other model will be used." >&2
+          if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
+            echo "DEEPSEEK_API_KEY is not set in the nightly-gemma environment. Refusing to run; no other model will be used." >&2
             exit 1
           fi
-          echo "GEMINI_API_KEY is present (value not printed)."
+          echo "DEEPSEEK_API_KEY is present (value not printed)."
 
       - name: Generate per-run LiteLLM master key
         run: |
@@ -133,8 +135,8 @@ jobs:
           grep -F "${expected}" node_modules/qa-portfolio-harness/dist/adapters/litellm-env.js
           echo "LiteLLM image pin matches the harness."
 
-      # Gemma goes LiteLLM -> LibreChat -> Twenty MCP. LibreChat never receives the key; only LiteLLM does.
-      - name: Gemma L1 smoke through LibreChat
+      # The model goes LiteLLM -> LibreChat -> Twenty MCP. LibreChat never receives the key; only LiteLLM does.
+      - name: Model L1 smoke through LibreChat (deepseek)
         run: npm run test:nightly
 
       - name: Upload evidence
@@ -146,11 +148,11 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  # Measured Gemma lane 1 of 1 so far: L3 Mattermost INJ-013 (a poisoned thread; the real model reads it). Runs after the L1
-  # smoke, never beside it (shared 16K TPM). P4-MCP-INJ-013 is the only case with a nightly branch in the L3 Mattermost entry.
+  # Measured model lane 1 of 1 so far: L3 Mattermost INJ-013 (a poisoned thread; the real model reads it). Runs after the L1
+  # smoke, never beside it. P4-MCP-INJ-013 is the only case with a nightly branch in the L3 Mattermost entry.
   # The measured L4 cases are not in this lane: their bodies read the stub's request log (docs/ci.md, "Not wired").
   gemma-measured-mattermost:
-    name: gemma measured l3 mattermost (INJ-013)
+    name: model measured l3 mattermost (deepseek, INJ-013)
     needs: gemma
     if: ${{ always() }}
     runs-on: ubuntu-latest
@@ -158,7 +160,8 @@ jobs:
     environment: nightly-gemma
     env:
       P4_LLM_MODE: nightly
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      P4_NIGHTLY_PROVIDER: deepseek
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       P4_STACK_TESTS: "1"
       P4_L3_SERVERS: mattermost
       P4_SECOND_IDENTITY: "1"
@@ -175,13 +178,13 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
           df -h /
 
-      - name: Require GEMINI_API_KEY (fail closed)
+      - name: Require DEEPSEEK_API_KEY (fail closed)
         run: |
-          if [ -z "${GEMINI_API_KEY:-}" ]; then
-            echo "GEMINI_API_KEY is not set in the nightly-gemma environment. Refusing to run; no other model will be used." >&2
+          if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
+            echo "DEEPSEEK_API_KEY is not set in the nightly-gemma environment. Refusing to run; no other model will be used." >&2
             exit 1
           fi
-          echo "GEMINI_API_KEY is present (value not printed)."
+          echo "DEEPSEEK_API_KEY is present (value not printed)."
 
       - name: Generate per-run LiteLLM master key
         run: |

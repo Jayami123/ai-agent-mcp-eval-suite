@@ -1,6 +1,6 @@
 # CI lanes: what runs where
 
-Two workflows. `pr.yml` runs on every pull request and push to `main`. `nightly.yml` runs on a schedule (09:30 UTC) and on manual dispatch. PR jobs are stub-only: no model, no `GEMINI_API_KEY`, no secrets, safe for fork PRs. Only the nightly Gemma lanes touch a real model, and only from the `nightly-gemma` GitHub Environment.
+Two workflows. `pr.yml` runs on every pull request and push to `main`. `nightly.yml` runs on a schedule (09:30 UTC) and on manual dispatch. PR jobs are stub-only: no model, no provider key, no secrets, safe for fork PRs. Only the nightly model lanes touch a real model, and only from the `nightly-gemma` GitHub Environment. The nightly model is DeepSeek Flash (`deepseek/deepseek-flash`, `P4_NIGHTLY_PROVIDER=deepseek`, harness v0.6.11). The job ids `gemma` and `gemma-measured-mattermost` were kept; their display names say "model".
 
 ## PR gate (`pr.yml`, stub, fast subset)
 
@@ -51,8 +51,8 @@ Commit `993cbfb` started the mock channel before OpenClaw, with the bot token cr
 | Job | Mode | Needs | What it measures |
 |-----|------|-------|------------------|
 | `l4-openclaw-full` | stub | nothing | The full 62 L4 cases (`P4_L4_SCOPE=full`). Same behaviour as the old PR job. No key. Runs beside the Gemma lanes. |
-| `gemma` | nightly (real model) | nightly-gemma Environment | L1 smoke: Gemma through LibreChat to the Twenty MCP. Unchanged. |
-| `gemma-measured-mattermost` | nightly (real model) | runs after `gemma` (one lane at a time, shared 16K TPM) | Measured lane: P4-MCP-INJ-013 (Mattermost poisoned thread), `k` trials. |
+| `gemma` (display: `model l1 smoke (deepseek)`) | nightly (real model, DeepSeek) | nightly-gemma Environment, `DEEPSEEK_API_KEY` | L1 smoke: the model through LibreChat to the Twenty MCP. Fails closed without the key. |
+| `gemma-measured-mattermost` (display: `model measured l3 mattermost (deepseek, INJ-013)`) | nightly (real model, DeepSeek) | runs after `gemma` (one lane at a time) | Measured lane: P4-MCP-INJ-013 (Mattermost poisoned thread), `k` trials. Fails closed without the key. |
 
 Manual dispatch takes one input, `measured_k` (default 10). It sets `P4_MEASURED_K`, the trials per measured case.
 
@@ -82,11 +82,12 @@ A measured lane is **inconclusive** when every trial is partial (quota, or the p
 
 ### Provider outage (smoke lane and measured lanes)
 
-A provider outage is Vertex `UNAVAILABLE`, "high demand", overloaded, or HTTP 503. It means the model did not answer, so there is no result. The rule, in one shared place (`tests/l1/provider-outage.ts`):
+A provider outage is an upstream answer that never came: Vertex `UNAVAILABLE`, "high demand", overloaded, HTTP 503, or, for DeepSeek, LiteLLM's own upstream classes `litellm.ServiceUnavailableError` (503), `litellm.BadGatewayError` (502) and `litellm.InternalServerError` (500). LiteLLM writes those prefixes for every OpenAI-compatible provider, including DeepSeek (litellm v1.110.0, `_map_openai_exception`). It means the model did not answer, so there is no result. The rule, in one shared place (`tests/l1/provider-outage.ts`):
 
-- **Smoke lane** (`gemma l1 smoke`): an outage in the LibreChat error text, or an empty reply whose LiteLLM log names an outage, is `inconclusive`. The job fails with `INCONCLUSIVE: provider unavailable` and the LiteLLM log line and its timestamp. It never passes. Classified in `tests/l1/gemma-classify.ts`, with the log read by `containerLogText`.
+- **Smoke lane** (`model l1 smoke`): an outage in the LibreChat error text, or an empty reply whose LiteLLM log names an outage, is `inconclusive`. The job fails with `INCONCLUSIVE: provider unavailable` and the LiteLLM log line and its timestamp. It never passes. Classified in `tests/l1/gemma-classify.ts`, with the LiteLLM log read for this trial's own window only (`containerLogWindow`, from the chat start to the classification).
 - **Measured lanes**: the same predicate. An outage with no answer makes the trial `partial`, and a lane where every trial is partial is inconclusive (see above).
-- **Rate limits** keep their existing rule: 429 or RESOURCE_EXHAUSTED is `partial` only after the retries are used up.
+- **Rate limits** keep their existing rule: 429, RESOURCE_EXHAUSTED, or LiteLLM's `litellm.RateLimitError` (its 429 class) is `partial` only after the retries are used up. A 429 is never an outage.
+- **Evidence window**: the outage must be in the trial's own LiteLLM time window (measured lanes, `windowLines`). The same prefix outside the window is not counted.
 - **A real answer with no tool call** is a normal `fail`, even if the provider log names an outage elsewhere.
 
 Unit tests: `tests/l1/gemma-classify.test.ts` (outage to inconclusive, empty reply with an outage log, clean log to fail, rate limit to partial, real answer to fail) and `tests/l1/provider-outage.ts` coverage through the same tests.

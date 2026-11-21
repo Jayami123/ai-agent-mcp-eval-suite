@@ -58,7 +58,10 @@ export const TRIAL_SPACING_MS = 60_000;
 const runMode = (): RunMode => (process.env["P4_LLM_MODE"] === "nightly" ? "nightly" : "stub");
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 /** Values the LiteLLM log must not print. Read from the environment, never written anywhere. */
-const providerSecrets = (): string[] => [process.env["LITELLM_MASTER_KEY"], process.env["GEMINI_API_KEY"]].filter((v): v is string => typeof v === "string" && v !== "");
+const providerSecrets = (): string[] =>
+  [process.env["LITELLM_MASTER_KEY"], process.env["GEMINI_API_KEY"], process.env["DEEPSEEK_API_KEY"]].filter(
+    (v): v is string => typeof v === "string" && v !== "",
+  );
 
 /** P4_MEASURED_K: trials per measured case in nightly mode. Unset means the master plan's default. Anything else out of range throws. */
 export function measuredTrials(raw: string | undefined = process.env["P4_MEASURED_K"]): number {

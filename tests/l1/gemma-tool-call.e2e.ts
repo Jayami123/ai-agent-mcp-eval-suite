@@ -1,20 +1,23 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getAdapter, type AuthSession } from "qa-portfolio-harness";
-import { collectContainerLogs, containerLogText, redact, runId, writeEvidence } from "./evidence.js";
+import { collectContainerLogs, containerLogWindow, redact, runId, writeEvidence } from "./evidence.js";
 import { lcChat, lcCreateAgent, mcpToolName, type LcChatOutcome } from "./librechat-client.js";
 import { classifyGemmaOutcome, isRateLimited, type GemmaStatus } from "./gemma-classify.js";
 import { servedModelFromModelInfo, sumUsage, usageFromMessage, type ServedModel, type UsageFields } from "./gemma-record.js";
+import { requireNightlyKey } from "./nightly-key.js";
 
-// L1 smoke: a real model (Gemma, LiteLLM alias p4-nightly) calls one real Twenty MCP tool THROUGH LibreChat.
-// Chain: LibreChat agent -> LiteLLM (p4-nightly -> Gemma) -> back through LibreChat to the Twenty MCP server.
-// LibreChat talks to LiteLLM only; the Gemini key reaches LiteLLM and nothing else.
+// L1 smoke: a real model (LiteLLM alias p4-nightly, gemma or deepseek by P4_NIGHTLY_PROVIDER) calls one real Twenty MCP tool
+// THROUGH LibreChat.
+// Chain: LibreChat agent -> LiteLLM (p4-nightly -> the selected model) -> back through LibreChat to the Twenty MCP server.
+// LibreChat talks to LiteLLM only; the provider key (GEMINI_API_KEY or DEEPSEEK_API_KEY) reaches LiteLLM and nothing else.
 // Runs only in the nightly workflow. Never uses a fixture header or marker (the stub path is separate).
 // Never asserts on reply text. Never prints the key, a bearer token or any header value.
 // Target is list_object_metadata_names only. Trajectories through execute_tool, learn_tools or get_tool_catalog are
 // deferred to Lane 2.
 
-const ENABLED = process.env["P4_LLM_MODE"] === "nightly" && Boolean(process.env["GEMINI_API_KEY"]);
+// Nightly mode runs this test. It never skips in nightly mode: a missing key fails it (requireNightlyKey, in the test body).
+const NIGHTLY = process.env["P4_LLM_MODE"] === "nightly";
 const MODEL_ALIAS = "p4-nightly";
 const TWENTY_LIST_TOOL_NAME = "list_object_metadata_names";
 const SERVER = "twenty";
@@ -48,12 +51,14 @@ interface E2eRecord {
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 test(
-  "L1 smoke: Gemma calls list_object_metadata_names through LibreChat (p4-nightly)",
+  "L1 smoke: the nightly model calls list_object_metadata_names through LibreChat (p4-nightly)",
   {
-    skip: ENABLED ? false : "requires P4_LLM_MODE=nightly and GEMINI_API_KEY (nightly workflow only)",
+    skip: NIGHTLY ? false : "requires P4_LLM_MODE=nightly (nightly workflow only)",
     timeout: 40 * 60_000,
   },
   async () => {
+    // Fails here, before any product starts, when the selected provider's key is missing. Never a skip in nightly mode.
+    const providerKey = requireNightlyKey(process.env);
     const id = runId();
     const dir = `nightly/${id}`;
     const rec: E2eRecord = {
@@ -83,7 +88,7 @@ test(
     const librechat = getAdapter("librechat");
     let session: AuthSession | undefined;
     const secrets = (): string[] =>
-      [process.env["GEMINI_API_KEY"], process.env["LITELLM_MASTER_KEY"], session?.authorizationHeader].filter(
+      [providerKey, process.env["LITELLM_MASTER_KEY"], session?.authorizationHeader].filter(
         (v): v is string => typeof v === "string" && v.length > 0,
       );
     try {
@@ -116,6 +121,7 @@ test(
       let outcome: LcChatOutcome | undefined;
       const usageParts: UsageFields[] = [];
       const startedAt = Date.now();
+      const chatStartIso = new Date(startedAt).toISOString(); // this trial's own LiteLLM window starts here
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         rec.attempts = attempt + 1;
         outcome = await lcChat(session, {
@@ -144,7 +150,8 @@ test(
 
       // The outcome rules live in gemma-classify.ts and are unit tested. Only partial (429 or RESOURCE_EXHAUSTED after
       // all retries) and blocked by provider (safety refusal) end without failing the test. Everything else fails.
-      const providerLog = containerLogText("litellm", secrets());
+      // The provider log is read for this trial's own window only (the same rule as the measured lanes), never the whole tail.
+      const providerLog = containerLogWindow("litellm", secrets(), chatStartIso, new Date().toISOString());
       const verdict = classifyGemmaOutcome({ outcome, toolName, attempts: rec.attempts, maxAttempts: MAX_ATTEMPTS, providerLog });
       rec.status = verdict.status;
       rec.reason = verdict.reason;
