@@ -1,5 +1,5 @@
 import { TWENTY_DEFAULT_ADMIN_EMAIL, TWENTY_DEV_SEED_PASSWORD, type ProductAdapter } from "qa-portfolio-harness";
-import { assertWorkspaceBound } from "./twenty-binding.js";
+import { assertWorkspaceBound, pickOrigin } from "./twenty-binding.js";
 
 // TW1: the Twenty seed for the approval wave B cases (docs/plans/2026-11-21-l3-appr-wave-b.md, section 2.1).
 // Records are written through Twenty's own GraphQL API with a workspace-bound admin token, so the product's validation and search
@@ -103,8 +103,7 @@ export async function twentyWorkspaceClient(adapter: ProductAdapter, workspaceId
   const baseUrl = adapter.baseUrl.replace(/\/$/, "");
   const ws = (await workspaceLogins(baseUrl)).find((w) => w.id === workspaceId);
   if (ws === undefined) throw new Error(`TWENTY_TW1_NO_MEMBERSHIP: the admin is not a member of workspace ${workspaceId} (check the dev seed)`);
-  const pick = (v: string | undefined): string | undefined => (v === undefined || v.trim() === "" ? undefined : v.trim().replace(/\/$/, ""));
-  const origins = [...new Set([pick(ws.workspaceUrls?.subdomainUrl), pick(ws.workspaceUrls?.customUrl), baseUrl].filter((o): o is string => o !== undefined))];
+  const origins = [...new Set([pickOrigin(ws.workspaceUrls?.subdomainUrl), pickOrigin(ws.workspaceUrls?.customUrl), baseUrl].filter((o): o is string => o !== undefined))];
   const failures: string[] = [];
   for (const origin of origins) {
     try {

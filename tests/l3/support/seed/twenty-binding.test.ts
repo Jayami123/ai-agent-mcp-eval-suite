@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertWorkspaceBound, decodeJwtPayload } from "./twenty-binding.js";
+import { assertWorkspaceBound, decodeJwtPayload, pickOrigin } from "./twenty-binding.js";
 
 // Unit tests for the workspace binding check (plain gate, no stack). Tokens are built here with an empty signature: the check reads
 // claims only, so the signature segment is never used.
@@ -29,4 +29,14 @@ test("the workspace check refuses a value that is not a JWT", () => {
 
 test("decodeJwtPayload reads the claims of a JWT", () => {
   assert.deepEqual(decodeJwtPayload(jwt({ type: "access", workspaceId: WS_A })), { type: "access", workspaceId: WS_A });
+});
+
+test("a null origin from the sign-in reply is absent and does not throw", () => {
+  assert.equal(pickOrigin(null), undefined);
+  assert.equal(pickOrigin(undefined), undefined);
+  assert.equal(pickOrigin("   "), undefined);
+});
+
+test("a set origin is trimmed and loses its trailing slash", () => {
+  assert.equal(pickOrigin(" http://apple.localhost:3000/ "), "http://apple.localhost:3000");
 });

@@ -23,3 +23,12 @@ export function assertWorkspaceBound(token: string, workspaceId: string): void {
   if (claims["type"] !== "access") throw new Error(`TWENTY_TW1_NOT_BOUND: the token type is ${String(claims["type"])}, not access (a workspace-agnostic token cannot read a workspace)`);
   if (claims["workspaceId"] !== workspaceId) throw new Error(`TWENTY_TW1_WRONG_BINDING: the token is bound to workspace ${String(claims["workspaceId"])}, not ${workspaceId}`);
 }
+
+/**
+ * A workspace origin from the sign-in reply. The reply gives subdomainUrl and customUrl as null or empty when unset, so a null or
+ * blank value is absent (returns undefined) and never reaches .trim(). Trailing slashes are removed.
+ */
+export function pickOrigin(value: string | null | undefined): string | undefined {
+  if (value == null || value.trim() === "") return undefined;
+  return value.trim().replace(/\/$/, "");
+}
