@@ -188,6 +188,16 @@ function normalise(d: Decision | DecisionChoice): DecisionChoice {
 }
 
 /** The last finished assistant message of a conversation (the final answer of the latest turn). Polls briefly. */
+/**
+ * The answer text of a saved message: its `text` field when set, else the text parts of its content array. LibreChat keeps the
+ * answer in the content parts of an agent message, and `text` can be empty (INJ-014, run 44929891062). Pure.
+ */
+export function messageText(m: Record<string, unknown>): string {
+  if (typeof m["text"] === "string" && m["text"] !== "") return m["text"];
+  const parts = Array.isArray(m["content"]) ? (m["content"] as Array<Record<string, unknown>>) : [];
+  return parts.flatMap((p) => (p["type"] === "text" && typeof p["text"] === "string" ? [p["text"]] : [])).join("");
+}
+
 async function lastFinishedMessage(baseUrl: string, authorization: string, conversationId: string): Promise<{ messageId: string; text: string } | undefined> {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
@@ -195,7 +205,7 @@ async function lastFinishedMessage(baseUrl: string, authorization: string, conve
     const list = res.ok ? ((await res.json()) as Array<{ messageId?: unknown; text?: unknown; isCreatedByUser?: unknown; unfinished?: unknown }>) : [];
     const done = list.filter((m) => m.isCreatedByUser !== true && m.unfinished !== true && typeof m.messageId === "string");
     const last = done[done.length - 1];
-    if (last !== undefined && typeof last.messageId === "string") return { messageId: last.messageId, text: typeof last.text === "string" ? last.text : "" };
+    if (last !== undefined && typeof last.messageId === "string") return { messageId: last.messageId, text: messageText(last as Record<string, unknown>) };
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   return undefined;

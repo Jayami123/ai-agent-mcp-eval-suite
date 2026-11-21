@@ -1,0 +1,202 @@
+import { spawnSync } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
+import { appContainer, occAsWww } from "./nc-log.js";
+import { mailboxes, ncMailClient, ownerMailAccount, type NcMailClient } from "./nextcloud-mail.js";
+import type { L3Stack } from "./stack.js";
+
+// Mail for the NCMAIL cases, delivered into the owner's INBOX over SMTP from the Nextcloud app container to GreenMail
+// (greenmail:3025). It does not use the Mail app's outbox, which returns 500 on this stack (docs/findings/l3-always-allow.md).
+// Then `occ mail:account:sync` lets the Mail app list the INBOX. Fake data only. GreenMail's REST API has no send route.
+
+export const OWNER = "qa-owner@p4.test";
+const SEED_FROM = "p4l3-seed@p4.test";
+
+export interface SeedMail {
+  /** Envelope and header sender. Fake. */
+  from: string;
+  /** The owner's address (a GreenMail user, created by the harness). */
+  to: string;
+  subject: string;
+  /** Plain text. Lines starting with "." are dot-stuffed here. */
+  body: string;
+}
+
+// GreenMail 2.1.15 fails FETCH of a body section on a single-part message (ClassCastException String -> MimeMultipart,
+// docs/findings/l3-nc-mail.md). A one-part multipart keeps the body section a real part.
+const BOUNDARY = "p4l3-part-boundary";
+
+/** An RFC 5322 message with CRLF line ends and dot-stuffed body lines. Pure: unit tested. */
+export function rfc822(m: SeedMail, now: Date = new Date(), id: string = randomUUID()): string {
+  const body = m.body.split("\n").map((line) => (line.startsWith(".") ? `.${line}` : line));
+  return [
+    `From: ${m.from}`,
+    `To: ${m.to}`,
+    `Subject: ${m.subject}`,
+    `Date: ${now.toUTCString()}`,
+    `Message-ID: <${id}@p4.test>`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/mixed; boundary="${BOUNDARY}"`,
+    "",
+    `--${BOUNDARY}`,
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    ...body,
+    `--${BOUNDARY}--`,
+  ].join("\r\n") + "\r\n";
+}
+
+// The SMTP client, run in bash inside the app container. Reply codes only are printed. The message arrives on stdin.
+const SMTP_SCRIPT = [
+  "exec 3<>/dev/tcp/greenmail/3025 || { echo 'connect failed'; exit 2; }",
+  "rd() { local l; while read -t 10 -r l <&3; do if [[ $l =~ ^([0-9]{3})[[:space:]] ]]; then echo \"${BASH_REMATCH[1]}\"; return 0; fi; done; echo 000; return 1; }",
+  "echo \"greeting $(rd)\"",
+  "printf 'EHLO p4.test\\r\\n' >&3; echo \"ehlo $(rd)\"",
+  "printf 'MAIL FROM:<%s>\\r\\n' \"$1\" >&3; echo \"mail $(rd)\"",
+  "printf 'RCPT TO:<%s>\\r\\n' \"$2\" >&3; echo \"rcpt $(rd)\"",
+  "printf 'DATA\\r\\n' >&3; echo \"data $(rd)\"",
+  "cat >&3; printf '.\\r\\n' >&3; echo \"end $(rd)\"",
+  "printf 'QUIT\\r\\n' >&3; rd >/dev/null 2>&1 || true",
+].join("\n");
+
+/** The reply codes the SMTP script printed, as name to code. Pure: unit tested. */
+export function parseSmtpReplies(out: string): Record<string, string> {
+  const r: Record<string, string> = {};
+  for (const line of out.split("\n")) {
+    const m = /^(greeting|ehlo|mail|rcpt|data|end) (\d{3})$/.exec(line.trim());
+    if (m !== null && m[1] !== undefined && m[2] !== undefined) r[m[1]] = m[2];
+  }
+  return r;
+}
+
+/** True when every step got the reply the protocol requires (220, 250, 250, 250, 354, 250). Pure. */
+export function smtpDelivered(r: Record<string, string>): boolean {
+  return r["greeting"] === "220" && r["ehlo"] === "250" && r["mail"] === "250" && r["rcpt"] === "250" && r["data"] === "354" && r["end"] === "250";
+}
+
+/** Delivers one message into GreenMail through the app container. Returns the reply codes. Never prints the message. */
+export function smtpDeliver(m: SeedMail): Record<string, string> {
+  const name = appContainer();
+  if (name === undefined) throw new Error("NC_MAIL_SEED_NO_APP_CONTAINER: no nextcloud-app container");
+  const r = spawnSync("docker", ["exec", "-i", name, "bash", "-c", SMTP_SCRIPT, "smtp", SEED_FROM, m.to], {
+    input: rfc822({ ...m, from: m.from }),
+    encoding: "utf8",
+    timeout: 120_000,
+  });
+  const replies = parseSmtpReplies(`${r.stdout ?? ""}`);
+  if (!smtpDelivered(replies)) throw new Error(`NC_MAIL_SEED_SMTP_REPLIES: ${JSON.stringify(replies)} (exit ${r.status})`);
+  return replies;
+}
+
+export interface OwnerMail {
+  client: NcMailClient;
+  accountId: number;
+  inboxId: number;
+}
+
+/** The owner's account id and INBOX id, read from the Mail API at run time (never stored). */
+export async function ownerMail(stack: L3Stack): Promise<OwnerMail> {
+  const client = await ncMailClient(stack);
+  const account = await ownerMailAccount(stack, OWNER);
+  const inbox = (await mailboxes(client, account.id)).find((b) => b.name === "INBOX");
+  if (inbox === undefined) throw new Error("NC_MAIL_NO_INBOX: the owner's account has no INBOX");
+  return { client, accountId: account.id, inboxId: inbox.databaseId };
+}
+
+/**
+ * Seeds one message into the owner's INBOX, syncs the Mail app, and returns the message's database id (read back from
+ * nc_mail_list_messages, so the id is real). Throws when the message is not listed after the sync: the seed did not work.
+ */
+export async function seedInbox(stack: L3Stack, m: { subject: string; body: string; from?: string }): Promise<{ messageId: number; owner: OwnerMail }> {
+  const owner = await ownerMail(stack);
+  smtpDeliver({ from: m.from ?? SEED_FROM, subject: m.subject, body: m.body, to: OWNER });
+  const sync = occAsWww(["mail:account:sync", String(owner.accountId)]);
+  if (sync.status !== 0) throw new Error(`NC_MAIL_SYNC_EXIT_${sync.status}: mail:account:sync failed`);
+  const list = (await owner.client.call("nc_mail_list_messages", { mailbox_id: owner.inboxId, limit: 100 })) as {
+    results?: Array<{ databaseId?: unknown; subject?: unknown }>;
+  };
+  const hit = (list.results ?? []).find((x) => x.subject === m.subject && typeof x.databaseId === "number");
+  if (hit === undefined || typeof hit.databaseId !== "number") throw new Error("NC_MAIL_SEED_NOT_LISTED: the seeded message is not in the INBOX after the sync");
+  return { messageId: hit.databaseId, owner };
+}
+
+/** A digest of any JSON value, for before and after comparisons. Only the hash is kept. */
+export function digestJson(v: unknown): string {
+  return createHash("sha256").update(JSON.stringify(v ?? null)).digest("hex");
+}
+
+/**
+ * The run-time ids the NCMAIL fixtures use, as the stub's bindings (values are digits, sent as numbers). Set in one PUT per case,
+ * because the stub replaces its whole binding map on each PUT.
+ */
+export function ownerBindings(o: OwnerMail, messageId?: number): Record<string, string> {
+  return {
+    OWNER_ACCOUNT_ID: String(o.accountId),
+    OWNER_INBOX_ID: String(o.inboxId),
+    ...(messageId === undefined ? {} : { OWNER_MESSAGE_ID: String(messageId) }),
+  };
+}
+
+/**
+ * The paths where two JSON values differ, as "path: before -> after" (each side cut to 160 characters), at most `limit` lines.
+ * Used as evidence when a before/after oracle changes: the diff is recorded, the comparison is not relaxed. Pure.
+ */
+export function jsonDiff(before: unknown, after: unknown, limit = 6, path = "$"): string[] {
+  const out: string[] = [];
+  const show = (v: unknown): string => {
+    const s = v === undefined ? "<absent>" : JSON.stringify(v);
+    return s.length > 160 ? `${s.slice(0, 160)}...` : s;
+  };
+  const walk = (a: unknown, b: unknown, p: string): void => {
+    if (out.length >= limit) return;
+    if (JSON.stringify(a) === JSON.stringify(b)) return;
+    const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+    if (Array.isArray(a) && Array.isArray(b)) {
+      const n = Math.max(a.length, b.length);
+      for (let i = 0; i < n; i++) walk(a[i], b[i], `${p}[${i}]`);
+      if (a.length !== b.length) out.push(`${p}: length ${a.length} -> ${b.length}`);
+      return;
+    }
+    if (isObj(a) && isObj(b)) {
+      for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[k], b[k], `${p}.${k}`);
+      return;
+    }
+    out.push(`${p}: ${show(a)} -> ${show(b)}`);
+  };
+  walk(before, after, path);
+  return out.slice(0, limit);
+}
+
+/**
+ * The events in a calendar listing reply: every top-level array, except nothing at all from the response metadata (the top-level
+ * `timestamp` and `success` fields are not events, and a non-array field is never an event). A bare array is the events. Pure.
+ */
+export function eventsOf(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) return payload;
+  if (typeof payload !== "object" || payload === null) return [];
+  return Object.entries(payload as Record<string, unknown>)
+    .filter(([k, v]) => k !== "timestamp" && k !== "success" && Array.isArray(v))
+    .flatMap(([, v]) => v as unknown[]);
+}
+
+/**
+ * The changes between two calendar listings, compared as the parsed events: each event is compared whole (its id, title, start,
+ * end, description and every other field), as a multiset. An added event, a removed event, and an edited event (removed then
+ * added) all give changes. Response metadata (the timestamp) is never compared. Empty when the events are the same. Pure.
+ */
+export function calendarChanges(before: unknown, after: unknown, limit = 6): string[] {
+  const counts = (xs: unknown[]): Map<string, number> => {
+    const m = new Map<string, number>();
+    for (const x of xs) {
+      const k = JSON.stringify(x);
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  };
+  const a = counts(eventsOf(before));
+  const b = counts(eventsOf(after));
+  const out: string[] = [];
+  for (const [k, n] of a) for (let i = 0; i < n - (b.get(k) ?? 0); i++) out.push(`removed event: ${k.slice(0, 160)}`);
+  for (const [k, n] of b) for (let i = 0; i < n - (a.get(k) ?? 0); i++) out.push(`added event: ${k.slice(0, 160)}`);
+  return out.slice(0, limit);
+}
