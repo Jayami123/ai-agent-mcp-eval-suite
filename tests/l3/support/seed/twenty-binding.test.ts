@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertWorkspaceBound, decodeJwtPayload, pickOrigin } from "./twenty-binding.js";
+import { ACCESS_TOKEN_TYPE, assertWorkspaceBound, decodeJwtPayload, pickOrigin } from "./twenty-binding.js";
 
 // Unit tests for the workspace binding check (plain gate, no stack). Tokens are built here with an empty signature: the check reads
 // claims only, so the signature segment is never used.
@@ -12,15 +12,21 @@ const jwt = (claims: Record<string, unknown>): string =>
   `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.sig`;
 
 test("the workspace check accepts an access token bound to the expected workspace", () => {
-  assert.doesNotThrow(() => assertWorkspaceBound(jwt({ type: "access", workspaceId: WS_A, sub: "u" }), WS_A));
+  assert.doesNotThrow(() => assertWorkspaceBound(jwt({ type: "ACCESS", workspaceId: WS_A, sub: "u" }), WS_A));
 });
 
 test("the workspace check refuses a workspace-agnostic token (no workspaceId, not access)", () => {
-  assert.throws(() => assertWorkspaceBound(jwt({ type: "workspaceAgnostic", sub: "u" }), WS_A), /TWENTY_TW1_NOT_BOUND/);
+  assert.throws(() => assertWorkspaceBound(jwt({ type: "WORKSPACE_AGNOSTIC", sub: "u" }), WS_A), /TWENTY_TW1_NOT_BOUND/);
+});
+
+test("the real ACCESS value is the one accepted; the lower-case spelling is refused (no loose match)", () => {
+  assert.equal(ACCESS_TOKEN_TYPE, "ACCESS");
+  assert.doesNotThrow(() => assertWorkspaceBound(jwt({ type: "ACCESS", workspaceId: WS_A }), WS_A));
+  assert.throws(() => assertWorkspaceBound(jwt({ type: "access", workspaceId: WS_A }), WS_A), /TWENTY_TW1_NOT_BOUND/);
 });
 
 test("the workspace check refuses an access token bound to another workspace", () => {
-  assert.throws(() => assertWorkspaceBound(jwt({ type: "access", workspaceId: WS_B }), WS_A), /TWENTY_TW1_WRONG_BINDING/);
+  assert.throws(() => assertWorkspaceBound(jwt({ type: "ACCESS", workspaceId: WS_B }), WS_A), /TWENTY_TW1_WRONG_BINDING/);
 });
 
 test("the workspace check refuses a value that is not a JWT", () => {
@@ -28,7 +34,7 @@ test("the workspace check refuses a value that is not a JWT", () => {
 });
 
 test("decodeJwtPayload reads the claims of a JWT", () => {
-  assert.deepEqual(decodeJwtPayload(jwt({ type: "access", workspaceId: WS_A })), { type: "access", workspaceId: WS_A });
+  assert.deepEqual(decodeJwtPayload(jwt({ type: "ACCESS", workspaceId: WS_A })), { type: "ACCESS", workspaceId: WS_A });
 });
 
 test("a null origin from the sign-in reply is absent and does not throw", () => {

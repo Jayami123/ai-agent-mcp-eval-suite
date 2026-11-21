@@ -5,6 +5,13 @@
 //   workspace-scoped resolver (engine/guards/workspace-auth.guard.ts:22-25).
 // The token is a JWT. Only the payload is read here, and the server already verified the signature. Nothing is printed.
 
+/**
+ * The access token's `type` claim, exact and case-sensitive. Source: `ACCESS = 'ACCESS'` in
+ * packages/twenty-server/src/engine/core-modules/auth/types/jwt-token-type.enum.ts:2, set by access-token.service.ts:136
+ * (`type: JwtTokenTypeEnum.ACCESS`). The workspace-agnostic token is 'WORKSPACE_AGNOSTIC' (the same enum, line 4).
+ */
+export const ACCESS_TOKEN_TYPE = "ACCESS";
+
 /** Decodes a JWT payload (no signature check: the server issued the token and the seed only reads its claims). */
 export function decodeJwtPayload(token: string): Record<string, unknown> {
   const parts = token.split(".");
@@ -20,7 +27,7 @@ export function decodeJwtPayload(token: string): Record<string, unknown> {
  */
 export function assertWorkspaceBound(token: string, workspaceId: string): void {
   const claims = decodeJwtPayload(token);
-  if (claims["type"] !== "access") throw new Error(`TWENTY_TW1_NOT_BOUND: the token type is ${String(claims["type"])}, not access (a workspace-agnostic token cannot read a workspace)`);
+  if (claims["type"] !== ACCESS_TOKEN_TYPE) throw new Error(`TWENTY_TW1_NOT_BOUND: the token type is ${String(claims["type"])}, not ${ACCESS_TOKEN_TYPE} (a workspace-agnostic token cannot read a workspace)`);
   if (claims["workspaceId"] !== workspaceId) throw new Error(`TWENTY_TW1_WRONG_BINDING: the token is bound to workspace ${String(claims["workspaceId"])}, not ${workspaceId}`);
 }
 
