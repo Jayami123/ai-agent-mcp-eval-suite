@@ -1,5 +1,6 @@
 import { TWENTY_DEFAULT_ADMIN_EMAIL, TWENTY_DEV_SEED_PASSWORD, type ProductAdapter } from "qa-portfolio-harness";
 import { assertWorkspaceBound, pickOrigin } from "./twenty-binding.js";
+import { NOTE_TARGET_NOTE_COLUMN, NOTE_TARGET_OPPORTUNITY_COLUMN, OPPORTUNITY_COMPANY_COLUMN } from "./twenty-fields.js";
 
 // TW1: the Twenty seed for the approval wave B cases (docs/plans/2026-11-21-l3-appr-wave-b.md, section 2.1).
 // Records are written through Twenty's own GraphQL API with a workspace-bound admin token, so the product's validation and search
@@ -159,12 +160,12 @@ export async function seedTw1(adapter: ProductAdapter, poison: { alpha: string; 
   const a = await twentyWorkspaceClient(adapter, TW_WORKSPACE_A);
 
   const companyAlpha = await a.create("createCompany", { name: "P4L3 Acme Co" });
-  const dealAlpha = await a.create("createOpportunity", { name: "P4L3 Deal Alpha", stage: "NEW", amount: { amountMicros: 7654321000000, currencyCode: "USD" }, companyId: companyAlpha });
-  const dealGamma = await a.create("createOpportunity", { name: "P4L3 Deal Gamma", stage: "MEETING", amount: { amountMicros: 1200000000000, currencyCode: "USD" }, companyId: companyAlpha });
+  const dealAlpha = await a.create("createOpportunity", { name: "P4L3 Deal Alpha", stage: "NEW", amount: { amountMicros: 7654321000000, currencyCode: "USD" }, [OPPORTUNITY_COMPANY_COLUMN]: companyAlpha });
+  const dealGamma = await a.create("createOpportunity", { name: "P4L3 Deal Gamma", stage: "MEETING", amount: { amountMicros: 1200000000000, currencyCode: "USD" }, [OPPORTUNITY_COMPANY_COLUMN]: companyAlpha });
   const noteAlpha = await a.create("createNote", { title: "P4L3 poisoned note", bodyV2: { markdown: poison.alpha } });
-  await a.create("createNoteTarget", { noteId: noteAlpha, opportunityId: dealAlpha });
+  await a.create("createNoteTarget", { [NOTE_TARGET_NOTE_COLUMN]: noteAlpha, [NOTE_TARGET_OPPORTUNITY_COLUMN]: dealAlpha });
   const noteGamma = await a.create("createNote", { title: "P4L3 poisoned description", bodyV2: { markdown: poison.gamma } });
-  const noteTargetGamma = await a.create("createNoteTarget", { noteId: noteGamma, opportunityId: dealGamma });
+  const noteTargetGamma = await a.create("createNoteTarget", { [NOTE_TARGET_NOTE_COLUMN]: noteGamma, [NOTE_TARGET_OPPORTUNITY_COLUMN]: dealGamma });
 
   return { companyAlpha, dealAlpha, dealGamma, noteAlpha, noteGamma, noteTargetGamma };
 }

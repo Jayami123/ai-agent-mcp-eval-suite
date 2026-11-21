@@ -48,3 +48,41 @@ Core case. The body is kept as designed in the plan (`docs/plans/2026-11-18-l3.m
 
 - The exact "not available to this caller" message is not in the pinned fork. Confirm which build produces it before changing the helper again.
 - `l4 openclaw stub` P4-OC-MEM-002 (control leg) failed once on this branch; `main` passed. Re-run to decide whether it is flaky.
+
+## Field check against the pinned source (one pass, all TW1 seed fields and the Twenty cases)
+
+Source: `packages/twenty-server/src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/` at `7cbdfec6`, unless a row says otherwise. "Fixed" means the code sent a name the source does not have, and it was changed in this push.
+
+| Object / call | Field used | Source (file:line) | Status |
+|---|---|---|---|
+| company (seed) | `name` | compute-company-standard-flat-field-metadata.util.ts:138 | ok |
+| opportunity (seed) | `name` | compute-opportunity-standard-flat-field-metadata.util.ts:138 | ok |
+| opportunity (seed) | `stage` = `NEW`, `MEETING` | compute-opportunity-standard-flat-field-metadata.util.ts:207, 224 (`NEW`), 242 (`MEETING`) | ok |
+| opportunity (seed) | `amount` {`amountMicros`, `currencyCode`} | compute-opportunity-standard-flat-field-metadata.util.ts:161; composite subfields in twenty-shared/src/types/FieldMetadataDefaultValue.ts:24-25 | ok |
+| opportunity (seed) | `company` join `companyId` | compute-opportunity-standard-flat-field-metadata.util.ts:421 (relation), :438 (joinColumnName) | ok (now via OPPORTUNITY_COMPANY_COLUMN) |
+| note (seed) | `title` | compute-note-standard-flat-field-metadata.util.ts:163 | ok |
+| note (seed) | `bodyV2` {`markdown`} | compute-note-standard-flat-field-metadata.util.ts:183; `markdown` in twenty-shared/src/types/FieldMetadataDefaultValue.ts:20 | ok |
+| noteTarget (seed) | `note` join `noteId` | compute-note-target-standard-flat-field-metadata.util.ts:249 (relation), :267 (joinColumnName) | ok |
+| noteTarget (seed) | opportunity join `targetOpportunityId` | compute-note-target-standard-flat-field-metadata.util.ts:347 (relation `targetOpportunity`), :366 (joinColumnName) | **fixed**: was `opportunityId`, rejected with "Object noteTarget doesn't have any opportunityId field" |
+| sweep (seed) | `destroyNote`, `destroyOpportunity`, `destroyCompany` | engine/utils/get-resolver-name.util.ts:17-18 (`destroy${Singular}`) | ok |
+| sweep (seed) | `id: UUID!` | engine/api/graphql/workspace-schema-builder/utils/get-resolver-args.util.ts (destroyOne, UUIDScalarType) | ok |
+| sweep (seed) | `filter`, `first` on list | get-resolver-args.util.ts (findMany: first, filter) | ok |
+| sweep (seed) | `ilike` on text | twenty-shared/src/types/RecordGqlOperationFilter.ts:36 | ok |
+| INJ-005 | `find_many_notes` | tests/l3/snapshots/twenty.catalog.json | ok |
+| INJ-005 | messageCampaign `name`, `subject`, `bodyTemplate` | compute-message-campaign-standard-flat-field-metadata.util.ts:216, 235, 254 | ok (fixed: was `to`, `body`) |
+| INJ-005 | messageListMember `listId` | compute-message-list-member-standard-flat-field-metadata.util.ts:237 | ok (fixed: was `messageListId`, `email`) |
+| INJ-006 | `find_many_notes` | catalog | ok |
+| INJ-006 | noteTarget `update` `targetOpportunityId` | compute-note-target-standard-flat-field-metadata.util.ts:366 | **fixed**: was `opportunityId` |
+| INJ-006 | noteTarget `delete` `id` | catalog (`delete_one_note_target`) | ok |
+| INJ-006 | attachment `name`, `targetCompanyId` | compute-attachment-standard-flat-field-metadata.util.ts:138, 546 | **fixed**: was `companyId`, `to` |
+| TOOL-006 (named skip) | attachment `targetCompanyId`; `find_one_company` `id` | attachment :546; catalog | **fixed**: was `companyId`, `to`; body not run (named skip) |
+| TOOL-009 | messageList `name` (update) | compute-message-list-standard-flat-field-metadata.util.ts:216 | ok |
+| FLOW-004 | messageCampaign `name`, `subject`, `bodyTemplate`; attachment `name`, `targetCompanyId` | as above | **fixed** (same as INJ-005 and INJ-006) |
+| FLOW-010 | attachment `name`, `targetCompanyId` | as above | **fixed** |
+| FLOW-001 | `find_one_opportunity` `id` | catalog | ok |
+
+Not verified against source in this pass: the GraphQL argument order for `createNoteTarget` (the field names are the verified part), and the `attachment` create input for `file` (not used).
+
+## FLOW-004: the Outline viewer
+
+The `ENOENT` on `.harness/outline-b-run.json` comes from the harness writing that file only when `P4_SECOND_IDENTITY=1`: `outline.adapter.js:141-150` (`writeP4RunState(this.secondRunStateFile(), ...)`), under `if (this.cfg.secondIdentity)`, with the flag from `config.js:221`. The suite read the file because `outlineSession` always built a viewer (`tests/l3/support/seed/outline.ts`). FLOW-004 uses no viewer (`tests/l3/outline/flow.wave-b.cases.ts`), so the case now opens the session with `{ viewer: false }`. The job does not set `P4_SECOND_IDENTITY`.

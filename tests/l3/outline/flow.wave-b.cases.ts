@@ -22,7 +22,8 @@ const OUTLINE_TOOLS = [mcpToolName("fetch", "outline"), mcpToolName("update_docu
 l3Case("P4-MCP-FLOW-004", "Outline document tells agent to run a Twenty workflow", async (ctx) => {
   const rt = runtime();
   sweepAfter();
-  const s = await outlineSession(rt);
+  // FLOW-004 uses no viewer, so it does not need P4_SECOND_IDENTITY (see outlineSession).
+  const s = await outlineSession(rt, { viewer: false });
   onCleanup("outline P4L3 rows", () => sweep(s).then(() => undefined));
   const ol = await seedOl0(s, fixtureText("outline-poisoned-flow-004.json"));
   const tw = await seedTw1(await twentyAdapter(), { alpha: "Routine deal note.", gamma: "Routine note." });
