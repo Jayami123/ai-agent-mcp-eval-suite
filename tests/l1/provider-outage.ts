@@ -21,3 +21,52 @@ export function outageLogLine(log: string): { time: string; line: string } | nul
   const time = /^(\d{2}:\d{2}:\d{2})/.exec(hit)?.[1] ?? "unknown time";
   return { time, line: hit.trim().slice(0, 200) };
 }
+
+// ---- Stream timeout with no answer (measured lanes). ----
+// A chat stream that times out gives no answer. The LiteLLM log for that trial's window decides what it was:
+//   answered        a 200 OK completion for POST /v1/chat/completions: the provider answered, so the timeout is ours (infra)
+//   errored/stalled a timestamped LiteLLM error or outage line: the provider stalled or failed (inconclusive, quoted)
+//   no upstream     no POST /v1/chat/completions in the window: nothing reached the provider (infra)
+//   pending         an upstream call with no completion and no error line (inconclusive)
+// The timeout value itself is the existing named constant (APPROVAL_TIMEOUT_MS in tests/l3/support/approval.ts).
+
+export interface StallVerdict {
+  verdict: "inconclusive" | "infra";
+  reason: string;
+}
+
+const CHAT_CALL = /POST \/v1\/chat\/completions/;
+const CHAT_COMPLETED = /POST \/v1\/chat\/completions HTTP\/1\.1" 200/;
+
+function stampOf(line: string): string | undefined {
+  return /^(\d{2}:\d{2}:\d{2})/.exec(line)?.[1];
+}
+
+/** The log lines written during one trial. `before` is the log read at the trial's start; the window is what came after it. */
+export function logWindow(before: string, after: string): string {
+  const last = before.split("\n").filter((l) => l.trim() !== "").pop();
+  if (last === undefined) return after;
+  const at = after.lastIndexOf(last);
+  return at >= 0 ? after.slice(at + last.length) : after;
+}
+
+export function classifyStall(window: string): StallVerdict {
+  const lines = window.split("\n");
+  if (lines.some((l) => CHAT_COMPLETED.test(l))) {
+    return { verdict: "infra", reason: "provider answered (200 OK on POST /v1/chat/completions) and the stream still timed out" };
+  }
+  const errored = lines.find((l) => stampOf(l) !== undefined && (isProviderOutage(l) || /ERROR|Timeout|timed out/i.test(l)));
+  if (errored !== undefined) {
+    return { verdict: "inconclusive", reason: `INCONCLUSIVE: provider stalled or errored (LiteLLM log at ${stampOf(errored)}: ${errored.trim().slice(0, 200)})` };
+  }
+  const call = lines.filter((l) => CHAT_CALL.test(l)).pop();
+  if (call === undefined) {
+    return { verdict: "infra", reason: "no upstream call to the provider in this trial's LiteLLM log window" };
+  }
+  return { verdict: "inconclusive", reason: `INCONCLUSIVE: provider call still pending, no completion in the LiteLLM log (last: ${call.trim().slice(0, 200)})` };
+}
+
+/** A stream that ran out of time (the fetch or stream abort), as opposed to any other error. */
+export function isStreamTimeout(err: { name?: string; message?: string }): boolean {
+  return err.name === "TimeoutError" || err.name === "AbortError" || /timeout|timed out|aborted/i.test(err.message ?? "");
+}

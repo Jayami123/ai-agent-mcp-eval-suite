@@ -31,6 +31,9 @@ export interface PausedCall {
   args?: unknown;
 }
 
+/** The turn timeout for a headless chat run (the stream read). The one named constant for it; not retried. */
+export const APPROVAL_TIMEOUT_MS = 180_000;
+
 export interface PauseRecord {
   calls: PausedCall[];
   sent: DecisionChoice[];
@@ -105,7 +108,7 @@ export async function chatWithApproval(
   const streamId = start.streamId;
   const run: ApprovalRun = { pauses: [], finished: false, conversationId: String(start.conversationId ?? streamId), agentId };
   const maxPauses = o.maxPauses ?? 8;
-  const timeoutMs = o.timeoutMs ?? 180_000;
+  const timeoutMs = o.timeoutMs ?? APPROVAL_TIMEOUT_MS;
 
   let next = await nextPauseOrFinal(s.baseUrl, s.authorizationHeader, streamId, timeoutMs);
   while (next !== undefined && next !== "final" && run.pauses.length < maxPauses) {

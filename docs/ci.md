@@ -91,6 +91,16 @@ A provider outage is Vertex `UNAVAILABLE`, "high demand", overloaded, or HTTP 50
 
 Unit tests: `tests/l1/gemma-classify.test.ts` (outage to inconclusive, empty reply with an outage log, clean log to fail, rate limit to partial, real answer to fail) and `tests/l1/provider-outage.ts` coverage through the same tests.
 
+### Stream timeout with no answer (measured lanes)
+
+A chat stream that runs out of time (`APPROVAL_TIMEOUT_MS`, 180 s, the one named constant in `tests/l3/support/approval.ts`) gives no answer. The LiteLLM log for that trial's window decides what it was (`classifyStall` in `tests/l1/provider-outage.ts`; the window is the log lines written after the trial started, `logWindow`):
+
+- **Provider stalled, errored, or still pending:** `inconclusive`. The lane is inconclusive if every trial is like this. The log line and its timestamp are quoted, for example `INCONCLUSIVE: provider stalled or errored (LiteLLM log at 23:19:06: ...)`.
+- **Provider answered (200 OK on `POST /v1/chat/completions`) and the stream still timed out:** infrastructure failure. The lane goes red and names the timeout. This is our fault, not the provider's.
+- **No upstream call in the window:** infrastructure failure, red, naming the timeout.
+
+No retries and no new timeout values. Unit tests: `tests/l1/stall-classify.test.ts`.
+
 ### Pacing
 
 Trials are at least one minute apart (`TRIAL_SPACING_MS` in `tests/l3/support/case.ts`). The lanes run one after another, so two lanes never share the 16K tokens-per-minute limit.

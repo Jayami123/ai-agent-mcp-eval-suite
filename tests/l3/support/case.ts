@@ -8,7 +8,9 @@ import { DEFAULT_K } from "../../../src/stats/thresholds.js";
 import { type TrialStatus } from "../../../src/stats/status.js";
 import { writeEvidence } from "../../l1/evidence.js";
 import { isRateLimited } from "../../l1/gemma-classify.js";
-import { isProviderOutage } from "../../l1/provider-outage.js";
+import { classifyStall, isProviderOutage, isStreamTimeout, logWindow } from "../../l1/provider-outage.js";
+import { containerLogText } from "../../l1/evidence.js";
+import { APPROVAL_TIMEOUT_MS } from "./approval.js";
 import { servedModelFromModelInfo } from "../../l1/gemma-record.js";
 import { caseDef } from "./registry.js";
 import { laneVerdict } from "./lane-verdict.js";
@@ -55,6 +57,8 @@ export const TRIAL_SPACING_MS = 60_000;
 
 const runMode = (): RunMode => (process.env["P4_LLM_MODE"] === "nightly" ? "nightly" : "stub");
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+/** Values the LiteLLM log must not print. Read from the environment, never written anywhere. */
+const providerSecrets = (): string[] => [process.env["LITELLM_MASTER_KEY"], process.env["GEMINI_API_KEY"]].filter((v): v is string => typeof v === "string" && v !== "");
 
 /** P4_MEASURED_K: trials per measured case in nightly mode. Unset means the master plan's default. Anything else out of range throws. */
 export function measuredTrials(raw: string | undefined = process.env["P4_MEASURED_K"]): number {
@@ -155,6 +159,8 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
       toolCalls: (c) => void (calls = c),
     };
     const started = Date.now();
+    // The LiteLLM log at the trial's start: a stream timeout is judged by the lines written after it.
+    const logBefore = containerLogText("litellm", providerSecrets());
     let status: TrialStatus;
     let reason: string;
     try {
@@ -163,13 +169,23 @@ async function runNightly(id: string, nightly: NightlyOpts, body: (ctx: CaseCtx)
       status = total.outcome === "pass" ? "pass" : "fail";
       reason = total.detail;
     } catch (err) {
-      // A rate limit that is still there is a partial trial (quota, not a fail). Anything else is an infrastructure error.
-      // A rate limit, or a provider that did not answer (high demand, UNAVAILABLE), is partial: the model never ran the turn.
-      const msg = (err as Error).message;
-      if (!isRateLimited(msg) && !isProviderOutage(msg)) throw err;
-      status = "partial";
-      reason = isRateLimited(msg) ? "quota: rate limited during the trial; not a fail" : `provider unavailable: ${msg.slice(0, 200)}`;
-      partialReasons.push(reason);
+      if (isStreamTimeout(err as Error)) {
+        // A stream that timed out with no answer: the LiteLLM log decides. The provider answered: our timeout (infra, red).
+        // The provider stalled, errored or is still pending: inconclusive, quoted. No retries, no new timeout value.
+        const stall = classifyStall(logWindow(logBefore, containerLogText("litellm", providerSecrets())));
+        if (stall.verdict === "infra") throw new Error(`INFRA: stream timed out after ${APPROVAL_TIMEOUT_MS} ms with no answer; ${stall.reason}`);
+        status = "partial";
+        reason = stall.reason;
+        partialReasons.push(reason);
+      } else {
+        // A rate limit that is still there is a partial trial (quota, not a fail). Anything else is an infrastructure error.
+        // A rate limit, or a provider that did not answer (high demand, UNAVAILABLE), is partial: the model never ran the turn.
+        const msg = (err as Error).message;
+        if (!isRateLimited(msg) && !isProviderOutage(msg)) throw err;
+        status = "partial";
+        reason = isRateLimited(msg) ? "quota: rate limited during the trial; not a fail" : `provider unavailable: ${msg.slice(0, 200)}`;
+        partialReasons.push(reason);
+      }
     } finally {
       trialVerdicts.push({ trial, verdicts, notes });
     }
