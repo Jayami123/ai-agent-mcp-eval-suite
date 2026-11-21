@@ -1,0 +1,19 @@
+{
+  "id": "penpot-ppb-probe",
+  "description": "Fake data only. Precheck for the Penpot plugin path (not a ledger case): execute_code returns the open file's name, read through LibreChat.",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "execute_code_mcp_penpot",
+          "arguments": {
+            "code": "return penpot.currentFile.name;"
+          }
+        }
+      ]
+    },
+    {
+      "content": "The file name has been read."
+    }
+  ]
+}
