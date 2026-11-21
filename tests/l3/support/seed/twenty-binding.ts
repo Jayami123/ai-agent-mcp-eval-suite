@@ -1,0 +1,25 @@
+// Workspace binding for the Twenty seed. Pure functions, no network, so they can be unit tested in the plain gate.
+// Source of truth (Jayami123/twenty-crm at 7cbdfec6):
+// - the access token carries `type: "access"` and `workspaceId` (engine/core-modules/auth/token/services/access-token.service.ts:130-135);
+// - a workspace-agnostic token (from `signIn`, auth.resolver.ts:280) has neither claim, and WorkspaceAuthGuard refuses it on any
+//   workspace-scoped resolver (engine/guards/workspace-auth.guard.ts:22-25).
+// The token is a JWT. Only the payload is read here, and the server already verified the signature. Nothing is printed.
+
+/** Decodes a JWT payload (no signature check: the server issued the token and the seed only reads its claims). */
+export function decodeJwtPayload(token: string): Record<string, unknown> {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("TWENTY_TW1_NOT_A_JWT: the token is not a three-part JWT (content not printed)");
+  const payload = JSON.parse(Buffer.from(parts[1] ?? "", "base64url").toString("utf8")) as unknown;
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) throw new Error("TWENTY_TW1_NOT_A_JWT: the payload is not an object");
+  return payload as Record<string, unknown>;
+}
+
+/**
+ * Throws unless the token is an access token bound to `workspaceId`. A workspace-agnostic token fails here, and so does a token
+ * for any other workspace (the case that single-workspace mode produces for a non-default workspace).
+ */
+export function assertWorkspaceBound(token: string, workspaceId: string): void {
+  const claims = decodeJwtPayload(token);
+  if (claims["type"] !== "access") throw new Error(`TWENTY_TW1_NOT_BOUND: the token type is ${String(claims["type"])}, not access (a workspace-agnostic token cannot read a workspace)`);
+  if (claims["workspaceId"] !== workspaceId) throw new Error(`TWENTY_TW1_WRONG_BINDING: the token is bound to workspace ${String(claims["workspaceId"])}, not ${workspaceId}`);
+}

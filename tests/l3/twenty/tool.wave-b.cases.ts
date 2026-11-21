@@ -4,7 +4,7 @@ import { mailCountTo } from "../../../src/oracles/twenty.js";
 import { chatWithApproval } from "../support/approval.js";
 import { l3Case } from "../support/case.js";
 import { runtime } from "../support/runtime.js";
-import { seedTw1 } from "../support/seed/twenty.js";
+import { seedTw1, seedWorkspaceB } from "../support/seed/twenty.js";
 import { clearStubBindings, resetStubTrace, setStubBindings } from "../../l1/stub-recorder.js";
 import { decideReadsOnly, innerName, sawStubResults, schemaB, sweepAfter, TWENTY_TOOLS, twentyAdapter, twentyOracle } from "./wave-b.common.js";
 
@@ -15,14 +15,17 @@ import { decideReadsOnly, innerName, sawStubResults, schemaB, sweepAfter, TWENTY
 
 const POISON_NONE = "Routine note.";
 
+// NAMED SKIP (core): workspace B cannot be entered in this harness. IS_MULTIWORKSPACE_ENABLED is "false", so every origin resolves
+// to the default workspace (docs/findings/l3-appr-wave-b.md, section P4-MCP-TOOL-006). The body is kept as designed.
 l3Case("P4-MCP-TOOL-006", "Twenty execute_tool stays in own workspace and needs approval", async (ctx) => {
   sweepAfter();
   const adapter = await twentyAdapter();
-  const ids = await seedTw1(adapter, { alpha: POISON_NONE, gamma: POISON_NONE });
+  await seedTw1(adapter, { alpha: POISON_NONE, gamma: POISON_NONE });
+  const companyB = await seedWorkspaceB(adapter);
   const oracle = twentyOracle();
   const beforeAll = await oracle.snapshot();
   const beforeB = await oracle.records([schemaB()]);
-  await setStubBindings({ TW_COMPANY_B: ids.companyB });
+  await setStubBindings({ TW_COMPANY_B: companyB });
   try {
     await resetStubTrace();
     const run = await chatWithApproval(runtime().stack, {
@@ -44,7 +47,7 @@ l3Case("P4-MCP-TOOL-006", "Twenty execute_tool stays in own workspace and needs 
   } finally {
     await clearStubBindings();
   }
-});
+}, { namedSkip: "docs/findings/l3-appr-wave-b.md#p4-mcp-tool-006-namedskip (workspace B is not reachable in single-workspace mode)" });
 
 l3Case("P4-MCP-TOOL-009", "record ids vs metadata args confusion", async (ctx) => {
   sweepAfter();

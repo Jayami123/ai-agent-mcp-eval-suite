@@ -1,12 +1,19 @@
 import { TWENTY_DEFAULT_ADMIN_EMAIL, TWENTY_DEV_SEED_PASSWORD, type ProductAdapter } from "qa-portfolio-harness";
+import { assertWorkspaceBound } from "./twenty-binding.js";
 
 // TW1: the Twenty seed for the approval wave B cases (docs/plans/2026-11-21-l3-appr-wave-b.md, section 2.1).
-// Records are written through Twenty's own GraphQL API with the admin's workspace token, so the product's validation and
-// search vectors run. Field and mutation names come from the pinned fork (Jayami123/twenty-crm at 7cbdfec6): standard
-// objects in twenty-standard-application/utils/field-metadata, and the dev seeder's stage values.
+// Records are written through Twenty's own GraphQL API with a workspace-bound admin token, so the product's validation and search
+// vectors run. Field and mutation names come from the pinned fork (Jayami123/twenty-crm at 7cbdfec6).
 // Every title starts with P4L3 so the sweep can find the rows. Fake data only. Tokens are never printed.
+//
+// Workspace access (one helper, twentyWorkspaceClient, used by the seed AND the sweep):
+// - the token is the login-token exchange's access token, bound to the workspace (auth.resolver.ts:761-800);
+// - the binding is checked from the token's own claims (twenty-binding.ts) and then by currentWorkspace on /metadata, which
+//   WorkspaceAuthGuard allows only for a workspace-bound token (workspace-auth.guard.ts:22-27; workspace.resolver.ts:111-114).
+// Workspace B (YCombinator) cannot be entered in this harness: IS_MULTIWORKSPACE_ENABLED is "false" (twenty.compose.yml:36,52), so
+// every origin resolves to the default workspace, Apple (workspace-domains.service.ts:67-95, 111-122). See docs/findings/l3-appr-wave-b.md.
 
-/** Workspace A (Apple) and workspace B (YCombinator) ids from the dev seeder (seeder-workspaces.constant.ts). */
+/** Workspace A (Apple, the default in this harness) and workspace B (YCombinator) ids from the dev seeder. */
 export const TW_WORKSPACE_A = "20202020-1c25-4d02-bf25-6aeccf7ea419";
 export const TW_WORKSPACE_B = "3b8e6458-5fc1-4e63-8563-008ccddaa6db";
 
@@ -43,7 +50,7 @@ async function postJson(url: string, body: unknown, token?: string): Promise<unk
   return parsed.data;
 }
 
-/** A Twenty session for one workspace. Records are created and read through its core API. */
+/** A Twenty session for one workspace. Records are created and read through its core API. Only twentyWorkspaceClient builds one. */
 export class TwentyWorkspaceClient {
   constructor(
     private readonly baseUrl: string,
@@ -73,7 +80,7 @@ export class TwentyWorkspaceClient {
   }
 }
 
-/** Signs in as the harness admin and returns each workspace the admin can enter, with its login token. */
+/** Signs in as the harness admin and returns each workspace the admin is a member of, with its login token. */
 async function workspaceLogins(baseUrl: string): Promise<WorkspaceLogin[]> {
   const data = (await postJson(`${baseUrl}/metadata`, { query: SIGN_IN, variables: { email: TWENTY_DEFAULT_ADMIN_EMAIL, password: TWENTY_DEV_SEED_PASSWORD } })) as {
     signIn?: { availableWorkspaces?: { availableWorkspacesForSignIn?: WorkspaceLogin[] } };
@@ -81,24 +88,19 @@ async function workspaceLogins(baseUrl: string): Promise<WorkspaceLogin[]> {
   return data.signIn?.availableWorkspaces?.availableWorkspacesForSignIn ?? [];
 }
 
-/** The workspace a bearer token belongs to (core API currentWorkspace). Used to check which workspace a token is for. */
-async function tokenWorkspaceId(baseUrl: string, token: string): Promise<string | undefined> {
-  // currentWorkspace is on the metadata API (the core /graphql schema has no such field at this version).
+/** The workspace a token is for, as the metadata API reports it for a workspace-bound token. */
+async function currentWorkspaceId(baseUrl: string, token: string): Promise<string | undefined> {
   const data = (await postJson(`${baseUrl}/metadata`, { query: "query { currentWorkspace { id } }" }, token)) as { currentWorkspace?: { id?: unknown } };
   return typeof data.currentWorkspace?.id === "string" ? data.currentWorkspace.id : undefined;
 }
 
 /**
- * The admin's token for one workspace. Workspace A comes from the harness's own authenticate() (a path the stack already
- * proves) when the token is for A; any other workspace uses the login-token exchange, trying each origin the harness could
- * use. A failure names the origins tried, never a token.
+ * THE workspace helper. Seed and sweep both call only this. It returns a client only when the token is bound to `workspaceId`,
+ * checked twice: from the token's claims (assertWorkspaceBound), and by currentWorkspace on /metadata. Any failure names the origin
+ * it tried and the reason, never a token.
  */
 export async function twentyWorkspaceClient(adapter: ProductAdapter, workspaceId: string): Promise<TwentyWorkspaceClient> {
   const baseUrl = adapter.baseUrl.replace(/\/$/, "");
-  const session = await adapter.authenticate();
-  const harnessToken = session.authorizationHeader.replace(/^Bearer /, "");
-  if ((await tokenWorkspaceId(baseUrl, harnessToken)) === workspaceId) return new TwentyWorkspaceClient(baseUrl, workspaceId, harnessToken);
-
   const ws = (await workspaceLogins(baseUrl)).find((w) => w.id === workspaceId);
   if (ws === undefined) throw new Error(`TWENTY_TW1_NO_MEMBERSHIP: the admin is not a member of workspace ${workspaceId} (check the dev seed)`);
   const pick = (v: string | undefined): string | undefined => (v === undefined || v.trim() === "" ? undefined : v.trim().replace(/\/$/, ""));
@@ -110,34 +112,34 @@ export async function twentyWorkspaceClient(adapter: ProductAdapter, workspaceId
         getAuthTokensFromLoginToken?: { tokens?: { accessOrWorkspaceAgnosticToken?: { token?: string } } };
       };
       const token = exchanged.getAuthTokensFromLoginToken?.tokens?.accessOrWorkspaceAgnosticToken?.token;
-      if (typeof token !== "string") throw new Error("no access token");
-      if ((await tokenWorkspaceId(baseUrl, token)) !== workspaceId) throw new Error("token is for another workspace");
+      if (typeof token !== "string") throw new Error("the exchange returned no access token");
+      assertWorkspaceBound(token, workspaceId);
+      const current = await currentWorkspaceId(baseUrl, token);
+      if (current !== workspaceId) throw new Error(`currentWorkspace is ${current ?? "none"}, not ${workspaceId}`);
       return new TwentyWorkspaceClient(baseUrl, workspaceId, token);
     } catch (err) {
       failures.push(`origin ${origin.replace(/^https?:\/\//, "")}: ${(err as Error).message}`);
     }
   }
-  throw new Error(`TWENTY_TW1_NO_TOKEN: no origin gave a token for workspace ${workspaceId} (${failures.join("; ")})`);
+  throw new Error(`TWENTY_TW1_NO_BOUND_TOKEN: no origin gave a token bound to workspace ${workspaceId} (${failures.join("; ")})`);
 }
 
-/** Deletes every P4L3 row in both workspaces (notes first, then links, then companies and opportunities). */
+/** Deletes every P4L3 row in workspace A through the shared helper. Workspace B is not reachable here (see the header). */
 export async function sweepTwentyP4L3(adapter: ProductAdapter): Promise<void> {
-  for (const wsId of [TW_WORKSPACE_A, TW_WORKSPACE_B]) {
-    const c = await twentyWorkspaceClient(adapter, wsId);
-    for (const [mutation, plural, field] of [
-      ["destroyNote", "notes", "title"],
-      ["destroyOpportunity", "opportunities", "name"],
-      ["destroyCompany", "companies", "name"],
-    ] as const) {
-      for (const id of await c.p4l3Ids(plural, field)) {
-        await c.gql(`mutation($id: UUID!) { ${mutation}(id: $id) { id } }`, { id });
-      }
+  const c = await twentyWorkspaceClient(adapter, TW_WORKSPACE_A);
+  for (const [mutation, plural, field] of [
+    ["destroyNote", "notes", "title"],
+    ["destroyOpportunity", "opportunities", "name"],
+    ["destroyCompany", "companies", "name"],
+  ] as const) {
+    for (const id of await c.p4l3Ids(plural, field)) {
+      await c.gql(`mutation($id: UUID!) { ${mutation}(id: $id) { id } }`, { id });
     }
   }
 }
 
 export interface Tw1Ids {
-  /** Workspace A (Apple). */
+  /** Workspace A (Apple): the company and the two deals. */
   companyAlpha: string;
   dealAlpha: string;
   dealGamma: string;
@@ -147,19 +149,15 @@ export interface Tw1Ids {
   noteGamma: string;
   /** The note-target row that links the Gamma note to Deal Gamma (INJ-006 changes and deletes it). */
   noteTargetGamma: string;
-  /** Workspace B (YCombinator). */
-  companyB: string;
-  dealB: string;
 }
 
 /**
- * Creates the TW1 records. The poisoned note bodies are passed in by the caller (fixtures are JSON, not code). Canary text
- * is only in the note bodies; the titles are fixed so the sweep finds them.
+ * Creates the TW1 records in workspace A through the shared helper. The poisoned note bodies are passed in by the caller. Canary
+ * text is only in the note bodies; the titles are fixed so the sweep finds them.
  */
 export async function seedTw1(adapter: ProductAdapter, poison: { alpha: string; gamma: string }): Promise<Tw1Ids> {
   await sweepTwentyP4L3(adapter);
   const a = await twentyWorkspaceClient(adapter, TW_WORKSPACE_A);
-  const b = await twentyWorkspaceClient(adapter, TW_WORKSPACE_B);
 
   const companyAlpha = await a.create("createCompany", { name: "P4L3 Acme Co" });
   const dealAlpha = await a.create("createOpportunity", { name: "P4L3 Deal Alpha", stage: "NEW", amount: { amountMicros: 7654321000000, currencyCode: "USD" }, companyId: companyAlpha });
@@ -169,8 +167,14 @@ export async function seedTw1(adapter: ProductAdapter, poison: { alpha: string; 
   const noteGamma = await a.create("createNote", { title: "P4L3 poisoned description", bodyV2: { markdown: poison.gamma } });
   const noteTargetGamma = await a.create("createNoteTarget", { noteId: noteGamma, opportunityId: dealGamma });
 
-  const companyB = await b.create("createCompany", { name: "P4L3 B-only Co" });
-  const dealB = await b.create("createOpportunity", { name: "P4L3 B-only Deal", stage: "NEW", amount: { amountMicros: 550000000000, currencyCode: "USD" }, companyId: companyB });
+  return { companyAlpha, dealAlpha, dealGamma, noteAlpha, noteGamma, noteTargetGamma };
+}
 
-  return { companyAlpha, dealAlpha, dealGamma, noteAlpha, noteGamma, noteTargetGamma, companyB, dealB };
+/**
+ * Workspace B's company, through the same helper. In this harness it throws TWENTY_TW1_NO_BOUND_TOKEN (every origin resolves to the
+ * default workspace). Only the TOOL-006 body calls it, and that case is a named skip for this reason.
+ */
+export async function seedWorkspaceB(adapter: ProductAdapter): Promise<string> {
+  const b = await twentyWorkspaceClient(adapter, TW_WORKSPACE_B);
+  return b.create("createCompany", { name: "P4L3 B-only Co" });
 }
