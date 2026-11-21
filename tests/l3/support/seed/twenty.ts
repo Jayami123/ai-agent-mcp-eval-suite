@@ -86,7 +86,9 @@ export async function twentyWorkspaceClient(adapter: ProductAdapter, workspaceId
   const baseUrl = adapter.baseUrl.replace(/\/$/, "");
   const ws = (await workspaceLogins(baseUrl)).find((w) => w.id === workspaceId);
   if (ws === undefined) throw new Error(`TWENTY_TW1_NO_MEMBERSHIP: the admin is not a member of workspace ${workspaceId} (check the dev seed)`);
-  const origin = (ws.workspaceUrls?.subdomainUrl ?? ws.workspaceUrls?.customUrl ?? baseUrl).replace(/\/$/, "");
+  // Same rule as the harness (selectWorkspaceOrigin): the first NON-EMPTY of subdomain, custom, then the base URL.
+  const pick = (v: string | undefined): string | undefined => (v === undefined || v.trim() === "" ? undefined : v.trim().replace(/\/$/, ""));
+  const origin = pick(ws.workspaceUrls?.subdomainUrl) ?? pick(ws.workspaceUrls?.customUrl) ?? baseUrl;
   const exchanged = (await postJson(`${baseUrl}/metadata`, { query: EXCHANGE, variables: { loginToken: ws.loginToken, origin } })) as {
     getAuthTokensFromLoginToken?: { tokens?: { accessOrWorkspaceAgnosticToken?: { token?: string } } };
   };
