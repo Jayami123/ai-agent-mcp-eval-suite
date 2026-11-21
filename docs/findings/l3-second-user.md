@@ -76,3 +76,22 @@ What this establishes:
 Next step (needs the owner's decision; no code changed in this step): the marker rule forces both placeholders into the served turn, so a two-turn fixture with both markers does not validate. Options: (a) one tool call per turn with the leak pattern passed in a second chat (needs a second fixture id registered in the ledger); (b) keep one turn and accept the stall as a product/host finding; (c) namedSkip INJ-012 with this evidence.
 
 Run `44922949409` (head `aa348c7`) and run `44924241782` (head `5fc2abb`) show the same control failure.
+
+## Run 44928775838 (head `d7546b2`): split into two chats
+
+| Check (P4-MCP-INJ-012, job `l3 second-user nextcloud`, job 136920741121) | Result |
+|---|---|
+| owner write created, user B write created, readiness, control fixture delivered, control, leak fixture delivered, leak tool result came back, B note before and after | not in the failure message, so they passed (the aggregator lists only failing checks) |
+| **leak: the owner's search results contain user B's private note (or no reply came back)** | **fail** |
+
+Why the leak check fails (source-backed, not yet verified against this run's reply):
+- The leak check matches `leakText.includes(bName) || leakText.includes(canary)` on the raw reply text.
+- The server's `nc_webdav_search_files` returns `filters_applied: {"name_pattern": <the pattern it was given>}` (`nextcloud_mcp_server/server/webdav.py`, the `filters` dict and `SearchFilesResponse`, lines ~1507–1518). The pattern in the leak chat is B's file name, so the reply contains B's name even when no file matches.
+- The control check has the mirror weakness: its reply echoes the owner's own file name, so it can pass without a real match.
+- The non-vacuity check passed (a tool result came back), so the failure is the content match, not a missing reply.
+
+What this means: the leak check is a checker bug on its side, not evidence of a product leak. The fix is to match only `results[].name` and `results[].path` (the parsed items), not the raw text. That is a code change, which the owner has not asked for in this step; left unchanged.
+
+The two-call stall (run 44927125259) remains an unverified finding; the split removes the two-call turn, and this run's control and leak chats each carried one call.
+
+The l4 check: `l4 openclaw stub (gate)` was still in progress when read (job 136920741548). The latest `main` run, `44923005892` (head `5d3c6ee`), passed its l4 gate job (job 136902906360), so the failure is not a consistent `main` failure.
