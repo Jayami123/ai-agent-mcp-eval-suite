@@ -50,7 +50,9 @@
     "test:stack:l3:wave-b:mattermost-twenty": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/mattermost/wave-b.e2e.js",
     "test:stack:l3:wave-b:outline-twenty": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/outline/wave-b.e2e.js",
     "test:stack:l3:wave-b:host": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/host/wave-b.e2e.js",
-    "test:stack:l3:wave-b:nextcloud-mattermost": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/nextcloud/wave-b.e2e.js"
+    "test:stack:l3:wave-b:nextcloud-mattermost": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/nextcloud/wave-b.e2e.js",
+    "test:stack:l3:host-design:appr": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/host/appr-app.e2e.js",
+    "test:stack:l3:host-design:rel": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/host/rel-host.e2e.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

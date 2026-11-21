@@ -54,7 +54,7 @@ export interface ApprovalRun {
   agentId: string;
 }
 
-interface PauseEvent {
+export interface PauseEvent {
   actionId: string;
   payload: {
     action_requests: Array<{ name: string; tool_call_id: string; arguments?: unknown }>;
@@ -182,7 +182,7 @@ async function lastFinishedMessage(baseUrl: string, authorization: string, conve
 }
 
 /** Reads the stream until the next pause (returned), the final event ("final"), or the deadline (undefined). */
-async function nextPauseOrFinal(baseUrl: string, authorization: string, streamId: string, timeoutMs: number): Promise<PauseEvent | "final" | undefined> {
+export async function nextPauseOrFinal(baseUrl: string, authorization: string, streamId: string, timeoutMs: number): Promise<PauseEvent | "final" | undefined> {
   const res = await fetch(`${baseUrl}/api/agents/chat/stream/${streamId}`, { headers: { authorization, accept: "text/event-stream", "user-agent": UA }, signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok || !res.body) throw new Error(`APPROVAL_STREAM_HTTP_${res.status}`);
   const reader = res.body.getReader();

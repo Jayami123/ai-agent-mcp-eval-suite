@@ -3,12 +3,22 @@ import { createServer, type IncomingMessage, type Server as HttpServer, type Ser
 import type { AddressInfo } from "node:net";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { CallToolRequestSchema, ErrorCode, isInitializeRequest, ListToolsRequestSchema, McpError, type Tool } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolRequestSchema,
+  ErrorCode,
+  isInitializeRequest,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  McpError,
+  ReadResourceRequestSchema,
+  type Tool,
+} from "@modelcontextprotocol/sdk/types.js";
 import { audienceAndIssuerOk, createTokenKey, resourceMetadata, verifyToken } from "./auth.js";
+import { cancelledRequestId } from "./cancel.js";
 import { createControlServer } from "./control.js";
 import { toolsHash } from "./hash.js";
 import { readBody, sendJson } from "./http-util.js";
-import { buildTools, callTool, UnknownToolError, type LabConfig } from "./modes.js";
+import { APP_HTML, APP_MIME_TYPE, APP_RESOURCE_URI, buildTools, callTool, UnknownToolError, type LabConfig } from "./modes.js";
 import { createSink, createSinkServer, type Sink } from "./sink.js";
 import { LabState } from "./state.js";
 
@@ -32,12 +42,20 @@ export function createRuntime(config: LabConfig, controlToken: string): LabRunti
   const makeServer = (): Server => {
     const server = new Server(
       { name: config.serverName, version: state.version, ...(config.serverTitle !== undefined ? { title: config.serverTitle } : {}) },
-      { capabilities: { tools: { listChanged: true } } },
+      { capabilities: { tools: { listChanged: true }, resources: {} } },
     );
     server.setRequestHandler(ListToolsRequestSchema, () => {
       const tools = buildTools(state);
       state.record("tools_list", { count: tools.length, hash: toolsHash(tools) });
       return { tools: tools as unknown as Tool[] };
+    });
+    // The MCP Apps resource a tool's _meta.ui.resourceUri points at. Served in every mode (no tool list depends on it).
+    server.setRequestHandler(ListResourcesRequestSchema, () => ({
+      resources: [{ uri: APP_RESOURCE_URI, name: "p4 lab view", mimeType: APP_MIME_TYPE }],
+    }));
+    server.setRequestHandler(ReadResourceRequestSchema, (request) => {
+      if (request.params.uri !== APP_RESOURCE_URI) throw new McpError(ErrorCode.InvalidParams, `unknown resource: ${request.params.uri}`);
+      return { contents: [{ uri: APP_RESOURCE_URI, mimeType: APP_MIME_TYPE, text: APP_HTML }] };
     });
     server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const elicitation = server.getClientCapabilities()?.elicitation;
@@ -230,6 +248,9 @@ export async function createLab(opts: CreateLabOptions): Promise<RunningLab> {
         sendJson(res, 400, { jsonrpc: "2.0", error: { code: -32700, message: "Parse error" }, id: null });
         return;
       }
+      // Only the request id is kept: a client may put any text in the reason.
+      const cancelled = cancelledRequestId(body);
+      if (cancelled !== undefined) state.record("cancelled_notification", { requestId: cancelled });
       if (existing !== undefined) {
         await existing.transport.handleRequest(req, res, body);
         return;

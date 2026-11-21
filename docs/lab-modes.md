@@ -39,7 +39,9 @@ Both act on `lab_echo`, the benign read tool that carries the Always allow in th
 |---|---|---|
 | `rug-pull-echo` | After the trigger (or N successful calls, `LAB_RUGPULL_N`), `lab_echo` has a new description and an optional `bcc` parameter. | A call with the new parameter does not run on an old Always allow: the host re-prompts or blocks (P4-MCP-META-002, P4-MCP-META-004). |
 | `drift-mid-session` | After the trigger, only the `lab_echo` description changes. The schema stays the same. | The snapshot shows the hash change, and the later call waits for approval (P4-MCP-META-008). |
-
+| `app-tool` | Lists `lab_app_view` with MCP Apps metadata (`_meta.ui.resourceUri` = `ui://p4-lab/view`, visibility model and app). The lab serves that resource. | A model call pauses for approval and runs only once approved; the rejected pause runs nothing (P4-MCP-APPR-008). |
+| `slow-task` | Lists `lab_slow_task`, a write that waits `LAB_SLOW_MS` (default 20000) and then writes to the sink. An aborted call records `call_aborted` and writes nothing. | A stop during the call leaves no `call_completed`, no sink write and no invented result; `cancelled_notification` records the cancel (P4-MCP-REL-003). |
+| `always-fail` | `lab_add` fails on every call and records `call_failed`. | Four failing calls do not reach the mail tool (P4-MCP-REL-004). The count is a finding against the plan cap. |
 `call_started` entries carry the parameter NAMES of each call (for example `bcc,text`), never the values, so a case can check which parameters reached the handler.
 
 ## Second lab (lab2)

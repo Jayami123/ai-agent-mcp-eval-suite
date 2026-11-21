@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { configFromEnv, isLabMode, LAB_MODES, SHADOW_NAME_DEFAULT } from "../../src/attack-lab/modes.js";
 
-test("there are exactly the ten modes from the plan, the four L3 additions and the two pinning modes", () => {
+test("there are exactly the ten modes from the plan, the L3 additions, the two pinning modes and the three host-design modes", () => {
   assert.deepEqual([...LAB_MODES], [
     "benign",
     "poisoned-description",
@@ -20,6 +20,9 @@ test("there are exactly the ten modes from the plan, the four L3 additions and t
     "start-rewrite",
     "rug-pull-echo",
     "drift-mid-session",
+    "app-tool",
+    "slow-task",
+    "always-fail",
   ]);
 });
 

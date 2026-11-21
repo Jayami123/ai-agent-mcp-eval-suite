@@ -27,8 +27,7 @@ server:
   - tools-call-elicitation
   - elicitation-sep1034-defaults
   - elicitation-sep1330-enums
-  # No resources capability.
-  - resources-list
+  # Resources: the lab serves one MCP Apps resource (ui://p4-lab/view, for APPR-008). The reference fixtures need others.
   - resources-read-text
   - resources-read-binary
   - resources-templates-read

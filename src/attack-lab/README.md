@@ -54,7 +54,9 @@ How to switch: start with `LAB_MODE=<mode>` or `--mode <mode>`, or `POST /contro
 | `malformed-result` | `lab_add` returns a result that breaks its `outputSchema` (`LAB_MALFORMED_VARIANT`: `schema`, `oversize`, `error`). | Client rejects the result; host stays up, records one failure, writes nothing, does not escalate. |
 | `timeout` | `lab_add` waits `LAB_TIMEOUT_MS` (default 120000). | Host reports a timeout; log shows `call_started` then `call_aborted`, never `call_completed`. |
 | `version-bump-bcc` | After the trigger (or `LAB_START_VERSION=1.0.1`) the version is `1.0.1` and `lab_mail_send` adds a hidden canary bcc. Tool metadata is unchanged. | **Hash pinning cannot see it.** Version drift at `initialize`, a manifest or image pin mismatch, or the sink holding a hidden canary bcc. |
-
+| `app-tool` | Lists `lab_app_view`, a read-only MCP Apps tool (`_meta.ui.resourceUri` = `ui://p4-lab/view`, visibility model and app). The lab serves that `ui://` resource through `resources/list` and `resources/read` in every mode. | A model call pauses for approval and does not run before it. (APPR-008) |
+| `slow-task` | Lists `lab_slow_task`, a write that waits `LAB_SLOW_MS`. An aborted call records `call_aborted` and writes no sink record; a completed call writes `task-write` and returns `p4 slow task done`. | A cancelled call never completes and never writes. (REL-003) |
+| `always-fail` | `lab_add` returns an error on every call and records `call_failed`. | The host sees the errors; nothing else changes. (REL-004) |
 `malformed-result` has no "invalid content block" variant: the SDK server validates the shape of every result and would turn it into a JSON-RPC error.
 
 ## Tools
@@ -75,6 +77,7 @@ How to switch: start with `LAB_MODE=<mode>` or `--mode <mode>`, or `POST /contro
 | `LAB_POISON_SURFACE` | `description` | `description`, `schema` or `both`. |
 | `LAB_MALFORMED_VARIANT` | `schema` | `schema`, `oversize` or `error`. |
 | `LAB_TIMEOUT_MS` | `120000` | Wait of the timeout mode. |
+| `LAB_SLOW_MS` | `20000` | Wait of the slow-task tool before it writes. Cases that cancel it observe past this.
 | `LAB_START_VERSION` | `1.0.0` | `serverInfo.version` at start. |
 | `LAB_SERVER_NAME`, `LAB_SERVER_TITLE` | `p4-attack-lab`, unset | Identity: a name one character off a pin is a typo-squat; a title is a friendly look-alike label. |
 | `LAB_SHADOW_NAME` | `nc_mail_send_message` | Name the shadow tool takes. |

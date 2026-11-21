@@ -19,6 +19,8 @@ export interface ToolDef {
   inputSchema?: unknown;
   outputSchema?: unknown;
   annotations?: Record<string, unknown>;
+  /** MCP Apps metadata (`_meta.ui.resourceUri`), when the server sends it. */
+  _meta?: Record<string, unknown>;
 }
 
 /** Plain JSON, or an SSE body ("event: message\ndata: {...}"), or empty (a 202). Never echoes the text on failure. */
