@@ -83,7 +83,8 @@ async function workspaceLogins(baseUrl: string): Promise<WorkspaceLogin[]> {
 
 /** The workspace a bearer token belongs to (core API currentWorkspace). Used to check which workspace a token is for. */
 async function tokenWorkspaceId(baseUrl: string, token: string): Promise<string | undefined> {
-  const data = (await postJson(`${baseUrl}/graphql`, { query: "query { currentWorkspace { id } }" }, token)) as { currentWorkspace?: { id?: unknown } };
+  // currentWorkspace is on the metadata API (the core /graphql schema has no such field at this version).
+  const data = (await postJson(`${baseUrl}/metadata`, { query: "query { currentWorkspace { id } }" }, token)) as { currentWorkspace?: { id?: unknown } };
   return typeof data.currentWorkspace?.id === "string" ? data.currentWorkspace.id : undefined;
 }
 
