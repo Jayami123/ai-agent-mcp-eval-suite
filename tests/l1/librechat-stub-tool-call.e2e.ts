@@ -31,6 +31,7 @@ test(
     process.env["LIBRECHAT_MCP_PRODUCTS"] = "twenty";
     process.env["P4_STUB_API_BASE"] = STUB_UPSTREAM_URL;
     delete process.env["GEMINI_API_KEY"]; // never needed here, never present
+    delete process.env["DEEPSEEK_API_KEY"];
 
     await requireStubContainer();
     await resetStubTrace();
