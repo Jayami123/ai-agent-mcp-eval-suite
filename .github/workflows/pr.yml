@@ -305,6 +305,299 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # L3 approval wave B, Twenty: INJ-005, INJ-006, TOOL-006, TOOL-009 through LibreChat against the real Twenty MCP. Stub
+  # mode only (no secrets, safe for fork PRs). The Twenty fork is read-only, pinned to the commit the harness adapter uses.
+  l3-appr-wave-b-twenty:
+    name: l3 appr-wave-b twenty
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: twenty
+      PRODUCTS_ROOT: ${{ github.workspace }}/products
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Twenty fork, read-only, pinned to the commit the harness Twenty adapter uses (7cbdfec6, dev seeder). Never modified.
+      - name: Checkout Twenty fork (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Jayami123/twenty-CRM
+          ref: 7cbdfec6f346b43715bc2056932f4fad5886f733
+          path: products/twenty-CRM
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 approval wave B, Twenty
+        run: npm run test:stack:l3:wave-b:twenty
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-appr-wave-b-twenty-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # L3 approval wave B, Mattermost and Twenty (FLOW-001, FLOW-010). Stub mode only; Twenty fork read-only.
+  l3-appr-wave-b-mattermost-twenty:
+    name: l3 appr-wave-b mattermost-twenty
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: mattermost,twenty
+      P4_SECOND_IDENTITY: "1"
+      P4_SECOND_POSTS: "1"
+      PRODUCTS_ROOT: ${{ github.workspace }}/products
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Twenty fork, read-only, pinned to the commit the harness Twenty adapter uses (7cbdfec6, dev seeder). Never modified.
+      - name: Checkout Twenty fork (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Jayami123/twenty-CRM
+          ref: 7cbdfec6f346b43715bc2056932f4fad5886f733
+          path: products/twenty-CRM
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 approval wave B, Mattermost and Twenty
+        run: npm run test:stack:l3:wave-b:mattermost-twenty
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-appr-wave-b-mattermost-twenty-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # L3 approval wave B, Outline and Twenty (FLOW-004; INJ-011 is a named skip). Stub mode only; Twenty fork read-only.
+  l3-appr-wave-b-outline-twenty:
+    name: l3 appr-wave-b outline-twenty
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: outline,twenty
+      PRODUCTS_ROOT: ${{ github.workspace }}/products
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Twenty fork, read-only, pinned to the commit the harness Twenty adapter uses (7cbdfec6, dev seeder). Never modified.
+      - name: Checkout Twenty fork (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Jayami123/twenty-CRM
+          ref: 7cbdfec6f346b43715bc2056932f4fad5886f733
+          path: products/twenty-CRM
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 approval wave B, Outline and Twenty
+        run: npm run test:stack:l3:wave-b:outline-twenty
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-appr-wave-b-outline-twenty-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # L3 approval wave B, Nextcloud and Mattermost: FLOW-007 (a contact's phone must not be posted publicly). Stub mode only.
+  l3-appr-wave-b-nextcloud-mattermost:
+    name: l3 appr-wave-b nextcloud-mattermost
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+      P4_L3_SERVERS: nextcloud,mattermost
+      P4_SECOND_IDENTITY: "1"
+      P4_SECOND_POSTS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Free runner disk space
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: L3 approval wave B, Nextcloud and Mattermost (FLOW-007)
+        run: npm run test:stack:l3:wave-b:nextcloud-mattermost
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-appr-wave-b-nextcloud-mattermost-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # L3 approval wave B, host: SUPP-006 with the registered lab and an unregistered second lab. Stub mode only, no product.
+  l3-appr-wave-b-host:
+    name: l3 appr-wave-b host
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      P4_LLM_MODE: stub
+      P4_STACK_TESTS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Start the stub container on qa-harness-p4
+        run: npm run stub:up
+
+      - name: Start both attack-lab containers (lab registered, lab2 not)
+        run: npm run lab:up
+
+      - name: L3 approval wave B, host (SUPP-006)
+        run: npm run test:stack:l3:wave-b:host
+
+      - name: Stop the attack-lab containers
+        if: always()
+        run: npm run lab:down
+
+      - name: Stop the stub container
+        if: always()
+        run: npm run stub:down
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l3-appr-wave-b-host-evidence-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
   # L3 stack job for Nextcloud: the L3 cases through LibreChat against the real Nextcloud MCP, stub mode only (no secrets, safe for
   # fork PRs). Advisory until stable (docs/branch-protection.md).
   l3-nextcloud:

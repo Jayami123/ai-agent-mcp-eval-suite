@@ -45,7 +45,12 @@
     "test:stack:l3:probe:mail": "tsc -p tsconfig.test.json && P4_L3_PROBE=1 node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/probe/mail.e2e.js",
     "test:stack:l3:probe:ui": "tsc -p tsconfig.test.json && P4_L3_PROBE=1 node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/probe/ui.e2e.js",
     "test:stack:l3:ui": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/host/ui.e2e.js",
-    "test:stack:l3:mail": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/mail.e2e.js"
+    "test:stack:l3:mail": "tsc -p tsconfig.test.json && node --test --test-timeout=2400000 --test-concurrency=1 dist-test/tests/l3/nextcloud/mail.e2e.js",
+    "test:stack:l3:wave-b:twenty": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/twenty/wave-b.e2e.js",
+    "test:stack:l3:wave-b:mattermost-twenty": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/mattermost/wave-b.e2e.js",
+    "test:stack:l3:wave-b:outline-twenty": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/outline/wave-b.e2e.js",
+    "test:stack:l3:wave-b:host": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/host/wave-b.e2e.js",
+    "test:stack:l3:wave-b:nextcloud-mattermost": "tsc -p tsconfig.test.json && node --test --test-timeout=1800000 --test-concurrency=1 dist-test/tests/l3/nextcloud/wave-b.e2e.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

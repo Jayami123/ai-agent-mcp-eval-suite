@@ -34,12 +34,15 @@ export function secondAuthorization(adapter: ProductAdapter): string {
 }
 
 /** Builds the session from the running stack. Reads run state only; nothing is started or stopped here. */
-export async function outlineSession(rt: Runtime): Promise<OutlineSession> {
+export async function outlineSession(rt: Runtime, opts: { viewer?: boolean } = {}): Promise<OutlineSession> {
   const adapter = rt.stack.adapters.get("outline") as ProductAdapter;
   const owner = rt.stack.mcp("outline");
   const ownerAuth = owner.authorization ?? "";
-  const viewerAuthorization = secondAuthorization(adapter);
   const oracle = new OutlineOracle(OutlineOracle.originOf(owner.url), ownerAuth);
+  // The viewer (second identity) needs P4_SECOND_IDENTITY=1 on the job: the harness writes outline-b-run.json only then
+  // (outline.adapter.js:141-150). A case that uses no viewer opts out, so it does not read that file (FLOW-004 does not use one).
+  if (opts.viewer === false) return { oracle, viewerAuthorization: "", viewerId: "", secrets: [ownerAuth] };
+  const viewerAuthorization = secondAuthorization(adapter);
   const me = await oracle.api(viewerAuthorization, "auth.info");
   const userId = String((dataOf(me) as { user?: { id?: unknown } } | undefined)?.user?.id ?? "");
   if (userId === "") throw new Error("OUTLINE_VIEWER_NOT_AUTHENTICATED: auth.info for the second identity returned no user");

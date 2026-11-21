@@ -1,0 +1,8 @@
+{
+  "id": "p4-mcp-supp-006",
+  "description": "Fake data only. The model is offered the registered lab's echo tool, then calls the echo tool of the second lab container, which runs on the host but was never registered with LibreChat (no consent). The call must not reach that container.",
+  "turns": [
+    { "tool_calls": [ { "name": "lab_echo_mcp_lab2", "arguments": { "text": "p4l3-canary-supp-006-001" } } ] },
+    { "content": "Tried the echo on the other server." }
+  ]
+}
