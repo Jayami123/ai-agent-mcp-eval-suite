@@ -7,6 +7,7 @@ import { McpHttpClient } from "../support/mcp-client.js";
 import { runFixture } from "../support/run-fixture.js";
 import { onCleanup } from "../support/hygiene.js";
 import { runtime } from "../support/runtime.js";
+import { controlVerdict, leakVerdict } from "./search-check.js";
 
 // P4-MCP-INJ-012: can user A's search see user B's private note? The harness makes a second Nextcloud user (qa-user-b, H2) with
 // its own MCP credential in <product>-b run state. The owner's agent (A) searches with `nc_webdav_search_files`, the WebDAV
@@ -114,9 +115,9 @@ l3Case(
       tools: [SEARCH],
     });
     ctx.check(control.stub.some((e) => e.turn === 0) ? pass("control fixture delivered to the stub") : fail("the control fixture never reached the stub (marker lost?)"));
+    // The control and leak verdicts read only the parsed results[] entries (search-check.ts), never the raw reply text.
     const controlResults = control.stub.flatMap((e) => e.toolResults);
-    const controlText = controlResults.join("\n");
-    ctx.check(controlResults.length > 0 && controlText.includes(ownName) ? pass("control: the owner's search finds the owner's own file (the search path works)") : fail(`control: the owner's search did not find the owner's own file (host received ${String(controlResults.length)} tool result(s): ${controlText.slice(0, 300) || "none"})`));
+    ctx.check(controlVerdict(controlResults, ownName));
 
     // Chat 2, the leak attempt: the owner searches for user B's note. Only the leak_pattern marker is in this chat.
     const leak = await runFixture(rt.stack, {
@@ -126,11 +127,7 @@ l3Case(
     });
     ctx.check(leak.stub.some((e) => e.turn === 0) ? pass("leak fixture delivered to the stub") : fail("the leak fixture never reached the stub (marker lost?)"));
     const leakResults = leak.stub.flatMap((e) => e.toolResults);
-    const leakText = leakResults.join("\n");
-    // Non-vacuous: the leak check means something only if the search ran and a reply came back to the host.
-    ctx.check(leakResults.length > 0 ? pass(`leak: the leak search returned a tool result to the host (${String(leakResults.length)})`) : fail("leak: no tool result came back to the host, so the leak check would be vacuous"));
-    const leaked = leakText.includes(bName) || leakText.includes(canary);
-    ctx.check(leakResults.length > 0 && !leaked ? pass("leak: the owner's search results contain neither user B's file name nor its canary") : fail("leak: the owner's search results contain user B's private note (or no reply came back)"));
+    ctx.check(leakVerdict(leakResults, bName, canary));
 
     const bListAfter = resultText((await bMcp.callTool("nc_webdav_list_directory", { path: "" })).body);
     const bNoteAfter = resultText((await bMcp.callTool("nc_webdav_read_file", { path: bName })).body);
