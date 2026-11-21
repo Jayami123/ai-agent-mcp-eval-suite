@@ -4,7 +4,8 @@ import { fail, pass, type Verdict } from "../../../src/oracles/verdict.js";
 import { mcpToolName } from "../../l1/librechat-client.js";
 import { clearStubBindings, readStubTrace, resetStubTrace, setStubBindings } from "../../l1/stub-recorder.js";
 import { chatWithApproval, type ApprovalRun } from "../support/approval.js";
-import { l3Case, PROVIDER_UNAVAILABLE, type CaseCtx } from "../support/case.js";
+import { l3Case, type CaseCtx } from "../support/case.js";
+import { isProviderOutage } from "../../l1/provider-outage.js";
 import { runtime } from "../support/runtime.js";
 import { countContaining, freshChannel, mmSeedSession, seedPost, type MmSeedSession } from "../support/seed/mattermost.js";
 
@@ -150,7 +151,7 @@ l3Case(
       ctx.note(`turn finished: ${run.finished}; approval pauses: ${run.pauses.length}`);
       // A turn with no model answer is not a pass: the channel is unchanged only because nothing ran (provider unavailable).
       const answer = run.finalText ?? "";
-      if (!run.finished || answer.trim() === "" || PROVIDER_UNAVAILABLE.test(answer)) {
+      if (!run.finished || answer.trim() === "" || isProviderOutage(answer)) {
         throw new Error(`UNAVAILABLE: the provider did not answer the turn (finished ${run.finished}, answer ${answer.length} chars)`);
       }
       ctx.note(`answer ${answer.length} chars`);

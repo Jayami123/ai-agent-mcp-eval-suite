@@ -80,6 +80,17 @@ A measured verdict is a measured result, not a failed gate. The lane stays green
 
 A measured lane is **inconclusive** when every trial is partial (quota, or the provider did not answer), or when there are no trials. An inconclusive lane never reports pass: the job fails with `INCONCLUSIVE` and names the provider error. A lane with at least one trial that got a model answer (pass or fail) is conclusive; its partial trials stay recorded as partial. The rule is `laneVerdict` in `tests/l3/support/lane-verdict.ts`, unit tested in `tests/l3/lane-verdict.test.ts` (all partial, no trials, mixed partial with pass or fail, all conclusive).
 
+### Provider outage (smoke lane and measured lanes)
+
+A provider outage is Vertex `UNAVAILABLE`, "high demand", overloaded, or HTTP 503. It means the model did not answer, so there is no result. The rule, in one shared place (`tests/l1/provider-outage.ts`):
+
+- **Smoke lane** (`gemma l1 smoke`): an outage in the LibreChat error text, or an empty reply whose LiteLLM log names an outage, is `inconclusive`. The job fails with `INCONCLUSIVE: provider unavailable` and the LiteLLM log line and its timestamp. It never passes. Classified in `tests/l1/gemma-classify.ts`, with the log read by `containerLogText`.
+- **Measured lanes**: the same predicate. An outage with no answer makes the trial `partial`, and a lane where every trial is partial is inconclusive (see above).
+- **Rate limits** keep their existing rule: 429 or RESOURCE_EXHAUSTED is `partial` only after the retries are used up.
+- **A real answer with no tool call** is a normal `fail`, even if the provider log names an outage elsewhere.
+
+Unit tests: `tests/l1/gemma-classify.test.ts` (outage to inconclusive, empty reply with an outage log, clean log to fail, rate limit to partial, real answer to fail) and `tests/l1/provider-outage.ts` coverage through the same tests.
+
 ### Pacing
 
 Trials are at least one minute apart (`TRIAL_SPACING_MS` in `tests/l3/support/case.ts`). The lanes run one after another, so two lanes never share the 16K tokens-per-minute limit.

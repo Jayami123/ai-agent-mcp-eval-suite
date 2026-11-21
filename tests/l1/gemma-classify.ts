@@ -1,14 +1,20 @@
 import { checkSeededText } from "./seed-check.js";
+import { isProviderOutage, outageLogLine } from "./provider-outage.js";
 import type { LcChatOutcome } from "./librechat-client.js";
 
 // The Gemma nightly outcome rules, as a pure function so every branch has a unit test.
 //   pass                 the tool was called with object arguments and the seeded-state check passed
 //   partial              ONLY a 429 or RESOURCE_EXHAUSTED that is still there after every retry
 //   blocked by provider  ONLY a safety refusal
+//   inconclusive        a provider outage (UNAVAILABLE, high demand, 503): the model never answered, so there is no result.
+//                        It never passes. The job fails with "INCONCLUSIVE: provider unavailable".
 //   fail                 everything else: no tool call, wrong tool, bad arguments, a failed or unverified state check,
 //                        any other error, and a rate limit seen before the retries were used up
+//
+// Order: rate limit first (existing rule), then outage, then safety, then the rest. An outage with an empty reply and no error
+// text is read from the provider log (LiteLLM): the log names the outage and its timestamp.
 
-export type GemmaStatus = "pass" | "fail" | "partial" | "blocked by provider";
+export type GemmaStatus = "pass" | "fail" | "partial" | "blocked by provider" | "inconclusive";
 
 export interface GemmaVerdict {
   status: GemmaStatus;
@@ -26,14 +32,16 @@ export function isSafetyRefusal(text: string): boolean {
 }
 
 export function classifyGemmaOutcome(input: {
-  outcome: Pick<LcChatOutcome, "errorText" | "toolCalls">;
+  outcome: Pick<LcChatOutcome, "errorText" | "toolCalls"> & { text?: string };
+  /** The provider (LiteLLM) container log, read after the run. Used only for an empty reply: it names an outage or not. */
+  providerLog?: string;
   /** The MCP tool name as LibreChat sends it, for example list_object_metadata_names_mcp_twenty. */
   toolName: string;
   /** Chat attempts made, and the most the test allows. */
   attempts: number;
   maxAttempts: number;
 }): GemmaVerdict {
-  const { outcome, toolName, attempts, maxAttempts } = input;
+  const { outcome, toolName, attempts, maxAttempts, providerLog } = input;
 
   if (outcome.errorText !== "") {
     if (isRateLimited(outcome.errorText)) {
@@ -41,12 +49,22 @@ export function classifyGemmaOutcome(input: {
         ? { status: "partial", reason: `rate limited (429 or RESOURCE_EXHAUSTED) after ${attempts} attempt(s)` }
         : { status: "fail", reason: `rate limited after only ${attempts} of ${maxAttempts} attempts: the retries were not used up` };
     }
+    if (isProviderOutage(outcome.errorText)) {
+      return { status: "inconclusive", reason: `INCONCLUSIVE: provider unavailable (LibreChat error: ${outcome.errorText.slice(0, 160)})` };
+    }
     if (isSafetyRefusal(outcome.errorText)) {
       return { status: "blocked by provider", reason: "provider safety refusal" };
     }
     return { status: "fail", reason: "LibreChat reported an error that is not a rate limit or a safety refusal" };
   }
 
+  // An empty reply with no error text: the provider log decides. An outage it names is inconclusive, never a pass.
+  if (outcome.toolCalls.length === 0 && (outcome.text ?? "").trim() === "" && providerLog !== undefined) {
+    const hit = outageLogLine(providerLog);
+    if (hit !== null) {
+      return { status: "inconclusive", reason: `INCONCLUSIVE: provider unavailable (empty reply; LiteLLM log at ${hit.time}: ${hit.line})` };
+    }
+  }
   if (outcome.toolCalls.length === 0) {
     return { status: "fail", reason: "no tool call in the saved assistant message" };
   }
