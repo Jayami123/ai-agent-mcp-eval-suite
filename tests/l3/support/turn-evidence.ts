@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ApprovalRecord, TurnEvidence } from "../../../src/stats/schema.js";
-import type { ApprovalRun } from "./approval.js";
+import { messageText, type ApprovalRun } from "./approval.js";
 
 // Pure helpers for a measured nightly trial: how a turn with no final text is judged, and how the turn is written into the
 // trial record. No I/O here, so the unit tests run without a stack. Nothing here holds a key, a token or a header value.
@@ -72,7 +72,8 @@ export function toTurnEvidence(run: ApprovalRun, notes: readonly string[]): Turn
             model: m["model"] ?? null,
             unfinished: m["unfinished"] ?? null,
             error: m["error"] ?? null,
-            text: str(m["text"]) ?? "",
+            // The same answer text the verdict used (approval.ts messageText): the top-level text, else the content text parts.
+            text: messageText(m),
             parts: Array.isArray(m["content"]) ? (m["content"] as unknown[]) : [],
           },
         }),
