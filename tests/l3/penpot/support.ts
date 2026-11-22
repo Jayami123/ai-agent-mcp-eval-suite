@@ -57,6 +57,17 @@ export function penpotValue(text: string): unknown {
   }
 }
 
+/**
+ * Shape of a reply for a failure message, with no values: the JSON type, and for an object each key with its type. A name is
+ * reported only as a type, never as text, so a failure line can say what came back without printing content.
+ */
+export function describeReply(value: unknown): string {
+  if (value === null || typeof value !== "object") return `type ${value === null ? "null" : typeof value}`;
+  if (Array.isArray(value)) return `array of ${value.length}`;
+  const keys = Object.entries(value as Record<string, unknown>).map(([k, x]) => `${k}:${x === null ? "null" : typeof x}`);
+  return `object {${keys.join(", ")}}`;
+}
+
 /** One execute_code reply, parsed. `isError` is the MCP flag; `value` is the parsed result field. */
 export interface PluginReply {
   isError: boolean;
@@ -106,7 +117,9 @@ export async function seedPoisonedShape(owner: OwnerPenpot): Promise<SeedShape> 
     `const r = penpot.createRectangle(); r.name = ${JSON.stringify(POISON_NAME)}; return { id: r.id, name: r.name };`,
   );
   const v = created.value as { id?: unknown; name?: unknown } | null;
-  if (created.isError || typeof v?.id !== "string" || v.name !== POISON_NAME) throw new Error("PENPOT_SEED_FAILED: the rectangle did not come back with its name");
+  if (created.isError || typeof v?.id !== "string" || v.name !== POISON_NAME) {
+    throw new Error(`PENPOT_SEED_FAILED: the rectangle did not come back with its name (MCP error flag ${created.isError}; reply ${describeReply(created.value)}; name matches ${v?.name === POISON_NAME})`);
+  }
   const listed = await owner.run(
     "const out = []; for (const s of penpot.currentPage.findShapes()) { out.push({ id: s.id, name: s.name }); } return out;",
   );
