@@ -80,3 +80,19 @@ export function substituteVars(args: unknown, vars: Record<string, string>): { a
   };
   return { args: walk(args), used };
 }
+
+/**
+ * The marker names the request gave that no placeholder in the WHOLE fixture uses. A marker rides in the latest user message, and
+ * every turn of a tool loop sees that same message, so a turn with no placeholder (an execute_code step after an export that used
+ * the shape id) would otherwise refuse a marker its own turn does not need. A name no turn uses is still refused, so a typo stays
+ * caught. Pure.
+ */
+export function markersUnusedByFixture(turns: ReadonlyArray<{ tool_calls?: ReadonlyArray<{ arguments?: unknown }> }>, vars: Record<string, string>): string[] {
+  const used = new Set<string>();
+  for (const turn of turns) {
+    for (const call of turn.tool_calls ?? []) {
+      for (const name of placeholdersIn(call.arguments)) used.add(name);
+    }
+  }
+  return Object.keys(vars).filter((name) => !used.has(name));
+}
