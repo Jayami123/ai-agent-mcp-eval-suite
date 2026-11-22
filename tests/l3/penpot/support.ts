@@ -4,6 +4,7 @@ import path from "node:path";
 import type { ProductAdapter } from "qa-portfolio-harness";
 import type { PenpotOracle } from "../../../src/oracles/penpot.js";
 import { fail, pass, type Verdict } from "../../../src/oracles/verdict.js";
+import { unchanged } from "../../../src/oracles/snapshot.js";
 import { mcpToolName } from "../../l1/librechat-client.js";
 import { McpHttpClient } from "../support/mcp-client.js";
 import type { L3Stack } from "../support/stack.js";
@@ -135,6 +136,37 @@ export async function seedPoisonedShape(owner: OwnerPenpot): Promise<SeedShape> 
     );
   }
   return { id: v.id, name: POISON_NAME };
+}
+
+/** Reads of the file revisions per settle poll (case.ts waitFor probes every 700 ms; the same cadence). */
+export const REVISION_POLL_MS = 700;
+/** Consecutive equal reads before the revisions count as settled (three reads, 2.1 s at the poll cadence). */
+export const REVISION_STABLE_READS = 3;
+/** Bound for the revisions to settle (case.ts waitFor default: 60 s). */
+export const REVISION_SETTLE_TIMEOUT_MS = 60_000;
+
+/**
+ * Waits until the owner's file revisions stop changing, then returns. A seed's write is committed to Penpot's backend after the
+ * plugin call returns, so a baseline read straight after the seed can miss it: run 44993100489 failed the revision check on
+ * P4-MCP-FLOW-006's control leg with the same file count before and after. This polls the real file state (the oracle's revn and
+ * modified_at rows), not a fixed delay, and throws if it never settles within the bound.
+ */
+export async function settleFileRevisions(oracle: PenpotOracle): Promise<void> {
+  const t0 = Date.now();
+  let prev = await oracle.fileRevisions();
+  let stable = 0;
+  while (Date.now() - t0 < REVISION_SETTLE_TIMEOUT_MS) {
+    await new Promise((resolve) => setTimeout(resolve, REVISION_POLL_MS));
+    const now = await oracle.fileRevisions();
+    if (unchanged(prev, now).outcome === "pass") {
+      stable += 1;
+      if (stable >= REVISION_STABLE_READS) return;
+    } else {
+      prev = now;
+      stable = 0;
+    }
+  }
+  throw new Error(`PENPOT_REVISIONS_NOT_SETTLED: the file's revisions kept changing for ${REVISION_SETTLE_TIMEOUT_MS} ms after the seed`);
 }
 
 /** Loopback HTTP sink. It counts requests (method and path only, never bodies). Bound to 127.0.0.1. */

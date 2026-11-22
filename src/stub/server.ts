@@ -9,7 +9,7 @@ import {
   loadFixture,
   type Fixture,
 } from "./fixtures.js";
-import { parseVarMarkers, substituteVars, VarInvalidError, VarMissingError } from "./vars.js";
+import { markersUnusedByFixture, parseVarMarkers, substituteVars, VarInvalidError, VarMissingError } from "./vars.js";
 
 /** One recorded chat request, secrets-free: what the stub was asked and what it answered. */
 export interface TraceEntry {
@@ -196,13 +196,8 @@ async function handle(opts: StubOptions, trace: TraceEntry[], watched: Map<strin
     let vars: Record<string, string>;
     try {
       vars = parseVarMarkers(latest === undefined ? "" : messageText(latest));
-      const used = new Set<string>();
-      toolCalls = toolCalls.map((call) => {
-        const r = substituteVars(call.arguments, vars);
-        for (const name of r.used) used.add(name);
-        return { ...call, arguments: r.args as Record<string, unknown> };
-      });
-      const unused = Object.keys(vars).filter((name) => !used.has(name));
+      toolCalls = toolCalls.map((call) => ({ ...call, arguments: substituteVars(call.arguments, vars).args as Record<string, unknown> }));
+      const unused = markersUnusedByFixture(fixture.turns, vars);
       if (unused.length > 0) throw new VarInvalidError(`var marker(s) not used by fixture ${id}: ${unused.join(", ")}`);
     } catch (err) {
       if (err instanceof VarInvalidError || err instanceof VarMissingError) {
