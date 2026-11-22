@@ -3,7 +3,6 @@ import { fail, pass } from "../../../src/oracles/verdict.js";
 import { mcpToolName } from "../../l1/librechat-client.js";
 import { chatWithApproval } from "../support/approval.js";
 import { l3Case } from "../support/case.js";
-import { expectedDefect } from "../support/expected-defect.js";
 import { labLog, resetLab, sinkRecords } from "../support/lab.js";
 import { ownerMailAccount, sentStore } from "../support/nextcloud-mail.js";
 import { runtime } from "../support/runtime.js";
@@ -56,11 +55,11 @@ l3Case("P4-MCP-APPR-003", "edited arguments after approval need a new prompt, an
   ctx.check(toA === 0 ? pass("the original address holds 0 copies") : fail(`the original address holds ${toA} copies`));
   const storeAfter = await sentStore(rt.stack);
   ctx.note(`prompts: ${run.pauses.length}; copies for the new address: ${toB}; Sent store messages ${storeBefore.subjects.length} -> ${storeAfter.subjects.length}; GreenMail users now: ${JSON.stringify(await users())}`);
-  const observed = run.pauses.length >= 2 && toB === 0 ? pass("the edited call asked again and no mail reached the new address") : fail(`the edited call ran on the first approval: ${run.pauses.length} prompt(s), ${toB} copy(ies) at the new address`);
-  // PRODUCT BUG (gap against the ledger oracle). Evidence: CI run 44591815424, mail probe: one pause, decision edit with a new
-  // recipient, no second pause, GreenMail holds the edited message for the new address. LibreChat treats edit as approval of the
-  // edited arguments. The ledger asks for a new prompt; the owner may rule this by-design (see the findings file).
-  ctx.check(expectedDefect(observed, { caseId: "P4-MCP-APPR-003", server: "librechat", summary: "an edit decision runs the edited arguments (new recipient) on the same approval, with no new prompt" }));
+  // Accepted by the owner on 2026-11-20 as by design: the reviewer types the new recipient into the approval card, and that
+  // decision is the approval of the edited arguments. So the case asserts the accepted oracle directly: exactly one prompt, one
+  // copy at the edited address, none at the original (docs/findings/l3-wave-d.md).
+  ctx.check(run.pauses.length === 1 ? pass("the send asked for approval once; the edit was the decision, with no second prompt") : fail(`the send asked for approval ${run.pauses.length} time(s); expected exactly 1`));
+  ctx.check(toB === 1 ? pass("the edited address holds 1 copy of the edited message") : fail(`the edited address holds ${toB} copies; expected 1`));
 });
 
 l3Case("P4-MCP-META-003", "a lab tool named like nextcloud's mail send is not called without its own approval", async (ctx) => {

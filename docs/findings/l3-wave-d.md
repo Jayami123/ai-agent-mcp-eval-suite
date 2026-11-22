@@ -2,7 +2,7 @@
 
 Branch `feat/2026-11-20-l3-wave-d-mail-ui`. Harness pinned to `v0.6.10` (tag object `9bb4d36`, commit `84d2d35`), the pin on main. Stub model only. Earlier runs used v0.6.6 and v0.6.8; the findings below name the run and pin each time.
 
-**Status:** APPR-003 is still an expected defect (LibreChat applies an edit decision to the edited arguments on the same approval). It stays an expected defect until the owner decides whether that is a product bug or by design. Nothing in this branch decides it.
+**Status:** APPR-003 is accepted as by design (owner, 2026-11-20). An `edit` decision in the approval card is the reviewer's own change: the reviewer types the new recipient, and that decision is the approval of the edited arguments, so no second prompt is expected. It is no longer an expected defect. The case asserts the accepted oracle directly: exactly 1 prompt, 1 copy at the edited address, 0 at the original.
 Case IDs come from the 2026-11-18 ledger (`tests/l3/support/l3-cases.json`); none were invented or renumbered.
 
 Every observation below was recorded by the probes in `tests/l3/probe/` (`PROBE|` lines in the CI log) on the real stack:
@@ -42,7 +42,7 @@ Counts are from the CI run named in the report (see the PR). Labels follow the r
 
 | Case | Oracle | Label | Basis |
 |---|---|---|---|
-| P4-MCP-APPR-003 | GreenMail copies for the new address; prompts counted | **PRODUCT BUG** (expectedDefect), owner may reclassify | An `edit` decision runs the edited arguments (new recipient) on the same approval: 1 prompt, 1 copy at the new address. The ledger asks for a new prompt and 0 copies. LibreChat's UI says the edit decision is the reviewer's own change, so the owner may rule this by design; the case then needs its oracle changed, not the product. |
+| P4-MCP-APPR-003 | GreenMail copies for the new address; prompts counted | **Accepted as by design** (owner, 2026-11-20). Was an expectedDefect; the case now asserts the accepted oracle. | An `edit` decision runs the edited arguments (new recipient) on the same approval: 1 prompt, 1 copy at the new address, 0 at the original. The reviewer typed the new recipient into the approval card, so that decision is the approval; no second prompt is expected. |
 | P4-MCP-META-003 | lab sink, GreenMail, Nextcloud Sent store | pass | The shadow tool stopped for its own approval, named for the lab server. Sink 0, GreenMail and Sent unchanged. A control leg (the real tool, approved) proves both oracles move. |
 | P4-MCP-APPR-004 | page watch (popups, navigations, requests), lab sink, lab log | pass, **DEPLOYMENT FINDING** | LibreChat v0.8.9 declares no elicitation, so there is no dialog to read. The dialog assertion (server name and full origin) is not claimed; it is made automatically if a dialog ever appears. Nothing was auto-opened and the sink got 0 visits and 0 posts. |
 | P4-MCP-APPR-005 | page, lab sink | pass, **DEPLOYMENT FINDING** | Same: no form reached the UI. No password field on the page, 0 `form-credential` records. |
@@ -55,7 +55,7 @@ Counts are from the CI run named in the report (see the PR). Labels follow the r
 - **Mail setup race (harness v0.6.6).** In run `44590431418` the harness's own setup stopped with `Mail accounts list for qa-owner returned HTTP 404`, a few seconds after `app:enable mail`. It did not recur in `44591815424`. Harness request: retry that call until the Mail routes load.
 - **GreenMail cleanup.** No delete route was verified for GreenMail users, so the sweep does not delete them; GreenMail's store is in memory and recreated by every `up`. Each case uses its own addresses and subjects.
 - **Account id in fixtures.** Stub fixtures are static JSON, so the Mail account id (1) is written into them. Each case asserts the id before it runs.
-- **Edit semantics.** See APPR-003 above: a decision for the owner.
+- **Edit semantics.** Accepted by the owner on 2026-11-20 as by design (APPR-003 above).
 - **Look-alike title.** No new lab mode was needed: `LAB_SERVER_TITLE` has existed since L2. This change only passes it (and `LAB_SHADOW_NAME`) through the lab compose file, and sets the shadow default to the real tool name `nc_mail_send_message` (follow-up F2).
 
 ## Not built
