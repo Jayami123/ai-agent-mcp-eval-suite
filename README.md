@@ -1,69 +1,32 @@
-# ai-agent-mcp-eval-suite
+# AI agents with real tools, tested like production software
 
-An evaluation suite for AI agents that use MCP tools. It checks, with fixed inputs and recorded traces, whether an agent calls the right tools with the right arguments and whether the product state it leaves behind is correct. The suite is built on the shared [`qa-portfolio-harness`](https://github.com/Jayami123/qa-portfolio-harness), which owns product start and stop.
+ISTQB-certified QA engineer, 4 years in manual and automated testing. Open to remote QA roles and contract work.
 
-Status: bootstrap only. No case results yet. Plans live in `docs/plans/`. CI lanes are described in `docs/ci.md`.
+AI agents now read your files, send your mail and edit your designs. This project checks what they actually do with that access, not what they say they did.
 
-## Install and run
+It drives two real agent products (OpenClaw, a personal assistant on a chat channel, and LibreChat, a multi-user chat app) against five real self-hosted tools through MCP, the standard way agents plug into tools: Nextcloud, Outline, Twenty CRM, Penpot and Mattermost. Every test that changes something ends by reading the product's real state, such as the mailbox, the database or the design file, so a pass means the thing happened, or provably didn't.
 
-Requires Node.js 22 or newer (CI runs 22 and 24).
+## What it found
 
-```bash
-npm ci
-npm run check
-```
+- **20 product behaviours pinned as known defects** across 5 products. Each test fails the day the product fixes the behaviour, so the record never goes stale.
+- **An assistant that sends messages to anyone.** OpenClaw's message tool delivered to chats nobody allowed, with no approval step.
+- **Memory shared between users.** A fact one user told the assistant could be recalled by another, and a non-owner could overwrite the owner's memory.
+- **A design-tool sandbox that reaches the network.** Code the agent ran inside Penpot could call a host it was meant to be cut off from.
+- **A file tool that escapes its folder.** Nextcloud's MCP server refused `..` paths but read a sibling folder through an absolute path.
 
-`npm run check` runs `typecheck`, `test` and `build` in that order.
+## What it covers
 
-## Stub vs nightly
+- **164 test scenarios** across prompt injection, approval gates, tool permissions, multi-user isolation, OAuth, protocol conformance, memory and reliability.
+- **32 CI jobs on every pull request.** Thirty start Docker services, the real products or the suite's attack lab, and use a scripted model where a model is needed. Two run the unit checks on Node 22 and 24.
+- **A nightly run against a real model** (DeepSeek), 10 trials per measured case, with provider outages reported as inconclusive rather than counted as passes.
+- **Honest gaps.** Where a case can't run yet, it's a named skip with the reason and a pointer to the evidence, never a silent pass.
 
-| Mode    | `P4_LLM_MODE` | What runs                                              | Needs a provider key |
-|---------|---------------|--------------------------------------------------------|----------------------|
-| stub    | `stub` (default) | Scripted fake model server, unit tests, determinism checks | No                   |
-| nightly | `nightly`     | Real model through LiteLLM on a schedule, from GitHub Actions only (DeepSeek Flash in the workflow; `P4_NIGHTLY_PROVIDER` blank or `gemma` selects Gemma) | Yes (`DEEPSEEK_API_KEY`, or `GEMINI_API_KEY` for gemma; Actions secret) |
+## How it works
 
-CI lanes, and what each measures, are in `docs/ci.md`:
+A shared harness ([qa-portfolio-harness](https://github.com/Jayami123/qa-portfolio-harness)) starts and seeds the products at pinned versions. A recorder sits between the agent and each tool and logs every call. Tests compare three things: what the model asked for, what reached the tool, and what changed in the product. Findings and every decision behind them are written up in [`docs/findings/`](docs/findings/).
 
-- **PR gate (stub, fast subset):** the L4 OpenClaw job runs the 8-case gate subset (`P4_L4_SCOPE=gate`), listed in `tests/l4/gate.ts`. The other L1 to L3 stack jobs and the unit checks also run on every PR. No model, no secrets.
-- **Nightly:** the full L4 set (62 cases, stub, `l4-openclaw-full`), the L1 model smoke, and one measured model lane after it (`gemma-measured-mattermost`, P4-MCP-INJ-013, `k` trials). Both model jobs run DeepSeek Flash (`deepseek/deepseek-flash`) through harness v0.6.11, with `P4_NIGHTLY_PROVIDER=deepseek`. The measured lane runs one lane at a time because of the shared 16K tokens-per-minute limit.
-- **Not wired yet:** the seven measured L4 cases. Their bodies read the stub's request log, so they need a recorder that does not depend on the stub. See `docs/ci.md`.
-
-## Stack tests (L1)
-
-Three tests run real products through the harness. The two stub tests (LibreChat and OpenClaw) run in PR CI and need Docker:
-
-```bash
-npm run build
-npm run stub:up                      # fixture stub as a container on qa-harness-p4, 127.0.0.1:8787
-P4_STACK_TESTS=1 npm run test:stack:librechat   # also needs PRODUCTS_ROOT with the Twenty fork
-P4_STACK_TESTS=1 npm run test:stack:openclaw
-npm run stub:down
-```
-
-L4 (the OpenClaw cases) starts one stack for the tests, with the fixture stub already up. `P4_L4_SCOPE` picks the set: `gate` runs the 8-case PR subset, `full` (the default) runs all 62:
-
-```bash
-npm run build
-npm run stub:up
-npm run l4:up                          # LiteLLM, OpenClaw with the mock Telegram channel, and the mock channel container (about 8 minutes the first time)
-P4_L4_SCOPE=gate npm run test:stack:l4 # the PR gate subset; use P4_L4_SCOPE=full for all 62
-npm run l4:down
-npm run stub:down
-```
-
-Cases that replay advisories need files kept outside the repo: set `P4_PRIVATE_FIXTURES_DIR` to a directory holding `p4-oc-adv-NNN.json`. Without it those cases skip with a named reason. Findings are in `docs/findings/l4-openclaw.md`. The gate list and the reasons for each case are in `tests/l4/gate.ts` and `docs/ci.md`.
-
-The L1 smoke test (`npm run test:nightly`, file `tests/l1/gemma-tool-call.e2e.ts`) goes LiteLLM, LibreChat, Twenty MCP with the model selected by `P4_NIGHTLY_PROVIDER`, and runs only in the nightly workflow. In nightly mode a missing key for the selected provider fails the test; it never skips. See `docs/plans/2026-11-18-suite-l1-gaps.md`.
-
-## Recorded deviations (L4, OpenClaw lane)
-
-Recorded in `docs/plans/2026-11-18-l4-openclaw.md`, section 1. Each names the standard alternative there.
-
-- **Telegram is the WhatsApp-style mock channel.** The master plan routes WhatsApp-style traffic through a mock channel with no real WhatsApp numbers. L4 models it as a Telegram Bot API-shaped server, because OpenClaw's own QA channel is not in the release image and its bundled Telegram channel accepts a custom API root. Approved by the reviewer.
-- L4 tests live in `tests/l4/`, not `tests/openclaw/`. The PR gate subset is a scope, not a second copy of the tests.
-- L4 stub fixtures live in `src/stub/fixtures/oc-*.json`.
-- The L4 stack is started once by a script, not by each test.
+How to run it: [`docs/running.md`](docs/running.md).
 
 ## Contact
 
-Maintained by the owner of this repository (Jayami Hettigoda).
+Jayami Hettigoda: [LinkedIn](https://www.linkedin.com/in/jayamihettigoda/)
