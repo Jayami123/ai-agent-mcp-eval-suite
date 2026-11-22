@@ -7,7 +7,7 @@ Branch `feat/2026-11-22-l3-wire-pair`. Plan: `docs/plans/2026-11-22-l3-wire-pair
 | Job | Run | Result | Notes |
 |---|---|---|---|
 | `l3 wire pair (outline and nextcloud)` | `44989681452` | **success** (8 tests: 5 pass, 0 fail, 3 skipped) | The run this table rests on. Job id `137107803499`. |
-| `l3 penpot flow` | `44989681452` | **failure** | Caused by the harness pin (see "Penpot conflict"), not by this PR's code. |
+| `l3 penpot flow` | `44989681452` | **failure** | Caused by the v0.6.13 pin making the Penpot precheck pass (its annotation then failed). Not this PR's code. Resolved on the merged head (PR #34 merged; see the merge run below). |
 | `l3 penpot plugin` | `44989681452` | still running when this was written | Expected to fail for the same reason (see below). |
 
 The pair job's log, verbatim (test lines):
@@ -35,24 +35,10 @@ The job's evidence artifact is `l3-wire-pair-outline-nc-evidence-44989681452` (a
 | `P4-MCP-OAUTH-003` | `l3 wire pair` | named skip (attempt recorded) | The recorder replaces every Authorization header with `[REDACTED]` and keeps no digest. The plain-gate test `tests/l3/wire/recorder-redaction.test.ts` shows two different bearers are logged identically, while two session ids get different digests. So the log cannot show which bearer went where (plan W5). |
 | `P4-MCP-REL-007` | `l3 wire pair` | named skip (RAM5) | The five-server stack is not measured on the runner (plan W7). The pair job measures its own memory with a background sampler; the samples are in the artifact, not yet read. |
 
-## Penpot conflict (open, needs the owner)
-
-The harness pin moved from v0.6.11 to v0.6.13 in this PR (`package.json`, `package-lock.json`). In v0.6.13 the LibreChat entry for Penpot carries the owner's token: the `l3 penpot flow` log shows `"url": "http://penpot-mcp:4401/mcp?userToken=${P4_PENPOT_MCP_USER_TOKEN}"`. The earlier wave found the opposite (no token, `docs/findings/l3-penpot-plugin.md`). With the token wired, the Penpot precheck passes, and its `expectedDefect` wrapper fails with:
-
-    expected defect no longer reproduces (penpot: LibreChat's Penpot entry has no per-user token ...); the server now behaves as the ledger oracle asks, so remove expectedDefect() from P4-MCP-TOOL-005
-
-That is the signal the annotation was built to give. Removing the annotation and unskipping the Penpot cases belongs to the Penpot branch, and `tests/l3/penpot/` is owned by another branch, so this PR does not touch it.
-
-Verified in this session: `harness v0.6.11` (tag) contains the H9 recorder surface this PR uses (`recordedServers`, `recorderRoutes`, the redacted log, the `docker logs` name). It has no Penpot token wiring. So pinning back to v0.6.11 would keep the Penpot job green and still run every wire case here.
-
-Options for the owner:
-1. Keep v0.6.13 (as instructed). The `l3 penpot flow` job (and probably `l3 penpot plugin`) stays red on this PR until the Penpot branch removes the expectedDefect and unskips its cases.
-2. Pin v0.6.11 here. Penpot stays green; the pin differs from the instruction and from the Penpot branch's expectation.
 
 ## Harness requests
 
 - **H9 digest for Authorization** (blocks OAUTH-003): keep a short digest of the Authorization header, as `mcp-session-id` already gets (`src/mcp-recorder/redact.ts` lines 22-33). Then the OAUTH-003 check (two servers, two bearers) can be asserted from the log.
-- **Penpot token** (v0.6.13): already present; the Penpot branch must consume it.
 
 ## Budgets (named, with the basis)
 
@@ -66,12 +52,3 @@ Options for the owner:
 - The `l3 penpot plugin` result on this head (still running at writing).
 - Whether `docker logs --since` returns every record on a slower runner (it did on this run).
 
-## Dependency: the Penpot unskip branch (owner decision, option 1)
-
-The owner chose to keep the v0.6.13 pin and to leave `tests/l3/penpot/` to its own branch. Until that branch lands, the two
-Penpot jobs in this PR's CI are red for the reason above.
-
-- Dependency branch: `feat/2026-11-22-l3-penpot-unskip`. It removes the `expectedDefect` annotation in
-  `tests/l3/penpot/probe.cases.ts` and unskips the Penpot cases.
-- This PR stays a draft until that branch is merged.
-- After it merges, this branch merges `origin/main` with a merge commit (no rebase), CI re-runs, and the run id is recorded here.
