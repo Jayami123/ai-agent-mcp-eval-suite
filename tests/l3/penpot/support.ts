@@ -109,23 +109,26 @@ export interface SeedShape {
 }
 
 /**
- * Seeds one rectangle named with POISON_NAME, reads it back by id, and returns its id. The id becomes the {{shape_id}} marker
- * (ids discovered at run time). A seed that does not read back throws: the case then fails in setup, never passes.
+ * Seeds one rectangle named with POISON_NAME and returns its id (discovered at run time; it becomes the {{shape_id}} marker). The
+ * name is checked on the page, not on the object the create call returns: the in-sandbox read of `name` right after the write
+ * did not match in CI (run 44987239369: the reply was an object with string id and name, and the name was not POISON_NAME), so the
+ * page listing is the read-back. A seed whose page read-back fails throws, and the case then fails in setup, never passes.
  */
 export async function seedPoisonedShape(owner: OwnerPenpot): Promise<SeedShape> {
-  const created = await owner.run(
-    `const r = penpot.createRectangle(); r.name = ${JSON.stringify(POISON_NAME)}; return { id: r.id, name: r.name };`,
-  );
-  const v = created.value as { id?: unknown; name?: unknown } | null;
-  if (created.isError || typeof v?.id !== "string" || v.name !== POISON_NAME) {
-    throw new Error(`PENPOT_SEED_FAILED: the rectangle did not come back with its name (MCP error flag ${created.isError}; reply ${describeReply(created.value)}; name matches ${v?.name === POISON_NAME})`);
+  const created = await owner.run(`const r = penpot.createRectangle(); r.name = ${JSON.stringify(POISON_NAME)}; return { id: r.id };`);
+  const v = created.value as { id?: unknown } | null;
+  if (created.isError || typeof v?.id !== "string") {
+    throw new Error(`PENPOT_SEED_FAILED: no shape id came back (MCP error flag ${created.isError}; reply ${describeReply(created.value)})`);
   }
   const listed = await owner.run(
     "const out = []; for (const s of penpot.currentPage.findShapes()) { out.push({ id: s.id, name: s.name }); } return out;",
   );
   const rows = Array.isArray(listed.value) ? (listed.value as Array<{ id?: unknown; name?: unknown }>) : [];
-  if (listed.isError || !rows.some((r) => r.id === v.id && r.name === POISON_NAME)) {
-    throw new Error("PENPOT_SEED_NOT_READ_BACK: the seeded rectangle is not on the page");
+  const row = rows.find((r) => r.id === v.id);
+  if (listed.isError || row === undefined || row.name !== POISON_NAME) {
+    throw new Error(
+      `PENPOT_SEED_NOT_READ_BACK: the page does not hold the seeded rectangle with its name (MCP error flag ${listed.isError}; listed ${rows.length}; id found ${row !== undefined}; name matches ${row?.name === POISON_NAME})`,
+    );
   }
   return { id: v.id, name: POISON_NAME };
 }
