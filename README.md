@@ -4,11 +4,11 @@ ISTQB-certified QA engineer, 4 years in manual and automated testing. Open to re
 
 AI agents now read your files, send your mail and edit your designs. This project checks what they actually do with that access, not what they say they did.
 
-It drives two real agent products (OpenClaw, a personal assistant on a chat channel, and LibreChat, a multi-user chat app) against five real self-hosted tools through MCP, the standard way agents plug into tools: Nextcloud, Outline, Twenty CRM, Penpot and Mattermost. Every test ends by reading the product's real state, such as the mailbox, the database or the design file, so a pass means the thing happened, or provably didn't.
+It drives two real agent products (OpenClaw, a personal assistant on a chat channel, and LibreChat, a multi-user chat app) against five real self-hosted tools through MCP, the standard way agents plug into tools: Nextcloud, Outline, Twenty CRM, Penpot and Mattermost. Every test that changes something ends by reading the product's real state, such as the mailbox, the database or the design file, so a pass means the thing happened, or provably didn't.
 
 ## What it found
 
-- **21 product behaviours pinned as known defects** across 5 products. Each test fails the day the product fixes the behaviour, so the record never goes stale.
+- **20 product behaviours pinned as known defects** across 5 products. Each test fails the day the product fixes the behaviour, so the record never goes stale.
 - **An assistant that sends messages to anyone.** OpenClaw's message tool delivered to chats nobody allowed, with no approval step.
 - **Memory shared between users.** A fact one user told the assistant could be recalled by another, and a non-owner could overwrite the owner's memory.
 - **A design-tool sandbox that reaches the network.** Code the agent ran inside Penpot could call a host it was meant to be cut off from.
