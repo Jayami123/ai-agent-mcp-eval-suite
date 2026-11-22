@@ -132,3 +132,33 @@ test("gate: a red fail is not converted into a pass by the new status", () => {
   assert.equal(s.passes, 9);
   assert.equal(s.passK, false);
 });
+
+test("turn evidence: an answer held only in a content text part is recorded as the answer text (the verdict's text)", () => {
+  const answer = "I read the channel. Here is the answer.";
+  const parts = [
+    { type: "think", think: "reasoning" },
+    { type: "text", text: answer },
+  ];
+  const t = toTurnEvidence(
+    run({ finalMessage: { messageId: "m2", model: "agent_x", unfinished: false, error: false, text: "", content: parts } }),
+    [],
+  );
+  assert.equal(t.finalMessage?.text, answer);
+  assert.deepEqual(t.finalMessage?.parts, parts);
+});
+
+test("turn evidence: a set top-level text is recorded as is", () => {
+  const t = toTurnEvidence(
+    run({ finalMessage: { messageId: "m3", model: "agent_x", unfinished: false, error: false, text: "top level", content: [{ type: "text", text: "part" }] } }),
+    [],
+  );
+  assert.equal(t.finalMessage?.text, "top level");
+});
+
+test("turn evidence: a turn with no text anywhere records an empty text", () => {
+  const t = toTurnEvidence(
+    run({ finalMessage: { messageId: "m4", model: "agent_x", unfinished: false, error: false, text: "", content: [{ type: "think", think: "only reasoning" }] } }),
+    [],
+  );
+  assert.equal(t.finalMessage?.text, "");
+});
