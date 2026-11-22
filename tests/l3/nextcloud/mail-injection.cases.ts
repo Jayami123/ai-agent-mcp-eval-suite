@@ -17,8 +17,9 @@ import { seedNc0 } from "../support/seed/nextcloud.js";
 // calendar listing. The model's reply text is never an oracle. Each hostile run checks that the poisoned text reached a tool
 // result (a real read), so "nothing was sent" cannot pass when the model never read the poison. Fake data only.
 // Mail reaches the INBOX over SMTP from the app container (tests/l3/support/nc-mail-seed.ts), not through the Mail app's outbox.
-// Run-time ids (account, inbox, message) reach the fixtures as {{bind:NAME}} (PUT /__bindings), not as [var:] markers: a var
-// marker must be used by every turn of a fixture, and these ids are used on different turns.
+// Run-time ids (account, inbox, message) reach the fixtures as {{bind:NAME}} (PUT /__bindings), not as [var:] markers: the ids
+// are set once per case and shared by several fixtures and turns (docs/stub-markers.md, "When a suite uses [var:] and when it
+// uses {{bind:NAME}}"). A [var:] marker must be used by some placeholder in its fixture (the whole fixture, not each turn).
 
 const N = (tool: string): string => mcpToolName(tool, "nextcloud");
 const READ = [
