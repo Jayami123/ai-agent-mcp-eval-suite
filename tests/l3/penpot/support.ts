@@ -127,7 +127,7 @@ export async function seedPoisonedShape(owner: OwnerPenpot): Promise<SeedShape> 
   const row = rows.find((r) => r.id === v.id);
   if (listed.isError || row === undefined || row.name !== POISON_NAME) {
     throw new Error(
-      `PENPOT_SEED_NOT_READ_BACK: the page does not hold the seeded rectangle with its name (MCP error flag ${listed.isError}; listed ${rows.length}; id found ${row !== undefined}; name matches ${row?.name === POISON_NAME})`,
+      `PENPOT_SEED_NOT_READ_BACK: the page does not hold the seeded rectangle with its name (MCP error flag ${listed.isError}; listed ${rows.length}; id found ${row !== undefined}; name matches ${row?.name === POISON_NAME}; seeded name length ${POISON_NAME.length}; page names ${JSON.stringify(rows.map((r) => (typeof r.name === "string" ? r.name.slice(0, 60) : typeof r.name)))})`,
     );
   }
   return { id: v.id, name: POISON_NAME };
