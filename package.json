@@ -64,7 +64,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
-    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.11",
+    "qa-portfolio-harness": "github:Jayami123/qa-portfolio-harness#v0.6.13",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -76,6 +76,6 @@
     "typescript": "^5.8.2"
   },
   "allowScripts": {
-    "github:Jayami123/qa-portfolio-harness#v0.6.11": true
+    "github:Jayami123/qa-portfolio-harness#v0.6.13": true
   }
 }

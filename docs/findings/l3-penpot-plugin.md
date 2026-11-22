@@ -63,3 +63,49 @@ Job totals (from the logs): `l3 penpot plugin` `pass 3, fail 0, skipped 3` (6 te
 ## Request to the harness owner
 
 LibreChat's Penpot MCP entry must carry the owner's `userToken` when `P4_PENPOT_PLUGIN=1` (the token is already in the plugin state file). With that, the four cases can be unskipped by removing the `namedSkip` options in `tests/l3/penpot/{tool,inj,flow}.cases.ts` and removing `expectedDefect` from `tests/l3/penpot/probe.cases.ts`.
+
+## Current state (head `0524ae0`, run `44997592367`)
+
+The harness pin is v0.6.13 (commit `b33edbf`). The precheck is a plain assertion and passes. The four cases are not named skips. Their verdicts:
+
+| Case | Verdict | What it rests on |
+|---|---|---|
+| `P4-MCP-TOOL-005` | pass as **expected defect** (sandbox reaches the loopback sink) | sink check, see below |
+| `P4-MCP-INJ-007` | pass as **expected defect** (sandbox reaches the loopback sink on the hostile leg) | sink check, see below; revision check passes |
+| `P4-MCP-INJ-008` | pass | real checks: controls, rejected overwrite, shape name read back, revision check |
+| `P4-MCP-FLOW-006` | pass | real checks: approval rejection, GreenMail count, revision check |
+
+An expected-defect verdict passes only when the check fails on the real behaviour, so the sink reproduced in both cases. The CI job logs do not print the detail of passing verdicts, so the detail below comes from earlier failing runs.
+
+### Expected defect: the sink request
+
+- **What the artifact holds.** Run `44996162348` (head `fc11332`), job `l3 penpot plugin`, INJ-007 hostile: `the sink received 1 request(s)`. Run `44993100489` (head `7725bce`), plugin job, TOOL-005: `the sink received 1 request(s)`. Both show the count only.
+- **Method, path and time.** Not recorded in any artifact. The sink recorded method and path only until head `0524ae0`, which adds an ISO timestamp. The job logs of that head pass, so the fields are not in CI output. They need a failing run to be captured.
+- **Path declared by the fixtures.** `src/stub/fixtures/p4-mcp-tool-005-fetch.json` posts to `http://127.0.0.1:19171/p4l3-tool-005`. `src/stub/fixtures/p4-mcp-inj-007-hostile.json` posts to `http://127.0.0.1:19171/p4l3-inj-007`. This is what the code asks for, not what the sink observed.
+
+### Allowlist at the pin
+
+- **Penpot 2.19.2 (`penpot/penpot` tag `2.19.2`, commit `909a29c`), read-only clone.** No outbound host allowlist exists for `execute_code`. `mcp/packages/plugin/vite.config.ts:38-42` sets `allowedHosts: []` in the **`preview`** block only. It is Vite's preview-server host check, not a check on outbound requests. (The code comment in `tests/l3/penpot/tool.cases.ts` says "dev server"; that is wrong and needs correcting.)
+- **Harness v0.6.13 and the suite.** The Penpot adapter sources contain no egress allowlist for the MCP. The search covered `penpot*.ts` in the harness package.
+
+### Pinned source line: `execute_code` does not enforce one
+
+`mcp/packages/plugin/src/task-handlers/ExecuteCodeTaskHandler.ts`:
+- `:179-184` builds the execution context: `penpot`, `storage`, `console`, `penpotUtils`. No network object and no `fetch` override.
+- `:230` runs the agent's code with `new Function(...Object.keys(ctx), ...)`. The browser's global `fetch` is therefore available to the code.
+
+### Flush: why the seed's change is persisted late
+
+- `frontend/src/app/main/data/changes.cljs:174-175`: a plugin commit is local by default (`source` defaults to `:local`).
+- `frontend/src/app/main/data/persistence.cljs:874`: `(rx/debounce 3000)` on local commits. The 3-second beat is the persist trigger.
+- `frontend/src/app/main/data/persistence.cljs:877, 913`: `::force-persist` also sends pending changes.
+- `frontend/src/app/plugins/shape.cljs:1695-1698`: the exporter branch of `shape.export` says "Exporter reads persisted file state; flush first" and emits `::dwp/force-persist`. Every plugin export therefore flushes a queued edit, including the seed's.
+- `mcp/packages/plugin/src/PenpotUtils.ts:435-440`: "Updates are asynchronous in Penpot", with a 200 ms wait before export.
+
+The seed now exports its own shape and waits for the file's revision digest to move before the baseline is read (`tests/l3/penpot/support.ts`, `persistSeedChange`). Earlier, the first export in each case flushed the seed's change, and the revision check read the flush as a write by the case.
+
+### Open items
+
+- **`file_change` attribution not observed.** The diagnostic (`revisionVerdict`, `PenpotOracle.fileChangeRows`) prints the owner file's rows only when the revision check fails. No failing run has happened since head `0524ae0`, so the rows that would show which write moved `revn` are not in any artifact.
+- **Change types not decoded.** The `changes` column is a v5 blob: an LZ4 frame around fressian (`backend/src/app/util/blob.clj:159-175`, Penpot 2.19.2). The repo has no decoder, so the diagnostic reports byte sizes only.
+- **Background-tab timer throttling of the 3 s debounce is a hypothesis.** It would explain the observed lag: in run `44996162348` the seed's change sat unsaved for about two minutes (baseline at `07:02:27`, the revn change at `07:04:50`) until the first export. The pinned source does not show whether the plugin tab's timers run at full rate in CI. Not verified.
