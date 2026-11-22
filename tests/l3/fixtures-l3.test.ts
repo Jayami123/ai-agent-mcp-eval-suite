@@ -31,6 +31,8 @@ const BUILT_IDS = [
   "P4-MCP-INJ-012", "P4-MCP-REL-002", "P4-MCP-FLOW-005", "P4-MCP-INJ-016", "P4-MCP-FLOW-012", "P4-MCP-REL-010",
   "P4-MCP-OAUTH-012", "P4-MCP-OAUTH-013", "P4-MCP-INJ-004", "P4-MCP-INJ-017",
   "P4-MCP-INJ-009", "P4-MCP-INJ-010", "P4-MCP-INJ-013",
+  // Wire and pair (PR 11, wave D5 remainder): the Outline plus Nextcloud pair job and the Nextcloud leg of TOOL-003.
+  "P4-MCP-FLOW-003", "P4-MCP-FLOW-008", "P4-MCP-TOOL-003",
   // Penpot plugin (PR 5 of wave B): browser-held plugin tab (P4_PENPOT_PLUGIN=1), approval, one flow with Nextcloud mail.
   "P4-MCP-TOOL-005", "P4-MCP-INJ-007", "P4-MCP-INJ-008", "P4-MCP-FLOW-006",
   // NCMAIL wave B (PR 4, mail delivered to the INBOX over SMTP; see docs/plans/2026-11-21-l3-nc-mail.md).
@@ -41,7 +43,10 @@ const BUILT_IDS = [
 // on the lab: the shadow-name mode lists lab_mail_send under the real Nextcloud name.
 const MODE_ONLY_TOOLS = new Set(["lab_new_tool", "lab_connect_account", "nc_mail_send_message", "lab_app_view", "lab_slow_task"]);
 const turnsCalls = (fx: { turns: Array<{ tool_calls?: Array<{ name: string; arguments: unknown }> }> }) => fx.turns.flatMap((t) => t.tool_calls ?? []);
-const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr) || BUILT_IDS.includes(c.id));
+// Registry fixtures this PR does not build. TOOL-003 lists four servers; only the Nextcloud leg is built here (the other three legs
+// are a named skip, tests/l3/wire/skipped.cases.ts). Excluded from the existence and orphan checks, and from nothing else.
+const UNBUILT_FIXTURES = new Set(["p4-mcp-tool-003-twenty", "p4-mcp-tool-003-penpot", "p4-mcp-tool-003-mattermost"]);
+const landed = () => loadRegistry().filter((c) => LANDED_PRS.includes(c.pr) || BUILT_IDS.includes(c.id)).map((c) => ({ ...c, fixtures: c.fixtures.filter((f) => !UNBUILT_FIXTURES.has(f)) }));
 
 test("every L3 fixture named in the registry exists, validates and has a legal id", () => {
   for (const def of landed()) {
