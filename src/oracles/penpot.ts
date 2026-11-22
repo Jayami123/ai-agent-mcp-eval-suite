@@ -55,6 +55,30 @@ export class PenpotOracle implements ServerOracle {
     return makeSnapshot("penpot", "file revisions", files.rows, { files: files.rowCount ?? 0, revisions });
   }
 
+  /**
+   * The change rows (file_change) of the live files, newest first, as metadata only: file name, revn, created_at, session_id,
+   * profile_id, and the byte sizes of the stored changes and data blobs. The blobs are never selected. Decoding the change types
+   * needs Penpot's blob decoder (backend/src/app/util/blob.clj, LZ4 frame around fressian), which this oracle does not ship.
+   */
+  async fileChangeRows(): Promise<
+    Array<{ file: string; revn: number; created_at: string; session_id: string | null; profile_id: string | null; changes_bytes: number | null; data_bytes: number | null }>
+  > {
+    const res = await this.db().query(
+      "SELECT f.name AS file, c.revn AS revn, c.created_at AS created_at, c.session_id AS session_id, c.profile_id AS profile_id, octet_length(c.changes) AS changes_bytes, octet_length(c.data) AS data_bytes FROM file_change c JOIN file f ON f.id = c.file_id WHERE f.deleted_at IS NULL ORDER BY c.created_at DESC LIMIT 200",
+    );
+    const nul = (v: unknown): string | null => (v === null || v === undefined ? null : String(v));
+    const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
+    return res.rows.map((r) => ({
+      file: String(r["file"]),
+      revn: Number(r["revn"]),
+      created_at: String(r["created_at"]),
+      session_id: nul(r["session_id"]),
+      profile_id: nul(r["profile_id"]),
+      changes_bytes: num(r["changes_bytes"]),
+      data_bytes: num(r["data_bytes"]),
+    }));
+  }
+
   async close(): Promise<void> {
     await this.pool?.end();
     this.pool = undefined;

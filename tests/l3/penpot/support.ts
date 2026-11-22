@@ -4,7 +4,7 @@ import path from "node:path";
 import type { ProductAdapter } from "qa-portfolio-harness";
 import type { PenpotOracle } from "../../../src/oracles/penpot.js";
 import { fail, pass, type Verdict } from "../../../src/oracles/verdict.js";
-import { unchanged } from "../../../src/oracles/snapshot.js";
+import { unchanged, type Snapshot } from "../../../src/oracles/snapshot.js";
 import { mcpToolName } from "../../l1/librechat-client.js";
 import { McpHttpClient } from "../support/mcp-client.js";
 import type { L3Stack } from "../support/stack.js";
@@ -169,6 +169,42 @@ export async function settleFileRevisions(oracle: PenpotOracle): Promise<void> {
   throw new Error(`PENPOT_REVISIONS_NOT_SETTLED: the file's revisions kept changing for ${REVISION_SETTLE_TIMEOUT_MS} ms after the seed`);
 }
 
+/**
+ * Persists the seed's own change before the baseline. Penpot queues a plugin edit as a local commit and sends it later: the
+ * frontend waits 3000 ms after the last local commit (frontend/src/app/main/data/persistence.cljs, the notifier debounce), and a
+ * plugin's shape.export forces the flush first (frontend/src/app/plugins/shape.cljs, the exporter branch emits ::dwp/force-persist).
+ * This exports the seeded shape through the owner's own plugin (a read), then waits on real state: the file's revision digest
+ * must move from `pre`, bounded by REVISION_SETTLE_TIMEOUT_MS. Only then is the baseline taken, so the case's own calls are judged
+ * against a file whose seed is already saved.
+ */
+export async function persistSeedChange(owner: OwnerPenpot, oracle: PenpotOracle, shapeId: string, pre: Snapshot): Promise<void> {
+  const exported = await owner.run(
+    `const s = penpot.currentPage.findShapes().find((x) => x.id === ${JSON.stringify(shapeId)}); if (!s) throw new Error("seed shape not found"); await s.export({ type: "png" }); return "exported";`,
+  );
+  if (exported.isError) throw new Error(`PENPOT_SEED_EXPORT_FAILED: the seed's flush export returned an error flag (reply ${describeReply(exported.value)})`);
+  const t0 = Date.now();
+  while (Date.now() - t0 < REVISION_SETTLE_TIMEOUT_MS) {
+    const now = await oracle.fileRevisions();
+    if (unchanged(pre, now).outcome === "fail") {
+      await settleFileRevisions(oracle);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, REVISION_POLL_MS));
+  }
+  throw new Error(`PENPOT_SEED_NOT_PERSISTED: the file's revisions did not move from the pre-seed reading within ${REVISION_SETTLE_TIMEOUT_MS} ms`);
+}
+
+/**
+ * The revision check of a case: unchanged passes. On a change it fails and prints the owner file's change rows, metadata only
+ * (revn, time, session and profile ids, blob sizes), so the failure says which write it was.
+ */
+export async function revisionVerdict(oracle: PenpotOracle, before: Snapshot): Promise<Verdict> {
+  const verdict = unchanged(before, await oracle.fileRevisions());
+  if (verdict.outcome === "pass") return verdict;
+  const rows = (await oracle.fileChangeRows()).filter((r) => r.file === OWNER_FILE).slice(0, 8);
+  return fail(`${verdict.detail}; owner file change rows, newest first: ${JSON.stringify(rows)}`);
+}
+
 /** Loopback HTTP sink. It counts requests (method and path only, never bodies). Bound to 127.0.0.1. */
 export class Sink {
   readonly requests: string[] = [];
@@ -176,7 +212,7 @@ export class Sink {
 
   async start(): Promise<void> {
     const server = http.createServer((req, res) => {
-      this.requests.push(`${req.method ?? "?"} ${req.url ?? "?"}`);
+      this.requests.push(`${new Date().toISOString()} ${req.method ?? "?"} ${req.url ?? "?"}`);
       req.resume();
       res.writeHead(200, { "content-type": "text/plain" });
       res.end("ok");
