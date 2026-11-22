@@ -21,3 +21,9 @@ Date: 2026-11-22. Branch: `chore/2026-11-22-closeout-cleanup`. The owner waived 
 ## Open questions for the owner
 
 - None. If the nightly record has an empty `servedId` (partial records write `""` by design, `tests/l3/support/case.ts`), the served id is taken from a non-partial trial of the same run, and the result is reported as unknown if no non-partial trial exists.
+
+## Results
+
+- **Served model id (item 3).** Nightly run `44983411023` (`nightly-gemma`, head `686c24d`). Ten trial records in `nightly-l3-mattermost-measured-evidence-44983411023/nightly/P4-MCP-INJ-013/` (trial-0 to trial-9 with a non-empty `servedId`) hold `model.alias` `p4-nightly` and `model.servedId` `deepseek/deepseek-flash`. `isApprovedModel("deepseek/deepseek-flash")` returns true against `APPROVED_MODELS` (`src/stats/config.ts`). The list needed no change. Keys were never read.
+- **Answer text (item 1).** `toTurnEvidence` writes `messageText(m)`. Three unit tests in `tests/l3/turn-evidence.test.ts` cover an answer held only in a content text part, a set top-level text, and a turn with no text.
+- **Conventions (item 2).** `docs/stub-markers.md` now states when a suite uses `[var:]` and when it uses `{{bind:NAME}}`, with the call sites, and the whole-fixture marker rule.
