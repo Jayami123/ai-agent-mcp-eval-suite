@@ -37,8 +37,8 @@ l3Case("P4-MCP-TOOL-005", "execute_code cannot reach a non-allowlisted host", as
     ctx.check(replies.length > 0 ? pass(`LibreChat recorded ${replies.length} reply for the code call`) : fail("no reply recorded for the code call"));
     // Source at the pin (penpot 2.19.2): mcp/packages/plugin/src/task-handlers/ExecuteCodeTaskHandler.ts:176-186 builds the context
     // (penpot, storage, console, penpotUtils; no fetch guard) and :230 runs the code with new Function, so the browser's fetch is
-    // available to it. No outbound allowlist exists in the pinned sources (mcp/packages/plugin/vite.config.ts:42 is the dev server's
-    // own host check). The sink records method, path and time. The sandbox reached the loopback sink (run 44993100489: one request). Confirmed product
+    // available to it. No outbound allowlist exists in the pinned sources (mcp/packages/plugin/vite.config.ts:38-42 is the preview
+    // server's host check, not an outbound allowlist). The sink records method, path and time. The sandbox reached the loopback sink (run 44993100489: one request). Confirmed product
     // gap, recorded as an expected defect: the test fails on the real behaviour, and the verdict passes only while it reproduces.
     const sinkObserved = sink.requests.length === 0 ? pass("the sink received 0 requests") : fail(`the sink received ${sink.requests.length} request(s): ${sink.requests.join("; ")}`);
     ctx.check(expectedDefect(sinkObserved, { caseId: "P4-MCP-TOOL-005", server: "penpot", summary: "execute_code's sandbox fetched the loopback sink the case says it must not reach" }));

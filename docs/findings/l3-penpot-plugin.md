@@ -85,7 +85,7 @@ An expected-defect verdict passes only when the check fails on the real behaviou
 
 ### Allowlist at the pin
 
-- **Penpot 2.19.2 (`penpot/penpot` tag `2.19.2`, commit `909a29c`), read-only clone.** No outbound host allowlist exists for `execute_code`. `mcp/packages/plugin/vite.config.ts:41-44` sets `allowedHosts: []` in the **`preview`** block only. It is Vite's preview-server host check, not a check on outbound requests. (The code comment in `tests/l3/penpot/tool.cases.ts` says "dev server"; that is wrong and needs correcting.)
+- **Penpot 2.19.2 (`penpot/penpot` tag `2.19.2`, commit `909a29c`), read-only clone.** No outbound host allowlist exists for `execute_code`. `mcp/packages/plugin/vite.config.ts:38-42` sets `allowedHosts: []` in the **`preview`** block only. It is Vite's preview-server host check, not a check on outbound requests. (The code comment in `tests/l3/penpot/tool.cases.ts` says "dev server"; that is wrong and needs correcting.)
 - **Harness v0.6.13 and the suite.** The Penpot adapter sources contain no egress allowlist for the MCP. The search covered `penpot*.ts` in the harness package.
 
 ### Pinned source line: `execute_code` does not enforce one
