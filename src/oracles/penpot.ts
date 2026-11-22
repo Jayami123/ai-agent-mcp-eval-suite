@@ -49,7 +49,10 @@ export class PenpotOracle implements ServerOracle {
    */
   async fileRevisions(): Promise<Snapshot> {
     const files = await this.db().query("SELECT id, revn, modified_at FROM file WHERE deleted_at IS NULL ORDER BY id");
-    return makeSnapshot("penpot", "file revisions", files.rows, { files: files.rowCount ?? 0 });
+    // The summary names each file's revn and modified_at (ids and counters only, no content), so a failed "unchanged" check says
+    // which column moved. The digest is still over the rows.
+    const revisions = files.rows.map((r) => ({ id: String(r.id), revn: Number(r.revn), modified_at: String(r.modified_at) }));
+    return makeSnapshot("penpot", "file revisions", files.rows, { files: files.rowCount ?? 0, revisions });
   }
 
   async close(): Promise<void> {
