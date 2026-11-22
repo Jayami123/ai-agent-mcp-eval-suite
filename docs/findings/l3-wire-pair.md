@@ -65,3 +65,13 @@ Options for the owner:
 - The per-check verdict text, and the memory samples (both in the evidence artifact, not read).
 - The `l3 penpot plugin` result on this head (still running at writing).
 - Whether `docker logs --since` returns every record on a slower runner (it did on this run).
+
+## Dependency: the Penpot unskip branch (owner decision, option 1)
+
+The owner chose to keep the v0.6.13 pin and to leave `tests/l3/penpot/` to its own branch. Until that branch lands, the two
+Penpot jobs in this PR's CI are red for the reason above.
+
+- Dependency branch: `feat/2026-11-22-l3-penpot-unskip`. It removes the `expectedDefect` annotation in
+  `tests/l3/penpot/probe.cases.ts` and unskips the Penpot cases.
+- This PR stays a draft until that branch is merged.
+- After it merges, this branch merges `origin/main` with a merge commit (no rebase), CI re-runs, and the run id is recorded here.
